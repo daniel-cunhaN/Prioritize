@@ -8,6 +8,10 @@ ENV/
 *.db
 *.sqlite3
 *.sqlite
+.agents/
+/.agents
+
+
 
 # Expo / React Native / Node
 frontend/node_modules/
