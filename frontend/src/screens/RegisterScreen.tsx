@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, Platform } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet, Alert, Platform, Image } from 'react-native';
 import client from '../api/client';
 import * as SecureStore from 'expo-secure-store';
 
@@ -41,6 +41,13 @@ export default function RegisterScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
+      <View style={styles.brandContainer}>
+        <Image 
+          source={require('../../assets/iconeapp.png')} 
+          style={styles.logo} 
+        />
+        <Text style={styles.brandText}>Prioritize</Text>
+      </View>
       <Text style={styles.title}>Criar Conta</Text>
       <TextInput
         style={styles.input}
@@ -72,6 +79,23 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     justifyContent: 'center',
+  },
+  brandContainer: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    alignItems: 'center',
+  },
+  logo: {
+    width: 144,
+    height: 144,
+    resizeMode: 'contain',
+  },
+  brandText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 4,
   },
   title: {
     fontSize: 24,
