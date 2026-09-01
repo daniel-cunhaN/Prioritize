@@ -25,7 +25,9 @@ export default function LoginScreen({ navigation }: any) {
       } else {
         Alert.alert('Sucesso', 'Login realizado com sucesso!');
       }
-      // Navigate to main app (Feed/Wishlist) - To be implemented
+
+      // Redireciona para o Menu Principal
+      navigation.replace('Home');
     } catch (error: any) {
       console.error(error);
       const message = error.response?.data?.detail?.message || error.response?.data?.detail || 'Erro ao realizar login.';
