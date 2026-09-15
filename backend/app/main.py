@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import auth
+from app.api.routes import auth, wishlist
 from app.db.database import engine, Base
 import app.db.models
 
@@ -22,7 +22,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Registra as rotas de autenticação e lista de desejos
 app.include_router(auth.router)
+app.include_router(wishlist.router)
 
 @app.get("/")
 def read_root():
