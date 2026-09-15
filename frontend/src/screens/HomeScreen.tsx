@@ -1,13 +1,14 @@
 /**
- * HomeScreen.tsx — Main wishlist screen (Menu Principal)
+ * HomeScreen.tsx — Tela Principal da Lista de Desejos (Menu Principal)
  *
- * Themed with Claude Amber palette. Features a branded header,
- * an empty state illustration when no wishes exist, and a
- * prominent "registrar desejo" action button. Inspired by the
- * Uizard Smart POS template's clean, card-based layout.
+ * Exibe o resumo das prioridades, a listagem dos desejos cadastrados
+ * ou estado vazio amigável caso não haja itens, e integra o modal
+ * de adicionar novo desejo com classificação de importância.
+ *
+ * Cores e design integrados à paleta Claude Amber.
  */
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,17 +16,128 @@ import {
   SafeAreaView,
   TouchableOpacity,
   ScrollView,
+  Image,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Linking,
 } from 'react-native';
 import { useTheme, spacing, radius, shadows, typography } from '../theme';
+import client from '../api/client';
+import AdicionarDesejoModal, { DesejoItem } from '../components/AdicionarDesejoModal';
 
 export default function HomeScreen({ navigation }: any) {
   const theme = useTheme();
 
-  const handleRegisterWish = () => {
-    console.log('Registrar desejo clicado');
+  // ─── Estados da Tela Principal ──────────────────────────────────────────────
+  const [modalVisivel, setModalVisivel] = useState(false);
+  const [desejos, setDesejos] = useState<DesejoItem[]>([]);
+  const [carregando, setCarregando] = useState(false);
+
+  // ─── Carregamento Inicial dos Desejos do Usuário ───────────────────────────
+  const carregarDesejos = useCallback(async () => {
+    setCarregando(true);
+    try {
+      const resposta = await client.get('/wishlist/');
+      setDesejos(resposta.data || []);
+    } catch (erro) {
+      console.warn('Falha ao carregar lista de desejos:', erro);
+    } finally {
+      setCarregando(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    carregarDesejos();
+  }, [carregarDesejos]);
+
+  // Abre o modal de adicionar desejo
+  const handleAbrirModal = () => {
+    setModalVisivel(true);
   };
 
-  /* ── Dynamic styles based on theme ── */
+  // Callback acionado quando um novo desejo é criado no modal
+  const handleDesejoCriado = (novoDesejo: DesejoItem) => {
+    setDesejos((prev) => [novoDesejo, ...prev]);
+  };
+
+  // ─── Exclusão de um Desejo da Lista ─────────────────────────────────────────
+  const handleExcluirDesejo = async (id: string) => {
+    const confirmarExclusao = async () => {
+      try {
+        await client.delete(`/wishlist/${id}`);
+        setDesejos((prev) => prev.filter((item) => item.id !== id));
+      } catch (erro) {
+        console.error('Erro ao excluir desejo:', erro);
+        Alert.alert('Erro', 'Não foi possível excluir o item.');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Tem certeza que deseja remover este item da sua lista?')) {
+        await confirmarExclusao();
+      }
+    } else {
+      Alert.alert(
+        'Excluir Desejo',
+        'Tem certeza que deseja remover este item da sua lista?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Excluir', style: 'destructive', onPress: confirmarExclusao },
+        ]
+      );
+    }
+  };
+
+  // Abre o link do produto no navegador
+  const handleAbrirLink = async (url: string) => {
+    try {
+      const linkSuportado = await Linking.canOpenURL(url);
+      if (linkSuportado) {
+        await Linking.openURL(url);
+      }
+    } catch (erro) {
+      console.warn('Não foi possível abrir o link:', erro);
+    }
+  };
+
+  // ─── Cálculo das Métricas dos Cards do Topo ─────────────────────────────────
+  const totalItens = desejos.length;
+  const altaPrioridadeItens = desejos.filter((d) => d.priority === 3).length;
+  const mediaPrioridadeItens = desejos.filter((d) => d.priority === 2).length;
+
+  // ─── Helper de Badge de Prioridade ──────────────────────────────────────────
+  const obterBadgePrioridade = (prioridade: number) => {
+    switch (prioridade) {
+      case 3:
+        return {
+          texto: 'Alta',
+          icone: '🔥',
+          corFundo: `${theme.primary}20`,
+          corBorda: theme.primary,
+          corTexto: theme.primary,
+        };
+      case 2:
+        return {
+          texto: 'Média',
+          icone: '⭐',
+          corFundo: `${theme.chart1}20`,
+          corBorda: theme.chart1,
+          corTexto: theme.chart1,
+        };
+      case 1:
+      default:
+        return {
+          texto: 'Baixa',
+          icone: '🌱',
+          corFundo: `${theme.chart2}20`,
+          corBorda: theme.chart2,
+          corTexto: theme.chart2,
+        };
+    }
+  };
+
+  /* ── Estilos Dinâmicos do Tema Claude Amber ── */
   const dynamicStyles = {
     safeArea: {
       backgroundColor: theme.background,
@@ -72,11 +184,21 @@ export default function HomeScreen({ navigation }: any) {
     statsLabel: {
       color: theme.mutedForeground,
     },
+    desejoCard: {
+      backgroundColor: theme.card,
+      borderColor: theme.border,
+    },
+    desejoTitulo: {
+      color: theme.foreground,
+    },
+    desejoUrl: {
+      color: theme.mutedForeground,
+    },
   };
 
   return (
     <SafeAreaView style={[styles.safeArea, dynamicStyles.safeArea]}>
-      {/* ── Header Bar ── */}
+      {/* ── Barra de Cabeçalho Superior ── */}
       <View style={[styles.headerBar, dynamicStyles.headerBar, shadows.sm]}>
         <View style={styles.headerContent}>
           <View>
@@ -90,7 +212,7 @@ export default function HomeScreen({ navigation }: any) {
               Organize e priorize o que importa
             </Text>
           </View>
-          {/* Avatar / settings placeholder */}
+          {/* Avatar do Usuário */}
           <View
             style={[styles.avatarCircle, { backgroundColor: theme.secondary }]}
             accessibilityLabel="Perfil do usuário"
@@ -107,60 +229,172 @@ export default function HomeScreen({ navigation }: any) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Quick Stats ── */}
+        {/* ── Cards de Estatísticas Rápidas ── */}
         <View style={styles.statsRow}>
           <View style={[styles.statsCard, dynamicStyles.statsCard, shadows.sm]}>
-            <Text style={[styles.statsValue, dynamicStyles.statsValue]}>0</Text>
+            <Text style={[styles.statsValue, dynamicStyles.statsValue]}>
+              {totalItens}
+            </Text>
             <Text style={[styles.statsLabel, dynamicStyles.statsLabel]}>Total</Text>
           </View>
           <View style={[styles.statsCard, dynamicStyles.statsCard, shadows.sm]}>
-            <Text style={[styles.statsValue, dynamicStyles.statsValue]}>0</Text>
-            <Text style={[styles.statsLabel, dynamicStyles.statsLabel]}>Alta prioridade</Text>
+            <Text style={[styles.statsValue, dynamicStyles.statsValue]}>
+              {altaPrioridadeItens}
+            </Text>
+            <Text style={[styles.statsLabel, dynamicStyles.statsLabel]}>
+              Alta prioridade
+            </Text>
           </View>
           <View style={[styles.statsCard, dynamicStyles.statsCard, shadows.sm]}>
-            <Text style={[styles.statsValue, dynamicStyles.statsValue]}>0</Text>
-            <Text style={[styles.statsLabel, dynamicStyles.statsLabel]}>Recentes</Text>
+            <Text style={[styles.statsValue, dynamicStyles.statsValue]}>
+              {mediaPrioridadeItens}
+            </Text>
+            <Text style={[styles.statsLabel, dynamicStyles.statsLabel]}>
+              Média prioridade
+            </Text>
           </View>
         </View>
 
-        {/* ── Empty State ── */}
-        <View style={[styles.emptyCard, dynamicStyles.emptyCard, shadows.md]}>
-          {/* Icon placeholder — star/wish icon using text */}
-          <View style={[styles.emptyIconCircle, dynamicStyles.emptyIconCircle]}>
-            <Text style={[styles.emptyIconText, dynamicStyles.emptyIconText]}>
-              ★
+        {/* ── Indicador de Carregamento ── */}
+        {carregando && (
+          <View style={styles.containerCarregando}>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={[styles.textoCarregando, { color: theme.mutedForeground }]}>
+              Carregando desejos...
             </Text>
           </View>
-          <Text
-            style={[styles.emptyTitle, dynamicStyles.emptyTitle]}
-            accessibilityRole="header"
-          >
-            Nenhum desejo cadastrado
-          </Text>
-          <Text style={[styles.emptyDescription, dynamicStyles.emptyDescription]}>
-            Comece adicionando seu primeiro desejo.{'\n'}
-            Toque no botão abaixo para registrar.
-          </Text>
+        )}
 
-          {/* Inline CTA for empty state */}
-          <TouchableOpacity
-            style={[styles.inlineButton, { backgroundColor: theme.secondary }]}
-            onPress={handleRegisterWish}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Adicionar primeiro desejo"
-          >
-            <Text style={[styles.inlineButtonText, { color: theme.primary }]}>
-              + Adicionar desejo
+        {/* ── Estado Vazio (Quando Não Há Desejos Cadastrados) ── */}
+        {!carregando && desejos.length === 0 && (
+          <View style={[styles.emptyCard, dynamicStyles.emptyCard, shadows.md]}>
+            <View style={[styles.emptyIconCircle, dynamicStyles.emptyIconCircle]}>
+              <Text style={[styles.emptyIconText, dynamicStyles.emptyIconText]}>
+                ★
+              </Text>
+            </View>
+            <Text
+              style={[styles.emptyTitle, dynamicStyles.emptyTitle]}
+              accessibilityRole="header"
+            >
+              Nenhum desejo cadastrado
             </Text>
-          </TouchableOpacity>
-        </View>
+            <Text style={[styles.emptyDescription, dynamicStyles.emptyDescription]}>
+              Comece adicionando seu primeiro desejo.{'\n'}
+              Cole um link e classifique a importância.
+            </Text>
+
+            {/* Botão de Ação do Estado Vazio */}
+            <TouchableOpacity
+              style={[styles.inlineButton, { backgroundColor: theme.secondary }]}
+              onPress={handleAbrirModal}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Adicionar primeiro desejo"
+            >
+              <Text style={[styles.inlineButtonText, { color: theme.primary }]}>
+                + Adicionar desejo
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ── Listagem dos Cards de Desejos Persistidos ── */}
+        {!carregando && desejos.length > 0 && (
+          <View style={styles.listaDesejos}>
+            <Text style={[styles.secaoTitulo, { color: theme.foreground }]}>
+              Produtos Salvos ({desejos.length})
+            </Text>
+
+            {desejos.map((item) => {
+              const badge = obterBadgePrioridade(item.priority);
+              return (
+                <View
+                  key={item.id}
+                  style={[styles.desejoCard, dynamicStyles.desejoCard, shadows.sm]}
+                >
+                  {/* Imagem do Produto ou Placeholder */}
+                  <View style={[styles.desejoImagemContainer, { backgroundColor: theme.muted }]}>
+                    {item.image_url ? (
+                      <Image
+                        source={{ uri: item.image_url }}
+                        style={styles.desejoImagem}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Text style={styles.desejoImagemPlaceholder}>🛍️</Text>
+                    )}
+                  </View>
+
+                  {/* Informações Textuais do Produto */}
+                  <View style={styles.desejoInfo}>
+                    <View style={styles.desejoLinhaSuperior}>
+                      {/* Badge de Prioridade: Baixa, Média, Alta */}
+                      <View
+                        style={[
+                          styles.badgePrioridade,
+                          {
+                            backgroundColor: badge.corFundo,
+                            borderColor: badge.corBorda,
+                          },
+                        ]}
+                      >
+                        <Text style={styles.badgeIcone}>{badge.icone}</Text>
+                        <Text
+                          style={[
+                            styles.badgeTexto,
+                            { color: badge.corTexto },
+                          ]}
+                        >
+                          {badge.texto}
+                        </Text>
+                      </View>
+
+                      {/* Botão de Exclusão */}
+                      <TouchableOpacity
+                        onPress={() => handleExcluirDesejo(item.id)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        accessibilityLabel="Excluir este desejo"
+                      >
+                        <Text style={[styles.botaoExcluirTexto, { color: theme.mutedForeground }]}>
+                          🗑️
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Título do Produto */}
+                    <Text
+                      style={[styles.desejoTitulo, dynamicStyles.desejoTitulo]}
+                      numberOfLines={2}
+                    >
+                      {item.title}
+                    </Text>
+
+                    {/* Link para Abrir o Produto */}
+                    <TouchableOpacity
+                      onPress={() => handleAbrirLink(item.url)}
+                      style={styles.desejoLinkContainer}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[styles.desejoUrl, dynamicStyles.desejoUrl]}
+                        numberOfLines={1}
+                      >
+                        🔗 {item.url}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
 
-      {/* ── Floating Action Button ── */}
+      {/* ── Botão Flutuante (FAB) para Adicionar Novo Desejo ── */}
       <TouchableOpacity
         style={[styles.fab, dynamicStyles.fab, shadows.lg]}
-        onPress={handleRegisterWish}
+        onPress={handleAbrirModal}
         activeOpacity={0.85}
         accessibilityRole="button"
         accessibilityLabel="Registrar novo desejo"
@@ -171,11 +405,18 @@ export default function HomeScreen({ navigation }: any) {
           Novo Desejo
         </Text>
       </TouchableOpacity>
+
+      {/* ── Componente do Modal de Adicionar Desejo ── */}
+      <AdicionarDesejoModal
+        visivel={modalVisivel}
+        aoFechar={() => setModalVisivel(false)}
+        aoSalvarSucesso={handleDesejoCriado}
+      />
     </SafeAreaView>
   );
 }
 
-/* ── Static Styles ── */
+/* ── Estilos Estáticos ── */
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -223,7 +464,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: spacing['2xl'],
-    paddingBottom: 120, // space for FAB
+    paddingBottom: 120, // Espaço para não cobrir pelo FAB
   },
 
   /* Stats */
@@ -252,7 +493,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  /* Empty State */
+  /* Estado de Carregamento */
+  containerCarregando: {
+    paddingVertical: spacing['4xl'],
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  textoCarregando: {
+    fontSize: typography.sizes.sm,
+    fontFamily: typography.fonts.sans,
+  },
+
+  /* Estado Vazio */
   emptyCard: {
     borderRadius: radius.xl,
     borderWidth: 1,
@@ -295,7 +547,86 @@ const styles = StyleSheet.create({
     fontFamily: typography.fonts.sans,
   },
 
-  /* FAB */
+  /* Lista de Desejos */
+  listaDesejos: {
+    gap: spacing.md,
+  },
+  secaoTitulo: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
+    fontFamily: typography.fonts.sans,
+    marginBottom: spacing.xs,
+  },
+  desejoCard: {
+    flexDirection: 'row',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.md,
+    gap: spacing.md,
+    alignItems: 'center',
+  },
+  desejoImagemContainer: {
+    width: 74,
+    height: 74,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  desejoImagem: {
+    width: '100%',
+    height: '100%',
+  },
+  desejoImagemPlaceholder: {
+    fontSize: 28,
+  },
+  desejoInfo: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: spacing.xxs,
+  },
+  desejoLinhaSuperior: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xxs,
+  },
+  badgePrioridade: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    gap: 4,
+  },
+  badgeIcone: {
+    fontSize: 10,
+  },
+  badgeTexto: {
+    fontSize: 11,
+    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.sans,
+  },
+  botaoExcluirTexto: {
+    fontSize: 14,
+    padding: 2,
+  },
+  desejoTitulo: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.semibold,
+    fontFamily: typography.fonts.sans,
+  },
+  desejoLinkContainer: {
+    marginTop: 2,
+  },
+  desejoUrl: {
+    fontSize: typography.sizes.xs,
+    fontFamily: typography.fonts.sans,
+    textDecorationLine: 'underline',
+  },
+
+  /* Botão Flutuante (FAB) */
   fab: {
     position: 'absolute',
     bottom: spacing['3xl'],
