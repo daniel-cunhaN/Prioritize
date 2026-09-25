@@ -1,358 +1,93 @@
-/**
- * RegisterScreen.tsx — Account creation screen
- *
- * Themed with Claude Amber palette, visually consistent with
- * LoginScreen. Card-based form layout with styled inputs,
- * focus states, and accessible action buttons.
- */
-
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  Alert,
-  Platform,
-  Image,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  ScrollView,
-  ActivityIndicator,
+  View, Text, StyleSheet, Pressable, Alert, KeyboardAvoidingView,
+  Platform, ActivityIndicator, ScrollView,
 } from 'react-native';
-import client from '../api/client';
-import * as SecureStore from 'expo-secure-store';
-import { useTheme, spacing, radius, shadows, typography } from '../theme';
-
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import { useTheme, typography } from '../theme';
+import Input from '../components/Input';
+import { register } from '../api';
 export default function RegisterScreen({ navigation }: any) {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [emailFocused, setEmailFocused] = useState(false);
-  const [passwordFocused, setPasswordFocused] = useState(false);
-
-  const theme = useTheme();
-
+  const [emailError, setEmailError] = useState<string | undefined>();
+  const [passwordError, setPasswordError] = useState<string | undefined>();
+  const [confirmError, setConfirmError] = useState<string | undefined>();
+  const validateEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
   const handleRegister = async () => {
-    setLoading(true);
+    let hasError = false;
+    setEmailError(undefined);
+    setPasswordError(undefined);
+    setConfirmError(undefined);
+    if (!email.trim()) { setEmailError('O e-mail é obrigatório.'); hasError = true; }
+    else if (!validateEmail(email)) { setEmailError('Formato inválido.'); hasError = true; }
+    if (!password) { setPasswordError('A senha é obrigatória.'); hasError = true; }
+    else if (password.length < 6) { setPasswordError('Mínimo 6 caracteres.'); hasError = true; }
+    if (password !== confirmPassword) { setConfirmError('As senhas não coincidem.'); hasError = true; }
+    if (hasError) return;
     try {
-      const response = await client.post('/auth/register', { email, password });
-      const { access_token } = response.data;
-
-      if (Platform.OS === 'web') {
-        localStorage.setItem('access_token', access_token);
-      } else {
-        await SecureStore.setItemAsync('access_token', access_token);
-      }
-
-      if (Platform.OS === 'web') {
-        window.alert('Conta criada com sucesso!');
-      } else {
-        Alert.alert('Sucesso', 'Conta criada com sucesso!');
-      }
-      // Redireciona para a Home
-      navigation.replace('Home');
+      setLoading(true);
+      await register(email, password);
+      
+      // FIX 1: Feedback Visual e Redirecionamento Correto
+      Alert.alert('Conta Criada!', 'A sua conta foi registada com sucesso.', [
+        { text: 'Aceder (Login)', onPress: () => navigation.navigate('Login') },
+      ]);
+      
     } catch (error: any) {
-      console.error(error);
-      const rawDetail = error.response?.data?.detail;
-      let message = 'Erro ao criar conta.';
-
-      if (rawDetail?.message) {
-        message = rawDetail.message;
-      } else if (typeof rawDetail === 'string') {
-        message = rawDetail;
-      } else if (Array.isArray(rawDetail) && rawDetail.length > 0) {
-        message = rawDetail[0]?.msg || 'Dados inválidos.';
-      } else if (error.message === 'Network Error' || !error.response) {
-        message = 'Não foi possível conectar ao servidor backend (porta 8000). Verifique se o backend está rodando.';
-      }
-      if (Platform.OS === 'web') {
-        window.alert(message);
-      } else {
-        Alert.alert('Erro', message);
-      }
+      console.warn('Erro ao registar:', error?.response?.data || error.message);
+      const detail = error?.response?.data?.detail;
+      const errorMsg = typeof detail === 'string' ? detail : detail?.message ? detail.message : Array.isArray(detail) ? detail[0]?.msg : 'E-mail em uso ou erro no servidor.';
+      Alert.alert('Erro ao Criar Conta', errorMsg);
     } finally {
       setLoading(false);
     }
   };
-
-  /* ── Dynamic styles based on theme ── */
-  const dynamicStyles = {
-    container: {
-      backgroundColor: theme.background,
-    },
-    card: {
-      backgroundColor: theme.card,
-      borderColor: theme.border,
-    },
-    brandText: {
-      color: theme.foreground,
-    },
-    subtitle: {
-      color: theme.mutedForeground,
-    },
-    title: {
-      color: theme.foreground,
-    },
-    input: (focused: boolean) => ({
-      backgroundColor: theme.background,
-      borderColor: focused ? theme.ring : theme.border,
-      color: theme.foreground,
-    }),
-    placeholderColor: theme.mutedForeground,
-    primaryButton: {
-      backgroundColor: theme.primary,
-    },
-    primaryButtonText: {
-      color: theme.primaryForeground,
-    },
-    linkText: {
-      color: theme.mutedForeground,
-    },
-    linkHighlight: {
-      color: theme.primary,
-    },
-    divider: {
-      backgroundColor: theme.border,
-    },
-  };
-
   return (
-    <KeyboardAvoidingView
-      style={[styles.root, dynamicStyles.container]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ── Brand / Logo ── */}
-        <View style={styles.brandContainer}>
-          <Image
-            source={require('../../assets/iconeapp.png')}
-            style={styles.logo}
-            accessibilityLabel="Prioritize logo"
-          />
-          <Text
-            style={[styles.brandText, dynamicStyles.brandText]}
-            accessibilityRole="header"
-          >
-            Prioritize
-          </Text>
-          <Text style={[styles.subtitle, dynamicStyles.subtitle]}>
-            Crie sua conta e comece a priorizar
-          </Text>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Feather name="arrow-left" size={18} color={theme.primary} style={{ marginRight: 6 }} />
+          <Text style={[styles.backText, { color: theme.primary }]}>Voltar</Text>
+        </Pressable>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: theme.foreground }]}>Criar Conta</Text>
+          <Text style={[styles.subtitle, { color: theme.mutedForeground }]}>Comece a organizar e a priorizar os seus desejos de compra.</Text>
         </View>
-
-        {/* ── Form Card ── */}
-        <View style={[styles.formCard, dynamicStyles.card, shadows.md]}>
-          <Text
-            style={[styles.title, dynamicStyles.title]}
-            accessibilityRole="header"
-          >
-            Criar Conta
-          </Text>
-
-          {/* Email Input */}
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: theme.foreground }]}>
-              E-mail
-            </Text>
-            <TextInput
-              style={[styles.input, dynamicStyles.input(emailFocused)]}
-              placeholder="seu@email.com"
-              placeholderTextColor={dynamicStyles.placeholderColor}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-              textContentType="emailAddress"
-              onFocus={() => setEmailFocused(true)}
-              onBlur={() => setEmailFocused(false)}
-              accessibilityLabel="Campo de e-mail"
-              accessibilityHint="Digite seu endereço de e-mail para cadastro"
-            />
-          </View>
-
-          {/* Password Input */}
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: theme.foreground }]}>
-              Senha
-            </Text>
-            <TextInput
-              style={[styles.input, dynamicStyles.input(passwordFocused)]}
-              placeholder="••••••••"
-              placeholderTextColor={dynamicStyles.placeholderColor}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoComplete="new-password"
-              textContentType="newPassword"
-              onFocus={() => setPasswordFocused(true)}
-              onBlur={() => setPasswordFocused(false)}
-              accessibilityLabel="Campo de senha"
-              accessibilityHint="Crie uma senha segura"
-            />
-          </View>
-
-          {/* Primary Action — Register Button */}
-          <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              dynamicStyles.primaryButton,
-              loading && styles.buttonDisabled,
-            ]}
-            onPress={handleRegister}
-            disabled={loading}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel={loading ? 'Cadastrando' : 'Cadastrar'}
-            accessibilityState={{ disabled: loading, busy: loading }}
-          >
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Input label="E-mail" placeholder="seu@email.com" value={email} onChangeText={(val) => { setEmail(val); if (emailError) setEmailError(undefined); }} keyboardType="email-address" autoCapitalize="none" icon="mail" error={emailError} />
+          <Input label="Senha (mínimo 6 caracteres)" placeholder="••••••••" value={password} onChangeText={(val) => { setPassword(val); if (passwordError) setPasswordError(undefined); }} secureTextEntry icon="lock" error={passwordError} />
+          <Input label="Confirmar Senha" placeholder="••••••••" value={confirmPassword} onChangeText={(val) => { setConfirmPassword(val); if (confirmError) setConfirmError(undefined); }} secureTextEntry icon="check-circle" error={confirmError} />
+          <Pressable style={({ pressed }) => [styles.btn, { backgroundColor: theme.primary, shadowColor: theme.shadow, opacity: pressed || loading ? 0.82 : 1 }]} onPress={handleRegister} disabled={loading}>
             {loading ? (
-              <ActivityIndicator color={theme.primaryForeground} size="small" />
+              <View style={styles.btnContent}>
+                <ActivityIndicator color={theme.primaryForeground} size="small" />
+                <Text style={[styles.btnText, { color: theme.primaryForeground }]}>A Registar...</Text>
+              </View>
             ) : (
-              <Text style={[styles.primaryButtonText, dynamicStyles.primaryButtonText]}>
-                Cadastrar
-              </Text>
+              <Text style={[styles.btnText, { color: theme.primaryForeground }]}>Registar Conta</Text>
             )}
-          </TouchableOpacity>
-        </View>
-
-        {/* ── Footer — Login Link ── */}
-        <View style={styles.footerContainer}>
-          <View style={[styles.divider, dynamicStyles.divider]} />
-          <View style={styles.loginRow}>
-            <Text style={[styles.footerText, dynamicStyles.linkText]}>
-              Já tem uma conta?
-            </Text>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              accessibilityRole="button"
-              accessibilityLabel="Voltar para login"
-            >
-              <Text style={[styles.linkText, dynamicStyles.linkHighlight]}>
-                Faça Login
-              </Text>
-            </TouchableOpacity>
-          </View>
+          </Pressable>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
-
-/* ── Static Styles ── */
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing['2xl'],
-    paddingVertical: spacing['3xl'],
-  },
-
-  /* Brand */
-  brandContainer: {
-    alignItems: 'center',
-    marginBottom: spacing['3xl'],
-  },
-  logo: {
-    width: 96,
-    height: 96,
-    resizeMode: 'contain',
-    marginBottom: spacing.sm,
-  },
-  brandText: {
-    fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.bold,
-    fontFamily: typography.fonts.sans,
-    letterSpacing: typography.letterSpacing.tight,
-  },
-  subtitle: {
-    fontSize: typography.sizes.sm,
-    fontFamily: typography.fonts.sans,
-    marginTop: spacing.xs,
-  },
-
-  /* Form Card */
-  formCard: {
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    paddingHorizontal: spacing['2xl'],
-    paddingVertical: spacing['3xl'],
-  },
-  title: {
-    fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.semibold,
-    fontFamily: typography.fonts.sans,
-    marginBottom: spacing['2xl'],
-    textAlign: 'center',
-  },
-
-  /* Inputs */
-  inputGroup: {
-    marginBottom: spacing.lg,
-  },
-  label: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.medium,
-    fontFamily: typography.fonts.sans,
-    marginBottom: spacing.sm,
-  },
-  input: {
-    height: 52,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.lg,
-    fontSize: typography.sizes.base,
-    fontFamily: typography.fonts.sans,
-  },
-
-  /* Buttons */
-  primaryButton: {
-    height: 52,
-    borderRadius: radius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: spacing.sm,
-  },
-  primaryButtonText: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.semibold,
-    fontFamily: typography.fonts.sans,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-
-  /* Footer */
-  footerContainer: {
-    marginTop: spacing['3xl'],
-    alignItems: 'center',
-  },
-  divider: {
-    height: 1,
-    width: '100%',
-    marginBottom: spacing.xl,
-  },
-  loginRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  footerText: {
-    fontSize: typography.sizes.sm,
-    fontFamily: typography.fonts.sans,
-  },
-  linkText: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
-    fontFamily: typography.fonts.sans,
-  },
+  container: { flex: 1 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: typography.spacing.lg, paddingVertical: typography.spacing.lg, justifyContent: 'center' },
+  backBtn: { flexDirection: 'row', alignItems: 'center', marginBottom: typography.spacing.md, alignSelf: 'flex-start', paddingVertical: typography.spacing.xs },
+  backText: { fontFamily: typography.fonts.sans, fontWeight: typography.weights.bold, fontSize: typography.sizes.sm },
+  header: { marginBottom: typography.spacing.xl },
+  title: { fontFamily: typography.fonts.sans, fontWeight: typography.weights.bold, fontSize: typography.sizes.xxl, marginBottom: typography.spacing.xs },
+  subtitle: { fontFamily: typography.fonts.sans, fontSize: typography.sizes.sm, lineHeight: 20 },
+  card: { padding: typography.spacing.lg, borderRadius: typography.radii.lg, borderWidth: 1.2, marginBottom: typography.spacing.lg },
+  btn: { height: 54, borderRadius: typography.radii.md, justifyContent: 'center', alignItems: 'center', marginTop: typography.spacing.sm, elevation: 3, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8 },
+  btnContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  btnText: { fontFamily: typography.fonts.sans, fontWeight: typography.weights.bold, fontSize: typography.sizes.md },
 });

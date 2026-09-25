@@ -1,362 +1,241 @@
-/**
- * LoginScreen.tsx — Authentication screen
- *
- * Themed with Claude Amber palette. Features a centered card-based
- * form layout, branded header with app logo, styled inputs with
- * focus states, and accessible primary/secondary action buttons.
- *
- * Layout inspired by the Uizard Smart POS template:
- * clean, centered form with prominent CTA and clear hierarchy.
- */
-
 import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
+  Pressable,
   Alert,
-  Platform,
-  Image,
-  TouchableOpacity,
   KeyboardAvoidingView,
-  ScrollView,
+  Platform,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
-import client from '../api/client';
-import * as SecureStore from 'expo-secure-store';
-import { useTheme, spacing, radius, shadows, typography } from '../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import { useTheme, typography } from '../theme';
+import Input from '../components/Input';
+import { login } from '../api';
 
 export default function LoginScreen({ navigation }: any) {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [emailFocused, setEmailFocused] = useState(false);
-  const [passwordFocused, setPasswordFocused] = useState(false);
+  const [emailError, setEmailError] = useState<string | undefined>();
+  const [passwordError, setPasswordError] = useState<string | undefined>();
 
-  const theme = useTheme();
+  const validateEmail = (val: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
+  };
 
   const handleLogin = async () => {
-    setLoading(true);
+    let hasError = false;
+    setEmailError(undefined);
+    setPasswordError(undefined);
+
+    if (!email.trim()) {
+      setEmailError('O e-mail é obrigatório.');
+      hasError = true;
+    } else if (!validateEmail(email)) {
+      setEmailError('Formato de e-mail inválido.');
+      hasError = true;
+    }
+
+    if (!password) {
+      setPasswordError('A senha é obrigatória.');
+      hasError = true;
+    }
+
+    if (hasError) return;
+
     try {
-      const response = await client.post('/auth/login', { email, password });
-      const { access_token } = response.data;
-
-      if (Platform.OS === 'web') {
-        localStorage.setItem('access_token', access_token);
-      } else {
-        await SecureStore.setItemAsync('access_token', access_token);
-      }
-
-      if (Platform.OS === 'web') {
-        window.alert('Login realizado com sucesso!');
-      } else {
-        Alert.alert('Sucesso', 'Login realizado com sucesso!');
-      }
-
-      // Redireciona para o Menu Principal
+      setLoading(true);
+      await login(email, password);
       navigation.replace('Home');
     } catch (error: any) {
-      console.error(error);
-      const rawDetail = error.response?.data?.detail;
-      let message = 'Erro ao realizar login.';
-
-      if (rawDetail?.message) {
-        message = rawDetail.message;
-      } else if (typeof rawDetail === 'string') {
-        message = rawDetail;
-      } else if (Array.isArray(rawDetail) && rawDetail.length > 0) {
-        message = rawDetail[0]?.msg || 'Dados inválidos.';
-      } else if (error.message === 'Network Error' || !error.response) {
-        message = 'Não foi possível conectar ao servidor backend (porta 8000). Verifique se o backend está rodando.';
-      }
-      if (Platform.OS === 'web') {
-        window.alert(message);
-      } else {
-        Alert.alert('Erro', message);
-      }
+      console.warn('Erro ao realizar login:', error?.response?.data || error.message);
+      const detail = error?.response?.data?.detail;
+      const errorMsg =
+        typeof detail === 'string'
+          ? detail
+          : detail?.message
+          ? detail.message
+          : Array.isArray(detail)
+          ? detail[0]?.msg
+          : 'Credenciais inválidas ou erro no servidor.';
+      Alert.alert('Erro ao Entrar', errorMsg);
     } finally {
       setLoading(false);
     }
   };
 
-  /* ── Dynamic styles based on theme ── */
-  const dynamicStyles = {
-    container: {
-      backgroundColor: theme.background,
-    },
-    card: {
-      backgroundColor: theme.card,
-      borderColor: theme.border,
-    },
-    brandText: {
-      color: theme.foreground,
-    },
-    subtitle: {
-      color: theme.mutedForeground,
-    },
-    title: {
-      color: theme.foreground,
-    },
-    input: (focused: boolean) => ({
-      backgroundColor: theme.background,
-      borderColor: focused ? theme.ring : theme.border,
-      color: theme.foreground,
-    }),
-    placeholderColor: theme.mutedForeground,
-    primaryButton: {
-      backgroundColor: theme.primary,
-    },
-    primaryButtonText: {
-      color: theme.primaryForeground,
-    },
-    linkText: {
-      color: theme.mutedForeground,
-    },
-    linkHighlight: {
-      color: theme.primary,
-    },
-    divider: {
-      backgroundColor: theme.border,
-    },
-  };
-
   return (
     <KeyboardAvoidingView
-      style={[styles.root, dynamicStyles.container]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* ── Brand / Logo ── */}
-        <View style={styles.brandContainer}>
-          <Image
-            source={require('../../assets/iconeapp.png')}
-            style={styles.logo}
-            accessibilityLabel="Prioritize logo"
-          />
-          <Text
-            style={[styles.brandText, dynamicStyles.brandText]}
-            accessibilityRole="header"
-          >
-            Prioritize
-          </Text>
-          <Text style={[styles.subtitle, dynamicStyles.subtitle]}>
-            Organize seus desejos com prioridade
+        <View style={styles.brandBadge}>
+          <Feather name="layers" size={16} color={theme.primary} style={{ marginRight: 6 }} />
+          <Text style={[styles.brandBadgeText, { color: theme.primary }]}>PRIORITIZE</Text>
+        </View>
+
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: theme.foreground }]}>A sua Wishlist</Text>
+          <Text style={[styles.subtitle, { color: theme.mutedForeground }]}>
+            Organize os seus desejos de compra com sofisticação e prioridade.
           </Text>
         </View>
 
-        {/* ── Form Card ── */}
-        <View style={[styles.formCard, dynamicStyles.card, shadows.md]}>
-          <Text
-            style={[styles.title, dynamicStyles.title]}
-            accessibilityRole="header"
-          >
-            Entrar
-          </Text>
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Input
+            label="E-mail"
+            placeholder="seu@email.com"
+            value={email}
+            onChangeText={(val) => {
+              setEmail(val);
+              if (emailError) setEmailError(undefined);
+            }}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            icon="mail"
+            error={emailError}
+          />
 
-          {/* Email Input */}
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: theme.foreground }]}>
-              E-mail
-            </Text>
-            <TextInput
-              style={[styles.input, dynamicStyles.input(emailFocused)]}
-              placeholder="seu@email.com"
-              placeholderTextColor={dynamicStyles.placeholderColor}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-              textContentType="emailAddress"
-              onFocus={() => setEmailFocused(true)}
-              onBlur={() => setEmailFocused(false)}
-              accessibilityLabel="Campo de e-mail"
-              accessibilityHint="Digite seu endereço de e-mail"
-            />
-          </View>
+          <Input
+            label="Senha"
+            placeholder="••••••••"
+            value={password}
+            onChangeText={(val) => {
+              setPassword(val);
+              if (passwordError) setPasswordError(undefined);
+            }}
+            secureTextEntry
+            icon="lock"
+            error={passwordError}
+          />
 
-          {/* Password Input */}
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: theme.foreground }]}>
-              Senha
-            </Text>
-            <TextInput
-              style={[styles.input, dynamicStyles.input(passwordFocused)]}
-              placeholder="••••••••"
-              placeholderTextColor={dynamicStyles.placeholderColor}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoComplete="password"
-              textContentType="password"
-              onFocus={() => setPasswordFocused(true)}
-              onBlur={() => setPasswordFocused(false)}
-              accessibilityLabel="Campo de senha"
-              accessibilityHint="Digite sua senha"
-            />
-          </View>
-
-          {/* Primary Action — Login Button */}
-          <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              dynamicStyles.primaryButton,
-              loading && styles.buttonDisabled,
+          <Pressable
+            style={({ pressed }) => [
+              styles.btn,
+              {
+                backgroundColor: theme.primary,
+                shadowColor: theme.shadow,
+                opacity: pressed || loading ? 0.82 : 1,
+              },
             ]}
             onPress={handleLogin}
             disabled={loading}
-            activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel={loading ? 'Entrando' : 'Entrar'}
-            accessibilityState={{ disabled: loading, busy: loading }}
+            accessibilityLabel="Entrar"
           >
             {loading ? (
-              <ActivityIndicator color={theme.primaryForeground} size="small" />
+              <View style={styles.btnContent}>
+                <ActivityIndicator color={theme.primaryForeground} size="small" />
+                <Text style={[styles.btnText, { color: theme.primaryForeground }]}>
+                  Entrando...
+                </Text>
+              </View>
             ) : (
-              <Text style={[styles.primaryButtonText, dynamicStyles.primaryButtonText]}>
+              <Text style={[styles.btnText, { color: theme.primaryForeground }]}>
                 Entrar
               </Text>
             )}
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
-        {/* ── Footer — Register Link ── */}
-        <View style={styles.footerContainer}>
-          <View style={[styles.divider, dynamicStyles.divider]} />
-          <View style={styles.registerRow}>
-            <Text style={[styles.footerText, dynamicStyles.linkText]}>
-              Não tem uma conta?
+        <Pressable
+          onPress={() => navigation.navigate('Register')}
+          style={styles.footerLink}
+          accessibilityRole="button"
+          accessibilityLabel="Criar conta"
+        >
+          <Text style={[styles.footerText, { color: theme.mutedForeground }]}>
+            Ainda não tem conta?{' '}
+            <Text style={{ color: theme.primary, fontWeight: typography.weights.bold }}>
+              Registe-se
             </Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Register')}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              accessibilityRole="button"
-              accessibilityLabel="Ir para cadastro"
-            >
-              <Text style={[styles.linkText, dynamicStyles.linkHighlight]}>
-                Cadastre-se
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+          </Text>
+        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-/* ── Static Styles ── */
 const styles = StyleSheet.create({
-  root: {
+  container: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
+    paddingHorizontal: typography.spacing.lg,
+    paddingVertical: typography.spacing.xl,
     justifyContent: 'center',
-    paddingHorizontal: spacing['2xl'],
-    paddingVertical: spacing['3xl'],
   },
-
-  /* Brand */
-  brandContainer: {
-    alignItems: 'center',
-    marginBottom: spacing['3xl'],
-  },
-  logo: {
-    width: 96,
-    height: 96,
-    resizeMode: 'contain',
-    marginBottom: spacing.sm,
-  },
-  brandText: {
-    fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.bold,
-    fontFamily: typography.fonts.sans,
-    letterSpacing: typography.letterSpacing.tight,
-  },
-  subtitle: {
-    fontSize: typography.sizes.sm,
-    fontFamily: typography.fonts.sans,
-    marginTop: spacing.xs,
-  },
-
-  /* Form Card */
-  formCard: {
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    paddingHorizontal: spacing['2xl'],
-    paddingVertical: spacing['3xl'],
-  },
-  title: {
-    fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.semibold,
-    fontFamily: typography.fonts.sans,
-    marginBottom: spacing['2xl'],
-    textAlign: 'center',
-  },
-
-  /* Inputs */
-  inputGroup: {
-    marginBottom: spacing.lg,
-  },
-  label: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.medium,
-    fontFamily: typography.fonts.sans,
-    marginBottom: spacing.sm,
-  },
-  input: {
-    height: 52,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.lg,
-    fontSize: typography.sizes.base,
-    fontFamily: typography.fonts.sans,
-  },
-
-  /* Buttons */
-  primaryButton: {
-    height: 52,
-    borderRadius: radius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: spacing.sm,
-  },
-  primaryButtonText: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.semibold,
-    fontFamily: typography.fonts.sans,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-
-  /* Footer */
-  footerContainer: {
-    marginTop: spacing['3xl'],
-    alignItems: 'center',
-  },
-  divider: {
-    height: 1,
-    width: '100%',
-    marginBottom: spacing.xl,
-  },
-  registerRow: {
+  brandBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    marginBottom: typography.spacing.xs,
+  },
+  brandBadgeText: {
+    fontFamily: typography.fonts.sans,
+    fontWeight: typography.weights.bold,
+    fontSize: typography.sizes.xs,
+    letterSpacing: 2,
+  },
+  header: {
+    marginBottom: typography.spacing.xl,
+  },
+  title: {
+    fontFamily: typography.fonts.sans,
+    fontWeight: typography.weights.bold,
+    fontSize: typography.sizes.xxl,
+    marginBottom: typography.spacing.xs,
+  },
+  subtitle: {
+    fontFamily: typography.fonts.sans,
+    fontSize: typography.sizes.sm,
+    lineHeight: 20,
+  },
+  card: {
+    padding: typography.spacing.lg,
+    borderRadius: typography.radii.lg,
+    borderWidth: 1.2,
+    marginBottom: typography.spacing.xl,
+  },
+  btn: {
+    height: 54,
+    borderRadius: typography.radii.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: typography.spacing.sm,
+    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+  },
+  btnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  btnText: {
+    fontFamily: typography.fonts.sans,
+    fontWeight: typography.weights.bold,
+    fontSize: typography.sizes.md,
+  },
+  footerLink: {
+    alignItems: 'center',
+    paddingVertical: typography.spacing.md,
   },
   footerText: {
-    fontSize: typography.sizes.sm,
     fontFamily: typography.fonts.sans,
-  },
-  linkText: {
     fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
-    fontFamily: typography.fonts.sans,
   },
 });
