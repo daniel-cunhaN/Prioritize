@@ -89,6 +89,21 @@ export const register = async (email: string, password: string): Promise<AuthRes
   if (response.data?.access_token) await setAuthToken(response.data.access_token);
   return response.data;
 };
+
+export type EmailCheckResult = {
+  email: string;
+  available: boolean;
+  message: string;
+};
+
+export const checkEmailAvailable = async (
+  email: string
+): Promise<EmailCheckResult> => {
+  const response = await api.get<EmailCheckResult>('/auth/check-email', {
+    params: { email: email.trim().toLowerCase() },
+  });
+  return response.data;
+};
 export const fetchWishlist = async (): Promise<WishlistItem[]> => {
   const response = await api.get<WishlistItem[]>('/wishlist');
   return response.data;

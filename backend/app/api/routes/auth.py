@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.db.database import get_db
@@ -8,19 +9,40 @@ from app.core.security import get_password_hash, verify_password, create_access_
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 
+
+@router.get("/check-email")
+async def check_email(
+    email: EmailStr = Query(..., description="E-mail a verificar"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Indica se um e-mail já está registado (para feedback no formulário)."""
+    normalized = str(email).strip().lower()
+    result = await db.execute(select(User).where(User.email == normalized))
+    exists = result.scalars().first() is not None
+    return {
+        "email": normalized,
+        "available": not exists,
+        "message": (
+            "Este e-mail já tem conta. Experimente entrar."
+            if exists
+            else "E-mail disponível."
+        ),
+    }
+
+
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
 async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
     # Check if user exists
-    result = await db.execute(select(User).where(User.email == user_in.email))
+    result = await db.execute(select(User).where(User.email == user_in.email.strip().lower()))
     if result.scalars().first():
         raise HTTPException(
             status_code=400,
-            detail={"code": "EMAIL_ALREADY_EXISTS", "message": "Este e-mail já está em uso."}
+            detail={"code": "EMAIL_ALREADY_EXISTS", "message": "Este e-mail já está em uso. Experimente entrar."}
         )
     
     # Create new user
     new_user = User(
-        email=user_in.email,
+        email=user_in.email.strip().lower(),
         hashed_password=get_password_hash(user_in.password)
     )
     db.add(new_user)
