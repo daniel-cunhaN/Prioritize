@@ -1,6 +1,7 @@
 from datetime import datetime
 from uuid import UUID
-from pydantic import BaseModel, HttpUrl, Field
+from pydantic import BaseModel, Field
+
 
 class WishlistItemCreate(BaseModel):
     url: str = Field(..., min_length=1, description="URL do item")
@@ -8,11 +9,30 @@ class WishlistItemCreate(BaseModel):
     image_url: str | None = Field(default=None, description="URL da imagem do produto")
     priority: int = Field(default=1, ge=1, le=5, description="Nível de prioridade de 1 a 5")
 
+
 class WishlistItemUpdate(BaseModel):
     url: str | None = None
     title: str | None = None
     image_url: str | None = None
     priority: int | None = Field(default=None, ge=1, le=5)
+
+
+class WishlistPreviewRequest(BaseModel):
+    url: str = Field(..., min_length=1, description="URL do produto a analisar")
+    title_hint: str | None = Field(
+        default=None,
+        description="Título já preenchido pelo utilizador (ajuda na busca da imagem)",
+    )
+
+
+class WishlistPreviewResponse(BaseModel):
+    url: str | None = None
+    title: str | None = None
+    image_url: str | None = None
+    found_image: bool = False
+    found_title: bool = False
+    message: str = ""
+
 
 class WishlistItemResponse(BaseModel):
     id: UUID

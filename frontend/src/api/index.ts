@@ -117,6 +117,31 @@ export const addWishlistItem = async (item: WishlistPayload): Promise<WishlistIt
   });
   return response.data;
 };
+
+export type WishlistPreviewResult = {
+  url: string | null;
+  title: string | null;
+  image_url: string | null;
+  found_image: boolean;
+  found_title: boolean;
+  message: string;
+};
+
+export const previewWishlistUrl = async (
+  url: string,
+  titleHint?: string
+): Promise<WishlistPreviewResult> => {
+  const response = await api.post<WishlistPreviewResult>('/wishlist/preview', {
+    url: url.trim(),
+    title_hint: titleHint?.trim() || null,
+  });
+  return response.data;
+};
+
+export const enrichWishlistItem = async (id: string): Promise<WishlistItem> => {
+  const response = await api.post<WishlistItem>(`/wishlist/${id}/enrich`);
+  return response.data;
+};
 export const updateWishlistItem = async (id: string, item: Partial<WishlistPayload>): Promise<WishlistItem> => {
   const response = await api.put<WishlistItem>(`/wishlist/${id}`, item);
   return response.data;
