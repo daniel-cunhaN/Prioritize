@@ -14,6 +14,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import { useTheme, useIsDark, typography } from './src/theme';
+import { ShareIntentProvider } from 'expo-share-intent';
 
 const Stack = createNativeStackNavigator();
 
@@ -36,7 +37,8 @@ export default function App() {
   };
 
   return (
-    <NavigationContainer theme={navigationTheme}>
+    <ShareIntentProvider>
+      <NavigationContainer theme={navigationTheme}>
       {/* StatusBar adapts to light/dark mode */}
       <StatusBar style={isDark ? 'light' : 'dark'} />
 
@@ -80,5 +82,6 @@ export default function App() {
         />
       </Stack.Navigator>
     </NavigationContainer>
+  </ShareIntentProvider>
   );
 }

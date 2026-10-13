@@ -16,7 +16,7 @@
  * Paleta: Claude Amber (theme.ts)
  */
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -39,6 +39,7 @@ import {
   sanitizarInput,
   removerHTML,
   definirToken,
+  obterToken,
 } from '../utils/validacao';
 
 /* Largura máxima do card para telas desktop e tablets */
@@ -62,6 +63,30 @@ export default function LoginScreen({ navigation }: any) {
 
   const refInputSenha = useRef<TextInput>(null);
   const tema = useTheme();
+
+  /* ── Verificação de sessão ativa existente ── */
+  useEffect(() => {
+    const verificarSessaoAtiva = async () => {
+      try {
+        let token = obterToken();
+        if (!token) {
+          if (Platform.OS === 'web') {
+            token = sessionStorage.getItem('access_token');
+          } else {
+            token = await SecureStore.getItemAsync('access_token');
+          }
+        }
+        if (token) {
+          definirToken(token);
+          navigation.replace('Home');
+        }
+      } catch (erro) {
+        console.warn('Erro ao verificar sessão ativa no login:', erro);
+      }
+    };
+
+    verificarSessaoAtiva();
+  }, [navigation]);
 
   /* ── Manipulação e sanitização do e-mail ── */
   const handleAlterarEmail = useCallback((texto: string) => {

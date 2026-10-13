@@ -27,6 +27,7 @@ import client from '../api/client';
 import AdicionarDesejoModal, { DesejoItem } from '../components/AdicionarDesejoModal';
 import GerenciarContaModal from '../components/GerenciarContaModal';
 import { encerrarSessao } from '../utils/validacao';
+import { useCompartilhamento } from '../hooks/useCompartilhamento';
 
 export default function HomeScreen({ navigation }: any) {
   const theme = useTheme();
@@ -34,9 +35,24 @@ export default function HomeScreen({ navigation }: any) {
   // ─── Estados da Tela Principal ──────────────────────────────────────────────
   const [modalVisivel, setModalVisivel] = useState(false);
   const [modalContaVisivel, setModalContaVisivel] = useState(false);
+  const [urlCompartilhadaModal, setUrlCompartilhadaModal] = useState<string>('');
   const [usuarioEmail, setUsuarioEmail] = useState<string>('');
   const [desejos, setDesejos] = useState<DesejoItem[]>([]);
   const [carregando, setCarregando] = useState(false);
+
+  // Hook para captura de links compartilhados de outros aplicativos e deep links
+  const { urlCompartilhada, consumirUrl } = useCompartilhamento();
+
+  // ─── Interceptação de Link Compartilhado por Outros Aplicativos ─────────────
+  useEffect(() => {
+    if (urlCompartilhada) {
+      const urlCapturada = consumirUrl();
+      if (urlCapturada) {
+        setUrlCompartilhadaModal(urlCapturada);
+        setModalVisivel(true);
+      }
+    }
+  }, [urlCompartilhada, consumirUrl]);
 
   // ─── Carregamento Inicial dos Desejos do Usuário ───────────────────────────
   const carregarDesejos = useCallback(async () => {
@@ -99,9 +115,16 @@ export default function HomeScreen({ navigation }: any) {
     });
   };
 
-  // Abre o modal de adicionar desejo
+  // Abre o modal de adicionar desejo manualmente
   const handleAbrirModal = () => {
+    setUrlCompartilhadaModal('');
     setModalVisivel(true);
+  };
+
+  // Fecha o modal de adicionar desejo e limpa a URL inicial
+  const handleFecharModalDesejo = () => {
+    setModalVisivel(false);
+    setUrlCompartilhadaModal('');
   };
 
   // Callback acionado quando um novo desejo é criado no modal
@@ -461,8 +484,9 @@ export default function HomeScreen({ navigation }: any) {
       {/* ── Componente do Modal de Adicionar Desejo ── */}
       <AdicionarDesejoModal
         visivel={modalVisivel}
-        aoFechar={() => setModalVisivel(false)}
+        aoFechar={handleFecharModalDesejo}
         aoSalvarSucesso={handleDesejoCriado}
+        urlInicial={urlCompartilhadaModal}
       />
 
       {/* ── Componente do Modal de Gerenciamento de Conta ── */}

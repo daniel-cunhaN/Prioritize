@@ -185,6 +185,22 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
   - **Criar Outra Conta**: Atalho direto para a tela de cadastro (`RegisterScreen.tsx`), mantendo a tela de Login na pilha de navegação (`routes: [{ name: 'Login' }, { name: 'Register' }]`). Na tela de cadastro, o botão "Faça Login" utiliza navegação resiliente (`handleIrParaLogin`), retornando pelo histórico se houver ou navegando explicitamente para `Login`.
   - **Identificação da Sessão**: Exibe o e-mail completo do usuário autenticado e indicador de "Sessão ativa".
 
+### 6.5. Compartilhamento Nativo ("Compartilhar com: Prioritize")
+- **Registro no Sistema Operacional (`app.json`)**:
+  - Configurado esquema de URL `scheme: "prioritize"` e pacote `com.prioritize.app`.
+  - Configurado plugin nativo `expo-share-intent` com `androidIntentFilters: ["text/*"]` para exibição no menu de compartilhamento do Android.
+- **Tratamento e Higienização (`compartilhamento.ts`)**:
+  - Parser regex que extrai URLs HTTP/HTTPS mesmo que estejam acompanhadas de textos ou mensagens de redes sociais.
+  - Remove pontuações acidentais anexadas ao final da URL e suporta deep links diretos (`prioritize://share?url=...`).
+- **Hook e Provedor (`useCompartilhamento.ts` e `App.tsx`)**:
+  - Provedor `<ShareIntentProvider>` envolvendo a navegação raiz.
+  - Hook unificado que escuta intents nativos (`expo-share-intent`), deep links (`expo-linking`) e parâmetros web (`?url=...`).
+- **Fluxo Automático no Menu Principal (`HomeScreen.tsx`)**:
+  - Ao receber a URL compartilhada, abre automaticamente o `AdicionarDesejoModal.tsx` com a `urlInicial`.
+  - O modal dispara de imediato a requisição `/wishlist/preview`, preenchendo imagem e título para o usuário classificar e salvar.
+- **Persistência de Sessão (`LoginScreen.tsx`)**:
+  - Verificação automática de token ativo na inicialização para redirecionamento direto à `HomeScreen`, garantindo que links compartilhados sejam importados sem exigir novo login toda vez.
+
 ---
 
 ## 7. Como Executar os Testes
