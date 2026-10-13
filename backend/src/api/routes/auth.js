@@ -7,6 +7,7 @@ import { Router } from 'express';
 import crypto from 'node:crypto';
 import { obterBanco } from '../../db/database.js';
 import { gerarHashSenha, verificarSenha, criarTokenAcesso } from '../../utils/seguranca.js';
+import { exigirAutenticacao } from '../middlewares/autenticacao.js';
 
 const router = Router();
 
@@ -98,6 +99,19 @@ router.post('/login', async (req, res) => {
   return res.status(200).json({
     access_token: token,
     token_type: 'bearer',
+  });
+});
+
+/**
+ * GET /api/v1/auth/me
+ * Retorna os dados cadastrais do usuário autenticado a partir do token Bearer JWT.
+ */
+router.get('/me', exigirAutenticacao, (req, res) => {
+  // Retorna os dados do usuário extraídos e validados pelo middleware
+  return res.status(200).json({
+    id: req.usuario.id,
+    email: req.usuario.email,
+    created_at: req.usuario.created_at,
   });
 });
 

@@ -8,6 +8,9 @@
  * - Armazenamento seguro de tokens JWT em memória (não localStorage)
  */
 
+import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+
 /* ─────────────────────────────────────────────
  * Regex de validação de e-mail (RFC 5322 simplificada)
  * ───────────────────────────────────────────── */
@@ -145,4 +148,25 @@ export function obterToken(): string | null {
 /** Remove o token de acesso da memória (logout) */
 export function limparToken(): void {
   tokenEmMemoria = null;
+}
+
+/**
+ * Encerra a sessão do usuário de forma segura.
+ * Remove o token JWT da memória volátil e dos armazenamentos persistentes
+ * da plataforma (SecureStore no mobile e sessionStorage na Web).
+ */
+export async function encerrarSessao(): Promise<void> {
+  // Limpa o token da memória volátil da aplicação
+  limparToken();
+
+  try {
+    if (Platform.OS === 'web') {
+      sessionStorage.removeItem('access_token');
+      localStorage.removeItem('access_token');
+    } else {
+      await SecureStore.deleteItemAsync('access_token');
+    }
+  } catch (erro) {
+    console.warn('Erro ao limpar armazenamento persistente de sessão:', erro);
+  }
 }

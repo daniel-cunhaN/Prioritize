@@ -25,12 +25,16 @@ import {
 import { useTheme, spacing, radius, shadows, typography } from '../theme';
 import client from '../api/client';
 import AdicionarDesejoModal, { DesejoItem } from '../components/AdicionarDesejoModal';
+import GerenciarContaModal from '../components/GerenciarContaModal';
+import { encerrarSessao } from '../utils/validacao';
 
 export default function HomeScreen({ navigation }: any) {
   const theme = useTheme();
 
   // ─── Estados da Tela Principal ──────────────────────────────────────────────
   const [modalVisivel, setModalVisivel] = useState(false);
+  const [modalContaVisivel, setModalContaVisivel] = useState(false);
+  const [usuarioEmail, setUsuarioEmail] = useState<string>('');
   const [desejos, setDesejos] = useState<DesejoItem[]>([]);
   const [carregando, setCarregando] = useState(false);
 
@@ -47,9 +51,63 @@ export default function HomeScreen({ navigation }: any) {
     }
   }, []);
 
+  // ─── Carregamento dos Dados do Perfil do Usuário Autenticado ───────────────
+  const carregarPerfil = useCallback(async () => {
+    try {
+      const resposta = await client.get('/auth/me');
+      if (resposta.data && resposta.data.email) {
+        setUsuarioEmail(resposta.data.email);
+      }
+    } catch (erro) {
+      console.warn('Falha ao obter perfil do usuário atual:', erro);
+    }
+  }, []);
+
   useEffect(() => {
     carregarDesejos();
-  }, [carregarDesejos]);
+    carregarPerfil();
+  }, [carregarDesejos, carregarPerfil]);
+
+  // ─── Ações de Gerenciamento da Conta ────────────────────────────────────────
+  // Abre o modal de opções da conta
+  const handleAbrirModalConta = () => {
+    setModalContaVisivel(true);
+  };
+
+  // Fecha o modal de opções da conta
+  const handleFecharModalConta = () => {
+    setModalContaVisivel(false);
+  };
+
+  // Encerra a sessão atual e retorna para a tela de Login
+  const handleDeslogar = async () => {
+    await encerrarSessao();
+    setModalContaVisivel(false);
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Login' }],
+    });
+  };
+
+  // Desconecta a conta para que outro usuário possa efetuar login
+  const handleTrocarConta = async () => {
+    await encerrarSessao();
+    setModalContaVisivel(false);
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Login' }],
+    });
+  };
+
+  // Desconecta e direciona para a tela de registro de nova conta
+  const handleCriarNovaConta = async () => {
+    await encerrarSessao();
+    setModalContaVisivel(false);
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Register' }],
+    });
+  };
 
   // Abre o modal de adicionar desejo
   const handleAbrirModal = () => {
@@ -212,15 +270,19 @@ export default function HomeScreen({ navigation }: any) {
               Organize e priorize o que importa
             </Text>
           </View>
-          {/* Avatar do Usuário */}
-          <View
+          {/* Botão de Perfil / Gerenciamento de Conta do Usuário */}
+          <TouchableOpacity
             style={[styles.avatarCircle, { backgroundColor: theme.secondary }]}
-            accessibilityLabel="Perfil do usuário"
+            onPress={handleAbrirModalConta}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Gerenciar conta"
+            accessibilityHint="Abre o menu para deslogar, mudar de conta ou registrar novo usuário"
           >
             <Text style={[styles.avatarText, { color: theme.secondaryForeground }]}>
-              U
+              {usuarioEmail ? usuarioEmail.trim().charAt(0).toUpperCase() : 'U'}
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -411,6 +473,16 @@ export default function HomeScreen({ navigation }: any) {
         visivel={modalVisivel}
         aoFechar={() => setModalVisivel(false)}
         aoSalvarSucesso={handleDesejoCriado}
+      />
+
+      {/* ── Componente do Modal de Gerenciamento de Conta ── */}
+      <GerenciarContaModal
+        visivel={modalContaVisivel}
+        aoFechar={handleFecharModalConta}
+        emailUsuario={usuarioEmail}
+        aoDeslogar={handleDeslogar}
+        aoTrocarConta={handleTrocarConta}
+        aoCriarNovaConta={handleCriarNovaConta}
       />
     </SafeAreaView>
   );

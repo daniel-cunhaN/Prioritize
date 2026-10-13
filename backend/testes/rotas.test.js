@@ -81,6 +81,29 @@ describe('Rotas da API Prioritize (Integração Express)', () => {
     assert.ok(dados.access_token);
   });
 
+  test('GET /api/v1/auth/me deve retornar dados do perfil do usuário autenticado', async () => {
+    const res = await fetch(`${urlBase}/api/v1/auth/me`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${tokenAcesso}`,
+      },
+    });
+    const dados = await res.json();
+
+    assert.strictEqual(res.status, 200);
+    assert.ok(dados.id);
+    assert.strictEqual(dados.email, emailAleatorio);
+    assert.ok(dados.created_at);
+  });
+
+  test('GET /api/v1/auth/me deve rejeitar requisição sem token com status 401', async () => {
+    const res = await fetch(`${urlBase}/api/v1/auth/me`, {
+      method: 'GET',
+    });
+
+    assert.strictEqual(res.status, 401);
+  });
+
   test('POST /api/v1/wishlist/preview deve responder prévia de metadados da URL', async () => {
     const res = await fetch(`${urlBase}/api/v1/wishlist/preview`, {
       method: 'POST',

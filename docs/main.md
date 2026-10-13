@@ -175,6 +175,16 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
   - Conectado ao botão flutuante (FAB) e ao botão do estado vazio na `HomeScreen.tsx`.
   - Atualiza a lista e os cards de estatísticas (Total, Alta Prioridade, Média Prioridade) após salvar.
 
+### 6.4. Gerenciamento de Conta e Sessão (`GerenciarContaModal.tsx` e `HomeScreen.tsx`)
+- **Acesso Rápido no Menu Inicial**:
+  - O avatar estático do cabeçalho da `HomeScreen.tsx` foi transformado em um botão interativo e acessível (`accessibilityRole="button"`).
+  - Exibe dinamicamente a letra inicial do e-mail do usuário logado obtida via endpoint `GET /api/v1/auth/me`.
+- **Ações de Conta Disponíveis**:
+  - **Deslogar**: Encerra a sessão com confirmação de segurança, remove o token JWT da memória volátil, do `SecureStore` (mobile) e do `sessionStorage` (web) através da função `encerrarSessao()`, redirecionando para a tela de Login com pilha de navegação limpa (`navigation.reset`).
+  - **Mudar de Conta**: Permite desconectar a conta atual com confirmação para que outro usuário realize autenticação.
+  - **Criar Outra Conta**: Atalho direto para a tela de cadastro (`RegisterScreen.tsx`).
+  - **Identificação da Sessão**: Exibe o e-mail completo do usuário autenticado e indicador de "Sessão ativa".
+
 ---
 
 ## 7. Como Executar os Testes
