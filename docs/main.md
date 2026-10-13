@@ -10,17 +10,32 @@ O projeto é estruturado como um monorepo dividido em duas camadas principais:
 
 ```
 Prioritize/
-├── backend/                       # API REST assíncrona desenvolvida com FastAPI
-│   ├── app/
+├── backend/                       # API REST assíncrona desenvolvida com Node.js e Express (ES Modules)
+│   ├── src/
 │   │   ├── api/
-│   │   │   ├── deps.py            # Injeção de dependências e autenticação JWT
+│   │   │   ├── middlewares/
+│   │   │   │   └── autenticacao.js# Middleware de autenticação Bearer JWT
 │   │   │   └── routes/
-│   │   │       ├── auth.py        # Rotas de cadastro e login de usuários
-│   │   │       └── wishlist.py    # Rotas de gerenciamento de desejos e scraping
-│   │   ├── core/                  # Configurações globais e segurança (hash de senhas)
-│   │   ├── db/                    # Conexão com SQLite assíncrono e modelos SQLAlchemy
-│   │   ├── schemas/               # Modelos de validação Pydantic
-│   │   └── services/              # Serviços de negócio (ex: scraper de metadados)
+│   │   │       ├── auth.js        # Rotas de cadastro e login de usuários
+│   │   │       └── wishlist.js    # Rotas de gerenciamento de desejos e scraping
+│   │   ├── config/
+│   │   │   └── configuracao.js    # Variáveis e configurações da aplicação
+│   │   ├── db/
+│   │   │   ├── database.js        # Conexão com SQLite nativo (node:sqlite)
+│   │   │   └── schema.js          # DDL e tabelas do banco de dados
+│   │   ├── services/
+│   │   │   └── scraper.js         # Serviço de extração de metadados com Cheerio
+│   │   ├── utils/
+│   │   │   └── seguranca.js       # Hash de senhas (bcryptjs) e tokens JWT
+│   │   ├── app.js                 # Configuração do Express e CORS
+│   │   └── index.js               # Ponto de entrada do servidor HTTP
+│   ├── testes/                    # Suíte completa de testes automatizados (node:test)
+│   │   ├── autenticacao.test.js
+│   │   ├── database.test.js
+│   │   ├── rotas.test.js
+│   │   ├── scraper.test.js
+│   │   └── seguranca.test.js
+│   ├── package.json               # Dependências do ecossistema JavaScript
 │   └── wishlist.db                # Banco de dados relacional SQLite local
 │
 ├── frontend/                      # Aplicativo React Native (Expo) multi-plataforma
@@ -36,8 +51,14 @@ Prioritize/
 │   │   └── theme.ts               # Design system baseado na paleta Claude Amber
 │   └── App.tsx                    # Navegação em pilha (Stack Navigator)
 │
-└── docs/
-    └── main.md                    # Esta documentação técnica
+├── docs/
+│   ├── plans/
+│   │   └── 2026-10-08-migracao-stack-javascript.md # Plano de migração executado via TDD
+│   └── main.md                    # Esta documentação técnica
+│
+├── start.bat                      # Inicializador para Windows (Node.js + Expo)
+├── start.js                       # Inicializador multiplataforma em JavaScript
+└── package.json                   # Scripts unificados na raiz do projeto
 ```
 
 ---
@@ -46,22 +67,22 @@ Prioritize/
 
 ### Tabela `users`
 Armazena as contas de usuário do aplicativo.
-- `id` (UUID, Chave Primária): Identificador único do usuário.
-- `email` (String, Único, Indexado): E-mail de login.
-- `hashed_password` (String): Hash da senha com bcrypt.
-- `created_at` (DateTime): Data e hora de cadastro em UTC.
-- `updated_at` (DateTime): Data e hora da última atualização.
+- `id` (TEXT, Chave Primária): Identificador único do usuário (UUID v4).
+- `email` (TEXT, Único, Indexado): E-mail de login.
+- `hashed_password` (TEXT): Hash seguro da senha com `bcryptjs`.
+- `created_at` (TEXT): Data e hora de cadastro em ISO 8601.
+- `updated_at` (TEXT): Data e hora da última atualização em ISO 8601.
 
 ### Tabela `wishlist_items`
 Armazena os itens da lista de desejos associados ao usuário.
-- `id` (UUID, Chave Primária): Identificador único do item.
-- `user_id` (UUID, Chave Estrangeira `users.id`): Vínculo com o usuário proprietário.
-- `url` (Text, Obrigatório): Link do produto original.
-- `title` (String, Opcional/Editável): Título ou descrição do produto.
-- `image_url` (Text, Opcional): Link da imagem representativa obtida do link.
-- `priority` (Integer, Obrigatório): Escala de importância do item (1 a 3).
-- `created_at` (DateTime): Data e hora de inclusão em UTC.
-- `updated_at` (DateTime): Data e hora da última alteração.
+- `id` (TEXT, Chave Primária): Identificador único do item (UUID v4).
+- `user_id` (TEXT, Chave Estrangeira `users.id`): Vínculo com o usuário proprietário.
+- `url` (TEXT, Obrigatório): Link do produto original.
+- `title` (TEXT, Opcional/Editável): Título ou descrição do produto.
+- `image_url` (TEXT, Opcional): Link da imagem representativa obtida do link.
+- `priority` (INTEGER, Obrigatório): Escala de importância do item (1 a 3).
+- `created_at` (TEXT): Data e hora de inclusão em ISO 8601.
+- `updated_at` (TEXT): Data e hora da última alteração em ISO 8601.
 
 ---
 
@@ -76,13 +97,13 @@ Conforme estabelecido nas regras de negócio:
 
 ---
 
-## 4. Endpoints da API REST (Backend)
+## 4. Endpoints da API REST (Backend Express)
 
 Base URL: `http://127.0.0.1:8000/api/v1`
 
 ### Autenticação (`/auth`)
-- `POST /auth/register`: Cadastro de novo usuário. Retorna token Bearer JWT.
-- `POST /auth/login`: Autenticação por e-mail e senha. Retorna token Bearer JWT.
+- `POST /auth/register`: Cadastro de novo usuário. Retorna token Bearer JWT (`status 201`).
+- `POST /auth/login`: Autenticação por e-mail e senha. Retorna token Bearer JWT (`status 200`).
 
 ### Lista de Desejos (`/wishlist`)
 Todos os endpoints abaixo exigem cabeçalho `Authorization: Bearer <token>`.
@@ -94,22 +115,32 @@ Todos os endpoints abaixo exigem cabeçalho `Authorization: Bearer <token>`.
 - `POST /wishlist/`:
   - **Função**: Persiste um novo desejo vinculado ao usuário logado.
   - **Body**: `{ "url": "...", "titulo": "...", "imagem_url": "...", "prioridade": 1|2|3 }`
-  - **Retorno**: Item criado com `id`, `user_id`, `created_at`, etc.
+  - **Retorno**: Item criado com `id`, `user_id`, `created_at`, etc. (`status 201`).
 - `GET /wishlist/`:
   - **Função**: Lista todos os desejos do usuário autenticado, ordenados por data decrescente.
   - **Parâmetro opcional de Query**: `?prioridade=1|2|3` para filtrar por importância.
 - `DELETE /wishlist/{item_id}`:
-  - **Função**: Exclui o desejo pertencente ao usuário.
+  - **Função**: Exclui o desejo pertencente ao usuário (`status 204`).
 
 ---
 
-## 5. Serviço de Scraping de Metadados (`scraper.py`)
+## 5. Serviço de Scraping de Metadados (`scraper.js`)
 
-O serviço assíncrono de extração de metadados utiliza o cliente `httpx.AsyncClient` configurado com headers simulando um navegador moderno e um parser customizado baseado em `html.parser.HTMLParser` nativo do Python:
-1. Resolução de URLs de imagens relativas via `urllib.parse.urljoin`.
-2. Precedência de títulos: `og:title` > `twitter:title` > `<title>`.
-3. Precedência de imagens: `og:image` > `twitter:image`.
-4. Fallback tolerante a falhas: caso o site bloqueie bots ou apresente erro de rede/DNS, um título amigável é derivado do domínio da URL sem derrubar a requisição do usuário.
+O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nativo do Node.js com timeout controlado via `AbortSignal.timeout`, a biblioteca `cheerio` para parsing ultra-rápido de HTML e um conjunto de estratégias para contornar proteções anti-bot comuns em e-commerces:
+
+1. **Perfis de Requisição Sucessivos (Anti-bot Bypass)**:
+   - Muitas lojas (ex.: Mercado Livre) bloqueiam requisições com User-Agents de navegadores que não executam JavaScript, retornando telas de verificação ou erro sem metadados.
+   - O scraper executa tentativas ordenadas com perfis de crawlers de prévia de links (`Twitterbot/1.0`, `facebookexternalhit/1.1`), amplamente permitidos pelas lojas para viabilizar o compartilhamento em redes sociais. Caso uma tentativa inicial não traga imagem, a próxima é acionada automaticamente.
+2. **Fontes Múltiplas e Precedência de Imagem**:
+   - Meta tags OpenGraph e Twitter Cards: `og:image`, `og:image:secure_url`, `og:image:url`, `twitter:image`, `twitter:image:src`.
+   - Dados Estruturados Schema.org: leitura de blocos `<script type="application/ld+json">` extraindo a propriedade `image` de nós do tipo `Product` (suporta strings diretas, arrays e objetos `ImageObject` com `url`/`contentUrl`).
+   - Microformatos e links canônicos: `itemprop="image"` e `link rel="image_src"`.
+   - Resolução automática de URLs de imagens relativas via `new URL(imagemUrl, urlBase).href`.
+3. **Fallback Resiliente da Amazon por ASIN**:
+   - Para links da Amazon que bloqueiam o HTML com páginas de captcha, o scraper extrai o código ASIN (10 caracteres) da rota da URL (`/dp/ASIN`, `/gp/product/ASIN`) e requisita a imagem diretamente da CDN oficial (`m.media-amazon.com/images/P/{ASIN}.01._SCLZZZZZZZ_.jpg`).
+   - Descarta automaticamente o pixel GIF transparente de 43 bytes retornado para produtos inativos/inválidos.
+4. **Fallback Tolerante a Falhas**:
+   - Caso nenhuma imagem seja encontrada ou o site apresente erro de DNS/rede, um título amigável é derivado do domínio (`Produto em loja.com`) sem quebrar a requisição do usuário nem salvar telas de captcha como URL do produto.
 
 ---
 
@@ -129,9 +160,17 @@ O componente foi construído respeitando as diretrizes visuais Claude Amber e os
 
 ---
 
-## 7. Próximos Passos Recomendados
+## 7. Como Executar os Testes
 
-1. **Visualização Kanban**:
-   - Implementar colunas kanban agrupando os cards de desejos pelas três classificações de prioridade ("Baixa", "Média", "Alta"), permitindo reordenação ou arrastar e soltar (drag and drop).
-2. **Deep Linking / Intent de Compartilhamento Nativo**:
-   - Configurar o módulo `expo-sharing` ou handlers de intents do Android/iOS para capturar links compartilhados de navegadores ou apps de e-commerce diretamente no modal do Prioritize.
+O backend conta com uma suíte de 35 testes automatizados (unitários e de integração) desenvolvida com o runner nativo `node:test` e a metodologia **TDD**:
+
+```bash
+cd backend
+npm test
+```
+
+Para rodar em modo watch (reexecução ao salvar alterações):
+```bash
+npm run dev
+```
+

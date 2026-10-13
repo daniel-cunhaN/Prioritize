@@ -1,0 +1,12 @@
+{
+  "name": "prioritize",
+  "version": "1.0.0",
+  "description": "Lista de Desejos Centralizada Prioritize",
+  "scripts": {
+    "dev": "node start.js",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend start",
+    "test:backend": "npm --prefix backend test"
+  },
+  "devDependencies": {}
+}
