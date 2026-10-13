@@ -12,3 +12,4 @@ O produto será armazenado em uma tabela estilo kanban, facilitando a visualiza�
 - Após qualquer atualização de código, documente sistematicamente nas documentações do projeto
 - Mantenha o código, redigido em português brasileiro;
 - Crie comentários acima dos trechos de código importantes.
+- Após qualquer alteração, gere uma mensagem de commit para o usuário copiar.
