@@ -89,16 +89,6 @@ export default function HomeScreen({ navigation }: any) {
     });
   };
 
-  // Desconecta a conta para que outro usuário possa efetuar login
-  const handleTrocarConta = async () => {
-    await encerrarSessao();
-    setModalContaVisivel(false);
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Login' }],
-    });
-  };
-
   // Desconecta e direciona para a tela de registro de nova conta mantendo Login na pilha
   const handleCriarNovaConta = async () => {
     await encerrarSessao();
@@ -481,7 +471,6 @@ export default function HomeScreen({ navigation }: any) {
         aoFechar={handleFecharModalConta}
         emailUsuario={usuarioEmail}
         aoDeslogar={handleDeslogar}
-        aoTrocarConta={handleTrocarConta}
         aoCriarNovaConta={handleCriarNovaConta}
       />
     </SafeAreaView>

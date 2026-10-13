@@ -182,7 +182,6 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
   - Exibe dinamicamente a letra inicial do e-mail do usuário logado obtida via endpoint `GET /api/v1/auth/me`.
 - **Ações de Conta Disponíveis**:
   - **Deslogar**: Encerra a sessão com confirmação de segurança, remove o token JWT da memória volátil, do `SecureStore` (mobile) e do `sessionStorage` (web) através da função `encerrarSessao()`, redirecionando para a tela de Login com pilha de navegação limpa (`navigation.reset`).
-  - **Mudar de Conta**: Permite desconectar a conta atual com confirmação para que outro usuário realize autenticação.
   - **Criar Outra Conta**: Atalho direto para a tela de cadastro (`RegisterScreen.tsx`), mantendo a tela de Login na pilha de navegação (`routes: [{ name: 'Login' }, { name: 'Register' }]`). Na tela de cadastro, o botão "Faça Login" utiliza navegação resiliente (`handleIrParaLogin`), retornando pelo histórico se houver ou navegando explicitamente para `Login`.
   - **Identificação da Sessão**: Exibe o e-mail completo do usuário autenticado e indicador de "Sessão ativa".
 

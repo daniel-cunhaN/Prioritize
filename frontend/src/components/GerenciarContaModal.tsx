@@ -2,8 +2,8 @@
  * GerenciarContaModal.tsx — Modal para Gerenciamento de Conta do Usuário
  *
  * Permite ao usuário visualizar as informações do seu perfil atual,
- * deslogar da aplicação com encerramento seguro de sessão,
- * trocar de conta (mudar de usuário) ou navegar para o cadastro de uma nova conta.
+ * deslogar da aplicação com encerramento seguro de sessão
+ * ou navegar para o cadastro de uma nova conta.
  *
  * Cores, tipografia e espaçamentos integrados à paleta Claude Amber.
  */
@@ -28,7 +28,6 @@ interface GerenciarContaModalProps {
   aoFechar: () => void;
   emailUsuario?: string;
   aoDeslogar: () => Promise<void> | void;
-  aoTrocarConta: () => Promise<void> | void;
   aoCriarNovaConta: () => void;
 }
 
@@ -37,7 +36,6 @@ export default function GerenciarContaModal({
   aoFechar,
   emailUsuario,
   aoDeslogar,
-  aoTrocarConta,
   aoCriarNovaConta,
 }: GerenciarContaModalProps) {
   const theme = useTheme();
@@ -76,37 +74,6 @@ export default function GerenciarContaModal({
         [
           { text: 'Cancelar', style: 'cancel' },
           { text: 'Deslogar', style: 'destructive', onPress: executarSaida },
-        ]
-      );
-    }
-  };
-
-  /**
-   * Executa confirmação para Mudar de Conta
-   */
-  const handleConfirmarTrocarConta = async () => {
-    const executarTroca = async () => {
-      setProcessando(true);
-      try {
-        await aoTrocarConta();
-      } catch (erro) {
-        console.error('Erro ao trocar de conta:', erro);
-      } finally {
-        setProcessando(false);
-      }
-    };
-
-    if (Platform.OS === 'web') {
-      if (window.confirm('Deseja sair da conta atual para entrar com outro usuário?')) {
-        await executarTroca();
-      }
-    } else {
-      Alert.alert(
-        'Mudar de Conta',
-        'Deseja sair da conta atual para entrar com outro usuário?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Mudar de Conta', onPress: executarTroca },
         ]
       );
     }
@@ -206,35 +173,6 @@ export default function GerenciarContaModal({
               ) : (
                 /* ── Lista de Ações de Gerenciamento ── */
                 <View style={styles.acoesContainer}>
-                  {/* Opção: Mudar de Conta */}
-                  <TouchableOpacity
-                    style={[
-                      styles.opcaoBotao,
-                      {
-                        backgroundColor: theme.background,
-                        borderColor: theme.border,
-                      },
-                    ]}
-                    onPress={handleConfirmarTrocarConta}
-                    activeOpacity={0.8}
-                    accessibilityRole="button"
-                    accessibilityLabel="Mudar de conta"
-                    accessibilityHint="Desconecta a conta atual e abre o formulário de login para outro usuário"
-                  >
-                    <View style={[styles.opcaoIconeContainer, { backgroundColor: `${theme.primary}18` }]}>
-                      <Text style={styles.opcaoIcone}>🔄</Text>
-                    </View>
-                    <View style={styles.opcaoTextoContainer}>
-                      <Text style={[styles.opcaoTitulo, { color: theme.foreground }]}>
-                        Mudar de conta
-                      </Text>
-                      <Text style={[styles.opcaoDescricao, { color: theme.mutedForeground }]}>
-                        Entrar com outro e-mail
-                      </Text>
-                    </View>
-                    <Text style={[styles.opcaoSeta, { color: theme.mutedForeground }]}>›</Text>
-                  </TouchableOpacity>
-
                   {/* Opção: Criar Nova Conta */}
                   <TouchableOpacity
                     style={[
