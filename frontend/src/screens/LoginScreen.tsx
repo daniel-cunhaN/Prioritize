@@ -28,6 +28,7 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
   ScrollView,
+  Alert,
 } from 'react-native';
 import client from '../api/client';
 import * as SecureStore from 'expo-secure-store';
@@ -140,11 +141,42 @@ export default function LoginScreen({ navigation }: any) {
       }, 500);
     } catch (erro: any) {
       console.error(erro);
+      const statusHttp = erro.response?.status;
+      const codigoErro = erro.response?.data?.code;
       const detalhe = erro.response?.data?.detail;
       const msgApi = erro.response?.data?.message;
-      let mensagem = msgApi || 'Não foi possível realizar o login. Verifique suas credenciais.';
 
-      if (detalhe?.message) {
+      // Verifica se a falha é decorrente de credenciais de login incorretas (status 401)
+      const credenciaisIncorretas =
+        statusHttp === 401 ||
+        codigoErro === 'INVALID_CREDENTIALS' ||
+        (typeof msgApi === 'string' && msgApi.toLowerCase().includes('incorret')) ||
+        (typeof detalhe === 'string' && detalhe.toLowerCase().includes('incorret'));
+
+      let mensagem = 'Credenciais de login incorretas.';
+
+      if (credenciaisIncorretas) {
+        mensagem = 'Credenciais de login incorretas. Verifique seu e-mail e senha.';
+        setErroSenha('Senha ou e-mail incorreto.');
+
+        // Exibe diálogo explícito de confirmação para o usuário
+        const tituloDialogo = 'Credenciais Incorretas';
+        const msgDialogo = 'Credenciais de login incorretas. Por favor, confira o e-mail e a senha digitados e tente novamente.';
+
+        if (Platform.OS === 'web') {
+          if (typeof window !== 'undefined' && window.alert) {
+            window.alert(`${tituloDialogo}\n\n${msgDialogo}`);
+          }
+        } else {
+          Alert.alert(
+            tituloDialogo,
+            msgDialogo,
+            [{ text: 'Tentar novamente', style: 'default' }]
+          );
+        }
+      } else if (msgApi) {
+        mensagem = msgApi;
+      } else if (detalhe?.message) {
         mensagem = detalhe.message;
       } else if (typeof detalhe === 'string') {
         mensagem = detalhe;
@@ -152,6 +184,8 @@ export default function LoginScreen({ navigation }: any) {
         mensagem = detalhe[0]?.msg || 'Dados incorretos.';
       } else if (erro.message === 'Network Error' || !erro.response) {
         mensagem = 'Falha de comunicação com o servidor. Verifique se o serviço está ativo.';
+      } else {
+        mensagem = 'Não foi possível realizar o login. Verifique suas credenciais.';
       }
 
       setAlerta({ tipo: 'erro', mensagem });

@@ -81,6 +81,19 @@ describe('Rotas da API Prioritize (Integração Express)', () => {
     assert.ok(dados.access_token);
   });
 
+  test('POST /api/v1/auth/login deve rejeitar credenciais incorretas com status 401 e mensagem padronizada', async () => {
+    const res = await fetch(`${urlBase}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: emailAleatorio, password: 'senha-incorreta' }),
+    });
+    const dados = await res.json();
+
+    assert.strictEqual(res.status, 401);
+    assert.strictEqual(dados.code, 'INVALID_CREDENTIALS');
+    assert.strictEqual(dados.message, 'Credenciais de login incorretas.');
+  });
+
   test('GET /api/v1/auth/me deve retornar dados do perfil do usuário autenticado', async () => {
     const res = await fetch(`${urlBase}/api/v1/auth/me`, {
       method: 'GET',

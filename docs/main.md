@@ -157,6 +157,7 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
   - Validação estrita do lado do cliente via módulo `validacao.ts` (e-mail RFC 5322 e força de senha).
   - Sanitização anti-XSS em todos os inputs de texto.
   - Gerenciamento seguro de token JWT em memória (closure do módulo), utilizando `SecureStore` em plataformas nativas e `sessionStorage` na Web.
+  - **Confirmação de Credenciais Incorretas**: Tratamento específico no `LoginScreen.tsx` para falhas de autenticação (status 401), exibindo diálogo explícito de confirmação (`Alert.alert` no Mobile e `window.alert` na Web), mensagem em destaque no `AlertBox` e indicação de erro no campo de senha. No backend (`POST /api/v1/auth/login`), resposta padronizada com mensagem `"Credenciais de login incorretas."`.
 
 ### 6.2. Componente de Feedback (`AlertBox.tsx`)
 - Fornece notificações inline contextuais e acessíveis (`erro`, `sucesso`, `aviso`, `info`).
@@ -189,7 +190,7 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
 
 ## 7. Como Executar os Testes
 
-O backend conta com uma suíte de 37 testes automatizados (unitários e de integração) desenvolvida com o runner nativo `node:test` e a metodologia **TDD**:
+O backend conta com uma suíte de 38 testes automatizados (unitários e de integração) desenvolvida com o runner nativo `node:test` e a metodologia **TDD**:
 
 ```bash
 cd backend

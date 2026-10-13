@@ -80,7 +80,7 @@ router.post('/login', async (req, res) => {
   if (!usuario) {
     return res.status(401).json({
       code: 'INVALID_CREDENTIALS',
-      message: 'Email ou senha incorretos.',
+      message: 'Credenciais de login incorretas.',
     });
   }
 
@@ -89,7 +89,7 @@ router.post('/login', async (req, res) => {
   if (!senhaCorreta) {
     return res.status(401).json({
       code: 'INVALID_CREDENTIALS',
-      message: 'Email ou senha incorretos.',
+      message: 'Credenciais de login incorretas.',
     });
   }
 
