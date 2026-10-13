@@ -1,247 +1,437 @@
 /**
- * LoginScreen.tsx — Authentication screen
+ * LoginScreen.tsx — Tela de autenticação refatorada
  *
- * Themed with Claude Amber palette. Features a centered card-based
- * form layout, branded header with app logo, styled inputs with
- * focus states, and accessible primary/secondary action buttons.
+ * Características de UI/UX e Segurança:
+ * - Cabeçalho limpo com logo e branding
+ * - Botão de login social (apenas Google, sem Apple conforme requisitos)
+ * - Divisor visual "ou"
+ * - Campos de input com ícones discretos e profissionais
+ * - Toggle de visibilidade com ícones profissionais (sem emojis de macaco)
+ * - Caixa de alerta (AlertBox) com feedback inline integrado ao tema
+ * - Validação estrita do lado do cliente (Regex e obrigatoriedade)
+ * - Sanitização anti-XSS nos inputs
+ * - Tokens JWT gerenciados em memória
+ * - Layout responsivo Mobile-First
  *
- * Layout inspired by the Uizard Smart POS template:
- * clean, centered form with prominent CTA and clear hierarchy.
+ * Paleta: Claude Amber (theme.ts)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   TextInput,
   StyleSheet,
-  Alert,
   Platform,
   Image,
   TouchableOpacity,
   KeyboardAvoidingView,
-  ScrollView,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import client from '../api/client';
 import * as SecureStore from 'expo-secure-store';
 import { useTheme, spacing, radius, shadows, typography } from '../theme';
+import AlertBox, { TipoAlerta } from '../components/AlertBox';
+import {
+  validarEmail,
+  sanitizarInput,
+  removerHTML,
+  definirToken,
+} from '../utils/validacao';
+
+/* Largura máxima do card para telas desktop e tablets */
+const LARGURA_MAXIMA_FORM = 420;
 
 export default function LoginScreen({ navigation }: any) {
+  /* ── Estados do formulário ── */
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [emailFocused, setEmailFocused] = useState(false);
-  const [passwordFocused, setPasswordFocused] = useState(false);
+  const [senha, setSenha] = useState('');
+  const [carregando, setCarregando] = useState(false);
+  const [senhaVisivel, setSenhaVisivel] = useState(false);
 
-  const theme = useTheme();
+  /* ── Feedback de Alerta (AlertBox) ── */
+  const [alerta, setAlerta] = useState<{ tipo: TipoAlerta; mensagem: string } | null>(null);
 
+  /* ── Estados de foco e validação de campo ── */
+  const [emailFocado, setEmailFocado] = useState(false);
+  const [senhaFocada, setSenhaFocada] = useState(false);
+  const [erroEmail, setErroEmail] = useState('');
+  const [erroSenha, setErroSenha] = useState('');
+
+  const refInputSenha = useRef<TextInput>(null);
+  const tema = useTheme();
+
+  /* ── Manipulação e sanitização do e-mail ── */
+  const handleAlterarEmail = useCallback((texto: string) => {
+    const textoLimpo = removerHTML(texto);
+    setEmail(textoLimpo);
+    if (erroEmail) setErroEmail('');
+    if (alerta) setAlerta(null);
+  }, [erroEmail, alerta]);
+
+  /* ── Manipulação e sanitização da senha ── */
+  const handleAlterarSenha = useCallback((texto: string) => {
+    const textoLimpo = removerHTML(texto);
+    setSenha(textoLimpo);
+    if (erroSenha) setErroSenha('');
+    if (alerta) setAlerta(null);
+  }, [erroSenha, alerta]);
+
+  /* ── Validação estrita dos campos ── */
+  const validarFormulario = (): boolean => {
+    let valido = true;
+
+    const resEmail = validarEmail(email);
+    if (!resEmail.valido) {
+      setErroEmail(resEmail.erro || 'E-mail inválido.');
+      valido = false;
+    }
+
+    if (!senha.trim()) {
+      setErroSenha('Informe sua senha.');
+      valido = false;
+    }
+
+    return valido;
+  };
+
+  /* ── Processo de Login seguro ── */
   const handleLogin = async () => {
-    setLoading(true);
+    setAlerta(null);
+
+    if (!validarFormulario()) {
+      setAlerta({
+        tipo: 'erro',
+        mensagem: 'Por favor, corrija os campos indicados abaixo.',
+      });
+      return;
+    }
+
+    setCarregando(true);
     try {
-      const response = await client.post('/auth/login', { email, password });
-      const { access_token } = response.data;
+      /* Sanitização básica anti-XSS antes do envio */
+      const payload = {
+        email: sanitizarInput(email.trim().toLowerCase()),
+        password: senha,
+      };
 
-      if (Platform.OS === 'web') {
-        localStorage.setItem('access_token', access_token);
-      } else {
+      const resposta = await client.post('/auth/login', payload);
+      const { access_token } = resposta.data;
+
+      /* Armazena token JWT prioritariamente em memória */
+      definirToken(access_token);
+
+      /* Persistência condicional segura */
+      if (Platform.OS !== 'web') {
         await SecureStore.setItemAsync('access_token', access_token);
-      }
-
-      if (Platform.OS === 'web') {
-        window.alert('Login realizado com sucesso!');
       } else {
-        Alert.alert('Sucesso', 'Login realizado com sucesso!');
+        sessionStorage.setItem('access_token', access_token);
       }
 
-      // Redireciona para o Menu Principal
-      navigation.replace('Home');
-    } catch (error: any) {
-      console.error(error);
-      const rawDetail = error.response?.data?.detail;
-      let message = 'Erro ao realizar login.';
+      setAlerta({
+        tipo: 'sucesso',
+        mensagem: 'Autenticação realizada com sucesso!',
+      });
 
-      if (rawDetail?.message) {
-        message = rawDetail.message;
-      } else if (typeof rawDetail === 'string') {
-        message = rawDetail;
-      } else if (Array.isArray(rawDetail) && rawDetail.length > 0) {
-        message = rawDetail[0]?.msg || 'Dados inválidos.';
-      } else if (error.message === 'Network Error' || !error.response) {
-        message = 'Não foi possível conectar ao servidor backend (porta 8000). Verifique se o backend está rodando.';
+      /* Redirecionamento após breve transição */
+      setTimeout(() => {
+        navigation.replace('Home');
+      }, 500);
+    } catch (erro: any) {
+      console.error(erro);
+      const detalhe = erro.response?.data?.detail;
+      const msgApi = erro.response?.data?.message;
+      let mensagem = msgApi || 'Não foi possível realizar o login. Verifique suas credenciais.';
+
+      if (detalhe?.message) {
+        mensagem = detalhe.message;
+      } else if (typeof detalhe === 'string') {
+        mensagem = detalhe;
+      } else if (Array.isArray(detalhe) && detalhe.length > 0) {
+        mensagem = detalhe[0]?.msg || 'Dados incorretos.';
+      } else if (erro.message === 'Network Error' || !erro.response) {
+        mensagem = 'Falha de comunicação com o servidor. Verifique se o serviço está ativo.';
       }
-      if (Platform.OS === 'web') {
-        window.alert(message);
-      } else {
-        Alert.alert('Erro', message);
-      }
+
+      setAlerta({ tipo: 'erro', mensagem });
     } finally {
-      setLoading(false);
+      setCarregando(false);
     }
   };
 
-  /* ── Dynamic styles based on theme ── */
-  const dynamicStyles = {
-    container: {
-      backgroundColor: theme.background,
-    },
-    card: {
-      backgroundColor: theme.card,
-      borderColor: theme.border,
-    },
-    brandText: {
-      color: theme.foreground,
-    },
-    subtitle: {
-      color: theme.mutedForeground,
-    },
-    title: {
-      color: theme.foreground,
-    },
-    input: (focused: boolean) => ({
-      backgroundColor: theme.background,
-      borderColor: focused ? theme.ring : theme.border,
-      color: theme.foreground,
+  /* ── Login Social com Google (sem Apple) ── */
+  const handleLoginGoogle = () => {
+    setAlerta({
+      tipo: 'info',
+      mensagem: 'A integração com Google está em fase de ativação.',
+    });
+  };
+
+  /* ── Estilos dinâmicos orientados ao tema Claude Amber ── */
+  const estilosDinamicos = {
+    container: { backgroundColor: tema.background },
+    card: { backgroundColor: tema.card, borderColor: tema.border },
+    textoMarca: { color: tema.foreground },
+    subtitulo: { color: tema.mutedForeground },
+    titulo: { color: tema.foreground },
+    input: (focado: boolean, comErro: boolean) => ({
+      backgroundColor: tema.background,
+      borderColor: comErro
+        ? tema.destructive
+        : focado
+          ? tema.ring
+          : tema.border,
+      color: tema.foreground,
     }),
-    placeholderColor: theme.mutedForeground,
-    primaryButton: {
-      backgroundColor: theme.primary,
+    corPlaceholder: tema.mutedForeground,
+    botaoPrimario: { backgroundColor: tema.primary },
+    textoBotaoPrimario: { color: tema.primaryForeground },
+    textoLink: { color: tema.mutedForeground },
+    destaqueLink: { color: tema.primary },
+    divisor: { backgroundColor: tema.border },
+    botaoSocial: {
+      backgroundColor: tema.background,
+      borderColor: tema.border,
     },
-    primaryButtonText: {
-      color: theme.primaryForeground,
-    },
-    linkText: {
-      color: theme.mutedForeground,
-    },
-    linkHighlight: {
-      color: theme.primary,
-    },
-    divider: {
-      backgroundColor: theme.border,
-    },
+    textoBotaoSocial: { color: tema.foreground },
+    textoErro: { color: tema.destructive },
+    corIconeInput: (focado: boolean) => (focado ? tema.ring : tema.mutedForeground),
   };
 
   return (
     <KeyboardAvoidingView
-      style={[styles.root, dynamicStyles.container]}
+      style={[estilos.root, estilosDinamicos.container]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={estilos.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Brand / Logo ── */}
-        <View style={styles.brandContainer}>
-          <Image
-            source={require('../../assets/iconeapp.png')}
-            style={styles.logo}
-            accessibilityLabel="Prioritize logo"
-          />
-          <Text
-            style={[styles.brandText, dynamicStyles.brandText]}
-            accessibilityRole="header"
-          >
-            Prioritize
-          </Text>
-          <Text style={[styles.subtitle, dynamicStyles.subtitle]}>
-            Organize seus desejos com prioridade
-          </Text>
-        </View>
-
-        {/* ── Form Card ── */}
-        <View style={[styles.formCard, dynamicStyles.card, shadows.md]}>
-          <Text
-            style={[styles.title, dynamicStyles.title]}
-            accessibilityRole="header"
-          >
-            Entrar
-          </Text>
-
-          {/* Email Input */}
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: theme.foreground }]}>
-              E-mail
-            </Text>
-            <TextInput
-              style={[styles.input, dynamicStyles.input(emailFocused)]}
-              placeholder="seu@email.com"
-              placeholderTextColor={dynamicStyles.placeholderColor}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-              textContentType="emailAddress"
-              onFocus={() => setEmailFocused(true)}
-              onBlur={() => setEmailFocused(false)}
-              accessibilityLabel="Campo de e-mail"
-              accessibilityHint="Digite seu endereço de e-mail"
+        <View style={estilos.conteudoCentralizado}>
+          {/* ── Branding e Cabeçalho ── */}
+          <View style={estilos.containerMarca}>
+            <Image
+              source={require('../../assets/logo.png')}
+              style={estilos.logo}
+              accessibilityLabel="Logotipo Prioritize"
             />
-          </View>
-
-          {/* Password Input */}
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: theme.foreground }]}>
-              Senha
-            </Text>
-            <TextInput
-              style={[styles.input, dynamicStyles.input(passwordFocused)]}
-              placeholder="••••••••"
-              placeholderTextColor={dynamicStyles.placeholderColor}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoComplete="password"
-              textContentType="password"
-              onFocus={() => setPasswordFocused(true)}
-              onBlur={() => setPasswordFocused(false)}
-              accessibilityLabel="Campo de senha"
-              accessibilityHint="Digite sua senha"
-            />
-          </View>
-
-          {/* Primary Action — Login Button */}
-          <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              dynamicStyles.primaryButton,
-              loading && styles.buttonDisabled,
-            ]}
-            onPress={handleLogin}
-            disabled={loading}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel={loading ? 'Entrando' : 'Entrar'}
-            accessibilityState={{ disabled: loading, busy: loading }}
-          >
-            {loading ? (
-              <ActivityIndicator color={theme.primaryForeground} size="small" />
-            ) : (
-              <Text style={[styles.primaryButtonText, dynamicStyles.primaryButtonText]}>
-                Entrar
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* ── Footer — Register Link ── */}
-        <View style={styles.footerContainer}>
-          <View style={[styles.divider, dynamicStyles.divider]} />
-          <View style={styles.registerRow}>
-            <Text style={[styles.footerText, dynamicStyles.linkText]}>
-              Não tem uma conta?
-            </Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Register')}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              accessibilityRole="button"
-              accessibilityLabel="Ir para cadastro"
+            <Text
+              style={[estilos.textoMarca, estilosDinamicos.textoMarca]}
+              accessibilityRole="header"
             >
-              <Text style={[styles.linkText, dynamicStyles.linkHighlight]}>
-                Cadastre-se
+              Prioritize
+            </Text>
+            <Text style={[estilos.subtitulo, estilosDinamicos.subtitulo]}>
+              Organize seus desejos com prioridade
+            </Text>
+          </View>
+
+          {/* ── Card Principal ── */}
+          <View style={[estilos.cardFormulario, estilosDinamicos.card, shadows.md]}>
+            <Text
+              style={[estilos.titulo, estilosDinamicos.titulo]}
+              accessibilityRole="header"
+            >
+              Entrar
+            </Text>
+            <Text style={[estilos.descricaoTitulo, estilosDinamicos.subtitulo]}>
+              Acesse sua conta para visualizar seus itens
+            </Text>
+
+            {/* ── Caixa de Alerta (Feedback visual) ── */}
+            {alerta && (
+              <AlertBox
+                tipo={alerta.tipo}
+                mensagem={alerta.mensagem}
+                onFechar={() => setAlerta(null)}
+              />
+            )}
+
+            {/* ── Botão de Login Social (Apenas Google) ── */}
+            <TouchableOpacity
+              style={[estilos.botaoSocial, estilosDinamicos.botaoSocial]}
+              onPress={handleLoginGoogle}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Entrar com o Google"
+            >
+              <Text style={estilos.iconeSocial}>G</Text>
+              <Text style={[estilos.textoBotaoSocial, estilosDinamicos.textoBotaoSocial]}>
+                Continuar com Google
               </Text>
             </TouchableOpacity>
+
+            {/* ── Divisor Visual "ou" ── */}
+            <View style={estilos.containerDivisor}>
+              <View style={[estilos.linhaDivisor, estilosDinamicos.divisor]} />
+              <Text style={[estilos.textoDivisor, estilosDinamicos.subtitulo]}>
+                ou com e-mail
+              </Text>
+              <View style={[estilos.linhaDivisor, estilosDinamicos.divisor]} />
+            </View>
+
+            {/* ── Campo E-mail ── */}
+            <View style={estilos.grupoInput}>
+              <Text style={[estilos.rotulo, { color: tema.foreground }]}>
+                E-mail
+              </Text>
+              <View
+                style={[
+                  estilos.containerInput,
+                  estilosDinamicos.input(emailFocado, !!erroEmail),
+                ]}
+              >
+                <Text
+                  style={[
+                    estilos.iconeInput,
+                    { color: estilosDinamicos.corIconeInput(emailFocado) },
+                  ]}
+                >
+                  ✉
+                </Text>
+                <TextInput
+                  style={[estilos.campoTexto, { color: tema.foreground }]}
+                  placeholder="seu@email.com"
+                  placeholderTextColor={estilosDinamicos.corPlaceholder}
+                  value={email}
+                  onChangeText={handleAlterarEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  autoComplete="email"
+                  textContentType="emailAddress"
+                  returnKeyType="next"
+                  onSubmitEditing={() => refInputSenha.current?.focus()}
+                  onFocus={() => setEmailFocado(true)}
+                  onBlur={() => {
+                    setEmailFocado(false);
+                    if (email.trim()) {
+                      const res = validarEmail(email);
+                      if (!res.valido) setErroEmail(res.erro || '');
+                    }
+                  }}
+                  accessibilityLabel="Campo de e-mail"
+                />
+              </View>
+              {!!erroEmail && (
+                <Text style={[estilos.textoErro, estilosDinamicos.textoErro]}>
+                  {erroEmail}
+                </Text>
+              )}
+            </View>
+
+            {/* ── Campo Senha ── */}
+            <View style={estilos.grupoInput}>
+              <View style={estilos.linhaRotuloSenha}>
+                <Text style={[estilos.rotulo, { color: tema.foreground }]}>
+                  Senha
+                </Text>
+                <TouchableOpacity
+                  onPress={() =>
+                    setAlerta({
+                      tipo: 'info',
+                      mensagem: 'A recuperação de senha estará disponível em breve.',
+                    })
+                  }
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={[estilos.linkEsqueciSenha, estilosDinamicos.destaqueLink]}>
+                    Esqueceu?
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View
+                style={[
+                  estilos.containerInput,
+                  estilosDinamicos.input(senhaFocada, !!erroSenha),
+                ]}
+              >
+                <Text
+                  style={[
+                    estilos.iconeInput,
+                    { color: estilosDinamicos.corIconeInput(senhaFocada) },
+                  ]}
+                >
+                  🔒
+                </Text>
+                <TextInput
+                  ref={refInputSenha}
+                  style={[estilos.campoTexto, { color: tema.foreground }]}
+                  placeholder="Sua senha de acesso"
+                  placeholderTextColor={estilosDinamicos.corPlaceholder}
+                  value={senha}
+                  onChangeText={handleAlterarSenha}
+                  secureTextEntry={!senhaVisivel}
+                  autoComplete="password"
+                  textContentType="password"
+                  returnKeyType="done"
+                  onSubmitEditing={handleLogin}
+                  onFocus={() => setSenhaFocada(true)}
+                  onBlur={() => setSenhaFocada(false)}
+                  accessibilityLabel="Campo de senha"
+                />
+                {/* Toggle minimalista e profissional: Ícones de olho aberto / fechado com corte */}
+                <TouchableOpacity
+                  onPress={() => setSenhaVisivel(!senhaVisivel)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={senhaVisivel ? 'Ocultar senha' : 'Exibir senha'}
+                  style={estilos.botaoToggle}
+                >
+                  <Text style={[estilos.iconeToggle, { color: tema.mutedForeground }]}>
+                    {senhaVisivel ? '👁' : '⊘'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {!!erroSenha && (
+                <Text style={[estilos.textoErro, estilosDinamicos.textoErro]}>
+                  {erroSenha}
+                </Text>
+              )}
+            </View>
+
+            {/* ── Botão de Ação Primária ── */}
+            <TouchableOpacity
+              style={[
+                estilos.botaoPrimario,
+                estilosDinamicos.botaoPrimario,
+                carregando && estilos.botaoDesabilitado,
+              ]}
+              onPress={handleLogin}
+              disabled={carregando}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={carregando ? 'Validando' : 'Entrar'}
+            >
+              {carregando ? (
+                <ActivityIndicator color={tema.primaryForeground} size="small" />
+              ) : (
+                <Text style={[estilos.textoBotaoPrimario, estilosDinamicos.textoBotaoPrimario]}>
+                  Entrar
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* ── Rodapé com Link para Cadastro ── */}
+          <View style={estilos.containerRodape}>
+            <View style={estilos.linhaRegistro}>
+              <Text style={[estilos.textoRodape, estilosDinamicos.textoLink]}>
+                Não tem uma conta?
+              </Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Register')}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel="Ir para cadastro"
+              >
+                <Text style={[estilos.textoLinkDestaque, estilosDinamicos.destaqueLink]}>
+                  Cadastre-se
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -249,112 +439,180 @@ export default function LoginScreen({ navigation }: any) {
   );
 }
 
-/* ── Static Styles ── */
-const styles = StyleSheet.create({
+const estilos = StyleSheet.create({
   root: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: spacing['2xl'],
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing['3xl'],
   },
-
-  /* Brand */
-  brandContainer: {
+  conteudoCentralizado: {
+    width: '100%',
+    maxWidth: LARGURA_MAXIMA_FORM,
+    alignSelf: 'center',
+  },
+  containerMarca: {
     alignItems: 'center',
-    marginBottom: spacing['3xl'],
+    marginBottom: spacing['2xl'],
   },
   logo: {
-    width: 96,
-    height: 96,
+    width: 120,
+    height: 65,
     resizeMode: 'contain',
     marginBottom: spacing.sm,
   },
-  brandText: {
+  textoMarca: {
     fontSize: typography.sizes.xl,
     fontWeight: typography.weights.bold,
     fontFamily: typography.fonts.sans,
     letterSpacing: typography.letterSpacing.tight,
   },
-  subtitle: {
+  subtitulo: {
     fontSize: typography.sizes.sm,
     fontFamily: typography.fonts.sans,
     marginTop: spacing.xs,
+    textAlign: 'center',
   },
-
-  /* Form Card */
-  formCard: {
+  cardFormulario: {
     borderRadius: radius.xl,
     borderWidth: 1,
     paddingHorizontal: spacing['2xl'],
-    paddingVertical: spacing['3xl'],
+    paddingVertical: spacing['2xl'],
   },
-  title: {
+  titulo: {
     fontSize: typography.sizes.xl,
     fontWeight: typography.weights.semibold,
     fontFamily: typography.fonts.sans,
-    marginBottom: spacing['2xl'],
     textAlign: 'center',
   },
-
-  /* Inputs */
-  inputGroup: {
+  descricaoTitulo: {
+    fontSize: typography.sizes.sm,
+    fontFamily: typography.fonts.sans,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+    marginBottom: spacing.xl,
+  },
+  botaoSocial: {
+    height: 48,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
     marginBottom: spacing.lg,
   },
-  label: {
+  iconeSocial: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
+  },
+  textoBotaoSocial: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.sans,
+  },
+  containerDivisor: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  linhaDivisor: {
+    flex: 1,
+    height: 1,
+  },
+  textoDivisor: {
+    fontSize: typography.sizes.xs,
+    fontFamily: typography.fonts.sans,
+    paddingHorizontal: spacing.md,
+  },
+  grupoInput: {
+    marginBottom: spacing.lg,
+  },
+  rotulo: {
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.medium,
     fontFamily: typography.fonts.sans,
     marginBottom: spacing.sm,
   },
-  input: {
+  linhaRotuloSenha: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  linkEsqueciSenha: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.medium,
+    fontFamily: typography.fonts.sans,
+  },
+  containerInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
     height: 52,
     borderWidth: 1,
     borderRadius: radius.md,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
+  },
+  iconeInput: {
+    fontSize: 16,
+    marginRight: spacing.sm,
+    width: 22,
+    textAlign: 'center',
+  },
+  campoTexto: {
+    flex: 1,
+    height: '100%',
     fontSize: typography.sizes.base,
     fontFamily: typography.fonts.sans,
+    paddingVertical: 0,
   },
-
-  /* Buttons */
-  primaryButton: {
+  botaoToggle: {
+    paddingLeft: spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iconeToggle: {
+    fontSize: 18,
+    width: 24,
+    textAlign: 'center',
+  },
+  textoErro: {
+    fontSize: typography.sizes.xs,
+    fontFamily: typography.fonts.sans,
+    marginTop: spacing.xs,
+  },
+  botaoPrimario: {
     height: 52,
     borderRadius: radius.md,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: spacing.sm,
   },
-  primaryButtonText: {
+  textoBotaoPrimario: {
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.semibold,
     fontFamily: typography.fonts.sans,
   },
-  buttonDisabled: {
+  botaoDesabilitado: {
     opacity: 0.7,
   },
-
-  /* Footer */
-  footerContainer: {
-    marginTop: spacing['3xl'],
+  containerRodape: {
+    marginTop: spacing['2xl'],
     alignItems: 'center',
   },
-  divider: {
-    height: 1,
-    width: '100%',
-    marginBottom: spacing.xl,
-  },
-  registerRow: {
+  linhaRegistro: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
-  footerText: {
+  textoRodape: {
     fontSize: typography.sizes.sm,
     fontFamily: typography.fonts.sans,
   },
-  linkText: {
+  textoLinkDestaque: {
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.semibold,
     fontFamily: typography.fonts.sans,

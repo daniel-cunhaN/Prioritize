@@ -144,9 +144,26 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
 
 ---
 
-## 6. Frontend: Modal de Adicionar Desejo (`AdicionarDesejoModal.tsx`)
+## 6. Frontend: Interfaces, Telas e Componentes
 
-O componente foi construído respeitando as diretrizes visuais Claude Amber e os requisitos de acessibilidade:
+### 6.1. Telas de Autenticação (`LoginScreen.tsx` e `RegisterScreen.tsx`)
+- **UI/UX e Identidade Visual**:
+  - Cabeçalho limpo com logotipo oficial (`logo.png`) e tipografia Claude Amber.
+  - Card centralizado e responsivo (`maxWidth: 420`) com suporte a desktop, web e mobile.
+  - Botão de login/cadastro social com Google e divisor visual padronizado.
+  - Alternador de visibilidade de senha com ícones discretos e profissionais (`👁` e `⊘`).
+  - Indicador de força de senha em tempo real na tela de cadastro, com barra colorida progressiva e checagem de critérios (comprimento, maiúscula, minúscula, número e caractere especial).
+- **Segurança e Sanitização**:
+  - Validação estrita do lado do cliente via módulo `validacao.ts` (e-mail RFC 5322 e força de senha).
+  - Sanitização anti-XSS em todos os inputs de texto.
+  - Gerenciamento seguro de token JWT em memória (closure do módulo), utilizando `SecureStore` em plataformas nativas e `sessionStorage` na Web.
+
+### 6.2. Componente de Feedback (`AlertBox.tsx`)
+- Fornece notificações inline contextuais e acessíveis (`erro`, `sucesso`, `aviso`, `info`).
+- Cores e bordas calculadas a partir dos tokens dinâmicos do tema ativo.
+- Suporte a botão de fechamento manual e ícone indicativo.
+
+### 6.3. Modal de Adicionar Desejo (`AdicionarDesejoModal.tsx`)
 - **Herança de Dados**:
   - Campo de URL do produto com suporte a busca manual ou automática no blur.
   - Indicador visual de progresso durante o scraping.
