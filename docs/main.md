@@ -182,14 +182,14 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
 - **Ações de Conta Disponíveis**:
   - **Deslogar**: Encerra a sessão com confirmação de segurança, remove o token JWT da memória volátil, do `SecureStore` (mobile) e do `sessionStorage` (web) através da função `encerrarSessao()`, redirecionando para a tela de Login com pilha de navegação limpa (`navigation.reset`).
   - **Mudar de Conta**: Permite desconectar a conta atual com confirmação para que outro usuário realize autenticação.
-  - **Criar Outra Conta**: Atalho direto para a tela de cadastro (`RegisterScreen.tsx`).
+  - **Criar Outra Conta**: Atalho direto para a tela de cadastro (`RegisterScreen.tsx`), mantendo a tela de Login na pilha de navegação (`routes: [{ name: 'Login' }, { name: 'Register' }]`). Na tela de cadastro, o botão "Faça Login" utiliza navegação resiliente (`handleIrParaLogin`), retornando pelo histórico se houver ou navegando explicitamente para `Login`.
   - **Identificação da Sessão**: Exibe o e-mail completo do usuário autenticado e indicador de "Sessão ativa".
 
 ---
 
 ## 7. Como Executar os Testes
 
-O backend conta com uma suíte de 35 testes automatizados (unitários e de integração) desenvolvida com o runner nativo `node:test` e a metodologia **TDD**:
+O backend conta com uma suíte de 37 testes automatizados (unitários e de integração) desenvolvida com o runner nativo `node:test` e a metodologia **TDD**:
 
 ```bash
 cd backend

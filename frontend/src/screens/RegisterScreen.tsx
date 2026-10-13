@@ -203,6 +203,16 @@ export default function RegisterScreen({ navigation }: any) {
     });
   };
 
+  /* ── Redirecionamento seguro para a tela de Login ── */
+  const handleIrParaLogin = () => {
+    // Retorna na pilha se houver histórico ou navega explicitamente para Login
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Login');
+    }
+  };
+
   /* ── Identificadores visuais da força de senha ── */
   const obterCorForca = () => {
     switch (forcaSenha.forca) {
@@ -598,10 +608,10 @@ export default function RegisterScreen({ navigation }: any) {
                 Já tem uma conta?
               </Text>
               <TouchableOpacity
-                onPress={() => navigation.goBack()}
+                onPress={handleIrParaLogin}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 accessibilityRole="button"
-                accessibilityLabel="Voltar para login"
+                accessibilityLabel="Voltar para a tela de login"
               >
                 <Text style={[estilos.textoLinkDestaque, estilosDinamicos.destaqueLink]}>
                   Faça Login

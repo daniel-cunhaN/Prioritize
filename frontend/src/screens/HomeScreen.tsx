@@ -99,13 +99,13 @@ export default function HomeScreen({ navigation }: any) {
     });
   };
 
-  // Desconecta e direciona para a tela de registro de nova conta
+  // Desconecta e direciona para a tela de registro de nova conta mantendo Login na pilha
   const handleCriarNovaConta = async () => {
     await encerrarSessao();
     setModalContaVisivel(false);
     navigation.reset({
-      index: 0,
-      routes: [{ name: 'Register' }],
+      index: 1,
+      routes: [{ name: 'Login' }, { name: 'Register' }],
     });
   };
 
