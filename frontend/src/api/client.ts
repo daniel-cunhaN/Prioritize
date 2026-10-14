@@ -2,8 +2,7 @@
  * client.ts — Cliente HTTP Axios com interceptor de token JWT
  *
  * Prioriza token da memória (via módulo validacao.ts) antes de
- * recorrer ao armazenamento persistente (SecureStore ou sessionStorage).
- * Evita localStorage para tokens sensíveis.
+ * recorrer ao armazenamento persistente (SecureStore no mobile ou localStorage na Web).
  */
 
 import axios from 'axios';
@@ -28,16 +27,16 @@ const client = axios.create({
 
 /**
  * Interceptor de requisição — injeta o token Bearer no header Authorization.
- * Ordem de prioridade: memória > SecureStore (nativo) > sessionStorage (web).
+ * Ordem de prioridade: memória > SecureStore (nativo) > localStorage/sessionStorage (web).
  */
 client.interceptors.request.use(async (config) => {
-  /* 1. Tenta recuperar token da memória (mais seguro) */
+  /* 1. Tenta recuperar token da memória (mais seguro e rápido) */
   let token = obterToken();
 
   /* 2. Fallback para armazenamento persistente da plataforma */
   if (!token) {
     if (Platform.OS === 'web') {
-      token = sessionStorage.getItem('access_token');
+      token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
     } else {
       token = await SecureStore.getItemAsync('access_token');
     }

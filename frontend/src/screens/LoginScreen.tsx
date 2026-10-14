@@ -71,7 +71,7 @@ export default function LoginScreen({ navigation }: any) {
         let token = obterToken();
         if (!token) {
           if (Platform.OS === 'web') {
-            token = sessionStorage.getItem('access_token');
+            token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
           } else {
             token = await SecureStore.getItemAsync('access_token');
           }
@@ -148,10 +148,11 @@ export default function LoginScreen({ navigation }: any) {
       /* Armazena token JWT prioritariamente em memória */
       definirToken(access_token);
 
-      /* Persistência condicional segura */
+      /* Persistência condicional: SecureStore no mobile, localStorage/sessionStorage na web */
       if (Platform.OS !== 'web') {
         await SecureStore.setItemAsync('access_token', access_token);
       } else {
+        localStorage.setItem('access_token', access_token);
         sessionStorage.setItem('access_token', access_token);
       }
 

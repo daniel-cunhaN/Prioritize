@@ -156,7 +156,7 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
 - **Segurança e Sanitização**:
   - Validação estrita do lado do cliente via módulo `validacao.ts` (e-mail RFC 5322 e força de senha).
   - Sanitização anti-XSS em todos os inputs de texto.
-  - Gerenciamento seguro de token JWT em memória (closure do módulo), utilizando `SecureStore` em plataformas nativas e `sessionStorage` na Web.
+  - Gerenciamento seguro de token JWT em memória (closure do módulo), utilizando `SecureStore` em plataformas móveis nativas e `localStorage` (com sincronização e fallback para `sessionStorage`) na Web para assegurar que a sessão logada persista entre recarregamentos de página, novas abas e reinicializações do navegador.
   - **Confirmação de Credenciais Incorretas**: Tratamento específico no `LoginScreen.tsx` para falhas de autenticação (status 401), exibindo diálogo explícito de confirmação (`Alert.alert` no Mobile e `window.alert` na Web), mensagem em destaque no `AlertBox` e indicação de erro no campo de senha. No backend (`POST /api/v1/auth/login`), resposta padronizada com mensagem `"Credenciais de login incorretas."`.
 
 ### 6.2. Componente de Feedback (`AlertBox.tsx`)
@@ -181,7 +181,7 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
   - O avatar estático do cabeçalho da `HomeScreen.tsx` foi transformado em um botão interativo e acessível (`accessibilityRole="button"`).
   - Exibe dinamicamente a letra inicial do e-mail do usuário logado obtida via endpoint `GET /api/v1/auth/me`.
 - **Ações de Conta Disponíveis**:
-  - **Deslogar**: Encerra a sessão com confirmação de segurança, remove o token JWT da memória volátil, do `SecureStore` (mobile) e do `sessionStorage` (web) através da função `encerrarSessao()`, redirecionando para a tela de Login com pilha de navegação limpa (`navigation.reset`).
+  - **Deslogar**: Encerra a sessão com confirmação de segurança, remove o token JWT da memória volátil, do `SecureStore` (mobile) e dos armazenamentos web (`localStorage` e `sessionStorage`) através da função `encerrarSessao()`, redirecionando para a tela de Login com pilha de navegação limpa (`navigation.reset`).
   - **Criar Outra Conta**: Atalho direto para a tela de cadastro (`RegisterScreen.tsx`), mantendo a tela de Login na pilha de navegação (`routes: [{ name: 'Login' }, { name: 'Register' }]`). Na tela de cadastro, o botão "Faça Login" utiliza navegação resiliente (`handleIrParaLogin`), retornando pelo histórico se houver ou navegando explicitamente para `Login`.
   - **Identificação da Sessão**: Exibe o e-mail completo do usuário autenticado e indicador de "Sessão ativa".
 

@@ -124,12 +124,12 @@ export function removerHTML(texto: string): string {
 }
 
 /* ─────────────────────────────────────────────
- * Gerenciamento seguro de tokens em memória
+ * Gerenciamento de tokens e persistência de sessão
  *
- * Tokens JWT são armazenados apenas em variável de módulo
- * (closure), evitando localStorage/sessionStorage para
- * dados sensíveis. O SecureStore do Expo é usado em
- * plataformas nativas como camada persistente segura.
+ * Tokens JWT são mantidos prioritariamente em memória
+ * para acesso rápido, sincronizados com SecureStore em
+ * plataformas nativas e localStorage/sessionStorage na Web
+ * para garantir persistência da sessão entre abas e recarregamentos.
  * ───────────────────────────────────────────── */
 
 /** Token armazenado em memória (closure do módulo) */
@@ -153,7 +153,7 @@ export function limparToken(): void {
 /**
  * Encerra a sessão do usuário de forma segura.
  * Remove o token JWT da memória volátil e dos armazenamentos persistentes
- * da plataforma (SecureStore no mobile e sessionStorage na Web).
+ * da plataforma (SecureStore no mobile e localStorage/sessionStorage na Web).
  */
 export async function encerrarSessao(): Promise<void> {
   // Limpa o token da memória volátil da aplicação

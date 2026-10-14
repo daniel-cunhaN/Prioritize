@@ -163,6 +163,7 @@ export default function RegisterScreen({ navigation }: any) {
       if (Platform.OS !== 'web') {
         await SecureStore.setItemAsync('access_token', access_token);
       } else {
+        localStorage.setItem('access_token', access_token);
         sessionStorage.setItem('access_token', access_token);
       }
 
