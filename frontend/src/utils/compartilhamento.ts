@@ -67,12 +67,35 @@ export function extrairUrlValida(conteudo?: string | null): string | null {
   // 3. Remove pontuações acidentais anexadas ao final da URL
   urlCandidata = urlCandidata.replace(CARACTERES_PONTUACAO_FINAL, '');
 
-  // 4. Validação final da integridade da URL
+  // 4. Validação final da integridade da URL e proteção contra links internos do app
   try {
     const urlValidada = new URL(urlCandidata);
-    if (urlValidada.protocol === 'http:' || urlValidada.protocol === 'https:') {
-      return urlValidada.toString();
+    if (urlValidada.protocol !== 'http:' && urlValidada.protocol !== 'https:') {
+      return null;
     }
+
+    // Se a URL contiver parâmetro de busca "url" ou "text", extrai o produto alvo embutido
+    const parametroEmbutido = urlValidada.searchParams.get('url') || urlValidada.searchParams.get('text');
+    if (parametroEmbutido) {
+      return extrairUrlValida(decodeURIComponent(parametroEmbutido));
+    }
+
+    // Verifica se a URL aponta para a própria origem da aplicação Web (window.location.origin)
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      if (urlValidada.origin === window.location.origin) {
+        return null;
+      }
+    }
+
+    // Ignora a raiz do servidor local de desenvolvimento (Metro / Expo dev server na porta 8081, 19006, etc.)
+    const hostnamesLocais = ['localhost', '127.0.0.1', '10.0.2.2'];
+    if (hostnamesLocais.includes(urlValidada.hostname)) {
+      if (['8081', '19000', '19006', '8082'].includes(urlValidada.port) || urlValidada.pathname === '/') {
+        return null;
+      }
+    }
+
+    return urlValidada.toString();
   } catch {
     return null;
   }

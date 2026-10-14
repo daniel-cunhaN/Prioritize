@@ -192,9 +192,11 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
 - **Tratamento e Higienização (`compartilhamento.ts`)**:
   - Parser regex que extrai URLs HTTP/HTTPS mesmo que estejam acompanhadas de textos ou mensagens de redes sociais.
   - Remove pontuações acidentais anexadas ao final da URL e suporta deep links diretos (`prioritize://share?url=...`).
+  - **Proteção contra Abertura no Reload Web (F5)**: Rejeita a URL base do próprio aplicativo (`window.location.origin`) e endereços do servidor de desenvolvimento local (`localhost:8081`, `127.0.0.1:8081`), garantindo que apenas links externos de e-commerce sejam tratados como produtos. Desembala links embutidos em parâmetros de busca (`?url=...` ou `?text=...`).
 - **Hook e Provedor (`useCompartilhamento.ts` e `App.tsx`)**:
   - Provedor `<ShareIntentProvider>` envolvendo a navegação raiz.
   - Hook unificado que escuta intents nativos (`expo-share-intent`), deep links (`expo-linking`) e parâmetros web (`?url=...`).
+  - No ambiente Web (`Platform.OS === 'web'`), desativa a escuta de `Linking.getInitialURL()` (que retorna o endereço da própria janela `window.location.href`) e higieniza a barra de navegação com `window.history.replaceState` após o consumo de parâmetros, impedindo que o modal de adicionar desejo abra automaticamente ao recarregar a página.
 - **Fluxo Automático no Menu Principal (`HomeScreen.tsx`)**:
   - Ao receber a URL compartilhada, abre automaticamente o `AdicionarDesejoModal.tsx` com a `urlInicial`.
   - O modal dispara de imediato a requisição `/wishlist/preview`, preenchendo imagem e título para o usuário classificar e salvar.
@@ -205,15 +207,24 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
 
 ## 7. Como Executar os Testes
 
-O backend conta com uma suíte de 38 testes automatizados (unitários e de integração) desenvolvida com o runner nativo `node:test` e a metodologia **TDD**:
+O projeto conta com uma suíte completa de **46 testes automatizados** desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
 
+### Execução Unificada (Backend + Frontend)
+Na raiz do projeto:
+```bash
+npm test
+```
+
+### Testes do Backend (38 testes)
 ```bash
 cd backend
 npm test
 ```
 
-Para rodar em modo watch (reexecução ao salvar alterações):
+### Testes do Frontend (8 testes de utilitários e compartilhamento)
 ```bash
-npm run dev
+cd frontend
+npm test
 ```
+
 

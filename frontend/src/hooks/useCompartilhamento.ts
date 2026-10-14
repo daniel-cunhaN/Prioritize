@@ -53,7 +53,13 @@ export function useCompartilhamento() {
 
   // 2. Escuta Deep Links diretos via expo-linking (prioritize://share?url=...)
   useEffect(() => {
-    // Captura inicial caso o app tenha sido aberto por um deep link
+    // Na Web, o getInitialURL() do Expo retorna a própria URL da janela (window.location.href),
+    // o que causaria a reabertura indevida do modal ao recarregar a página (F5 / reload).
+    if (Platform.OS === 'web') {
+      return;
+    }
+
+    // Captura inicial caso o app tenha sido aberto por um deep link no mobile
     Linking.getInitialURL()
       .then((urlInicial) => {
         if (urlInicial) {
@@ -83,6 +89,14 @@ export function useCompartilhamento() {
       const urlWeb = params.get('url') || params.get('text');
       if (urlWeb) {
         processarTextoCompartilhado(decodeURIComponent(urlWeb));
+
+        // Limpa a query string da barra de endereços para não reabrir em recarregamentos (F5 / reload)
+        try {
+          const urlLimpa = window.location.pathname + window.location.hash;
+          window.history.replaceState({}, document.title, urlLimpa);
+        } catch (erro) {
+          console.warn('Não foi possível higienizar a URL na barra de endereços:', erro);
+        }
       }
     }
   }, [processarTextoCompartilhado]);
