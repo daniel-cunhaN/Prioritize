@@ -23,8 +23,10 @@ import ProductCard, { PRIORITY_CONFIG, PRIORITY_LABELS } from '../components/hom
 import EditarDesejoModal from '../components/home/EditarDesejoModal';
 import BottomNav, { BOTTOM_NAV_HEIGHT, HomeTab } from '../components/home/BottomNav';
 import DesktopHeader from '../components/home/DesktopHeader';
+import FilterSortBar from '../components/home/FilterSortBar';
+import ModalOrdenacao, { OPCOES_ORDENACAO } from '../components/home/ModalOrdenacao';
 import { useResponsive } from '../hooks/useResponsive';
-import { WishlistItem } from '../types';
+import { WishlistItem, TipoOrdenacao } from '../types';
 
 const APP_NAME = 'Prioritize';
 
@@ -59,12 +61,15 @@ export default function HomeScreen({ navigation }: any) {
   const [modalVisivel, setModalVisivel] = useState(false);
   const [modalContaVisivel, setModalContaVisivel] = useState(false);
   const [modalEditarVisivel, setModalEditarVisivel] = useState(false);
+  const [modalOrdenacaoVisivel, setModalOrdenacaoVisivel] = useState(false);
   const [itemParaEditar, setItemParaEditar] = useState<WishlistItem | null>(null);
   const [urlCompartilhadaModal, setUrlCompartilhadaModal] = useState('');
 
-  // Filtros e busca
+  // Filtros, ordenação e busca
   const [query, setQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<number | 'ALL'>('ALL');
+  const [selectedLoja, setSelectedLoja] = useState<string | 'ALL'>('ALL');
+  const [ordem, setOrdem] = useState<TipoOrdenacao>('prioridade_desc');
   const [view, setView] = useState<HomeTab>('home');
   const [offersExpanded, setOffersExpanded] = useState(false);
 
@@ -189,31 +194,118 @@ export default function HomeScreen({ navigation }: any) {
     }));
   }, [desejos]);
 
-  // Classificação correta: maior prioridade primeiro (3: Alta > 2: Média > 1: Baixa), depois mais recente
-  const byPriority = useCallback((a: WishlistItem, b: WishlistItem) => {
-    if (b.priority !== a.priority) {
-      return b.priority - a.priority;
-    }
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  }, []);
+  // Extração de lojas / domínios únicos presentes na lista de desejos
+  const lojasDisponiveis = useMemo(() => {
+    const mapa = new Map<string, number>();
+    wishlistItems.forEach((item) => {
+      if (item.url) {
+        try {
+          const dom = item.url
+            .replace(/^https?:\/\/(www\.)?/, '')
+            .split('/')[0]
+            .toLowerCase();
+          if (dom) {
+            mapa.set(dom, (mapa.get(dom) || 0) + 1);
+          }
+        } catch {
+          // ignora url com parsing inválido
+        }
+      }
+    });
+    return Array.from(mapa.entries()).map(([dominio, total]) => ({
+      dominio,
+      total,
+    }));
+  }, [wishlistItems]);
 
-  // Filtragem e busca
+  // Comparador robusto e configurável para ordenação dos itens
+  const comparatorOrdenacao = useCallback(
+    (a: WishlistItem, b: WishlistItem) => {
+      switch (ordem) {
+        case 'prioridade_asc':
+          if (a.priority !== b.priority) {
+            return a.priority - b.priority;
+          }
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+
+        case 'recentes':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+
+        case 'antigos':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+
+        case 'alfabetica_az':
+          return (a.title || '').localeCompare(b.title || '', 'pt-BR', { sensitivity: 'base' });
+
+        case 'alfabetica_za':
+          return (b.title || '').localeCompare(a.title || '', 'pt-BR', { sensitivity: 'base' });
+
+        case 'prioridade_desc':
+        default:
+          if (b.priority !== a.priority) {
+            return b.priority - a.priority;
+          }
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    },
+    [ordem]
+  );
+
+  // Filtragem combinada por prioridade, loja/domínio e busca textual com ordenação aplicada
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase();
     return wishlistItems
       .filter((i) => selectedFilter === 'ALL' || i.priority === selectedFilter)
-      .filter((i) => !q || (i.title || '').toLowerCase().includes(q) || (i.url || '').toLowerCase().includes(q))
-      .sort(byPriority);
-  }, [wishlistItems, selectedFilter, query, byPriority]);
+      .filter((i) => {
+        if (selectedLoja === 'ALL') return true;
+        const dom = (i.url || '')
+          .replace(/^https?:\/\/(www\.)?/, '')
+          .split('/')[0]
+          .toLowerCase();
+        return dom.includes(selectedLoja.toLowerCase());
+      })
+      .filter(
+        (i) =>
+          !q ||
+          (i.title || '').toLowerCase().includes(q) ||
+          (i.url || '').toLowerCase().includes(q)
+      )
+      .sort(comparatorOrdenacao);
+  }, [wishlistItems, selectedFilter, selectedLoja, query, comparatorOrdenacao]);
 
-  // Separação inteligente para o layout estilo Amazon
+  // Contador de filtros aplicados
+  const totalFiltrosAtivos = useMemo(() => {
+    let cont = 0;
+    if (selectedFilter !== 'ALL') cont++;
+    if (selectedLoja !== 'ALL') cont++;
+    if (ordem !== 'prioridade_desc') cont++;
+    if (query.trim().length > 0) cont++;
+    return cont;
+  }, [selectedFilter, selectedLoja, ordem, query]);
+
+  // Reseta todos os filtros para o estado padrão
+  const handleLimparFiltros = useCallback(() => {
+    setSelectedFilter('ALL');
+    setSelectedLoja('ALL');
+    setOrdem('prioridade_desc');
+    setQuery('');
+  }, []);
+
+  // Separação inteligente para o layout estilo Amazon (ou unificada quando filtros estão ativos)
   const { topPicks, offers, categoryTitle } = useMemo(() => {
-    if (selectedFilter !== 'ALL') {
-      const label = PRIORITY_CONFIG[selectedFilter]?.label.toLowerCase() || 'prioridade';
+    // Se o usuário filtrou ou ordenou especificamente, exibe em grade única
+    if (selectedFilter !== 'ALL' || selectedLoja !== 'ALL' || ordem !== 'prioridade_desc') {
+      let rotulo = 'produtos';
+      if (selectedFilter !== 'ALL') {
+        const label = PRIORITY_CONFIG[selectedFilter]?.label.toLowerCase() || 'prioridade';
+        rotulo = `${label} prioridade`;
+      } else if (selectedLoja !== 'ALL') {
+        rotulo = selectedLoja;
+      }
       return {
         topPicks: filteredItems,
         offers: [],
-        categoryTitle: `${label} prioridade`,
+        categoryTitle: rotulo,
       };
     }
 
@@ -245,7 +337,7 @@ export default function HomeScreen({ navigation }: any) {
       offers: [],
       categoryTitle: 'produtos',
     };
-  }, [filteredItems, selectedFilter]);
+  }, [filteredItems, selectedFilter, selectedLoja, ordem]);
 
   // Lista oficial de filtros por prioridade (3: Alta, 2: Média, 1: Baixa)
   const priorityOptions = useMemo(() => {
@@ -291,14 +383,8 @@ export default function HomeScreen({ navigation }: any) {
     } else if (tab === 'account') {
       handleAbrirModalConta();
     } else if (tab === 'explore') {
-      // Cicla entre os filtros ao clicar em Explorar: ALL -> Alta -> Média -> Baixa -> ALL
-      setSelectedFilter((prev) => {
-        if (prev === 'ALL') return 3;
-        if (prev === 3) return 2;
-        if (prev === 2) return 1;
-        return 'ALL';
-      });
-      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      // Abre o modal de ordenação dos itens
+      setModalOrdenacaoVisivel(true);
     }
   };
 
@@ -347,45 +433,8 @@ export default function HomeScreen({ navigation }: any) {
       </ScrollView>
     );
 
-  const renderChips = () => (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={{ marginHorizontal: -r.horizontalPadding, marginBottom: 12 }}
-      contentContainerStyle={[styles.chips, { paddingHorizontal: r.horizontalPadding }]}
-    >
-      {priorityOptions.map((opt) => {
-        const active = selectedFilter === opt.value;
-        return (
-          <TouchableOpacity
-            key={String(opt.value)}
-            onPress={() => setSelectedFilter(opt.value)}
-            style={[
-              styles.chip,
-              {
-                backgroundColor: active ? opt.activeBg : isDark ? theme.card : '#F5F3EF',
-                borderColor: active ? opt.color : isDark ? theme.border : '#E3DED6',
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                {
-                  color: active ? '#FFFFFF' : textStrong,
-                  fontWeight: active ? '700' : '500',
-                },
-              ]}
-            >
-              {opt.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </ScrollView>
-  );
-
   const renderHomeContent = () => {
+    // 1. Estado quando o usuário não possui nenhum desejo cadastrado
     if (desejos.length === 0) {
       return (
         <View style={styles.emptyContainer}>
@@ -406,24 +455,54 @@ export default function HomeScreen({ navigation }: any) {
       );
     }
 
-    if (isSearching) {
+    // 2. Estado quando os filtros ou busca não encontram nenhum item correspondente
+    if (filteredItems.length === 0) {
       return (
-        <View style={styles.section}>
-          <SectionHeader title={`Resultados para “${query.trim()}” (${filteredItems.length})`} />
-          {filteredItems.length ? (
-            renderGrid(filteredItems, 'search')
-          ) : (
-            <Text style={{ color: theme.mutedForeground, textAlign: 'center', marginVertical: 32 }}>
-              Nenhum item encontrado para esta busca.
-            </Text>
-          )}
+        <View style={styles.emptyContainer}>
+          <Feather name="filter" size={42} color={theme.primary} style={{ marginBottom: 16 }} />
+          <Text style={[styles.emptyTitle, { color: textStrong }]}>Nenhum desejo encontrado</Text>
+          <Text style={[styles.emptySubtitle, { color: theme.mutedForeground }]}>
+            Não encontramos itens correspondentes aos filtros ou busca aplicados.
+          </Text>
+          <TouchableOpacity
+            onPress={handleLimparFiltros}
+            style={[styles.emptyBtn, { backgroundColor: theme.primary }]}
+            activeOpacity={0.85}
+          >
+            <Feather name="rotate-ccw" size={16} color={theme.primaryForeground} />
+            <Text style={[styles.emptyBtnText, { color: theme.primaryForeground }]}>Limpar Filtros e Busca</Text>
+          </TouchableOpacity>
         </View>
       );
     }
 
+    // 3. Exibição de grade unificada quando filtros, ordenação customizada ou busca estão ativos
+    if (isSearching || selectedFilter !== 'ALL' || selectedLoja !== 'ALL' || ordem !== 'prioridade_desc') {
+      let tituloSecao = `Itens filtrados (${filteredItems.length})`;
+      if (isSearching) {
+        tituloSecao = `Resultados para “${query.trim()}” (${filteredItems.length})`;
+      } else if (selectedFilter !== 'ALL') {
+        const conf = PRIORITY_CONFIG[selectedFilter];
+        tituloSecao = `${conf?.label || ''} prioridade (${filteredItems.length})`;
+      } else if (selectedLoja !== 'ALL') {
+        tituloSecao = `Produtos de ${selectedLoja} (${filteredItems.length})`;
+      } else {
+        const confOrdem = OPCOES_ORDENACAO.find((o) => o.id === ordem);
+        tituloSecao = `Ordenado por ${confOrdem?.label.toLowerCase() || 'prioridade'} (${filteredItems.length})`;
+      }
+
+      return (
+        <View style={styles.section}>
+          <SectionHeader title={tituloSecao} />
+          {renderGrid(filteredItems, 'filtered')}
+        </View>
+      );
+    }
+
+    // 4. Exibição padrão dividida no estilo Amazon (Top picks + Ofertas)
     return (
       <>
-        {/* Seção Principal: Melhores escolhas de [Categoria/Prioridade] para você */}
+        {/* Seção Principal: Melhores escolhas para você */}
         <View style={styles.section}>
           <SectionHeader
             title={`Melhores escolhas de ${categoryTitle} para você`}
@@ -437,7 +516,7 @@ export default function HomeScreen({ navigation }: any) {
           )}
         </View>
 
-        {/* Seção 2: Ofertas que podem te interessar > */}
+        {/* Seção 2: Ofertas que podem te interessar */}
         {offers.length > 0 && (
           <View style={styles.section}>
             <SectionHeader
@@ -505,7 +584,21 @@ export default function HomeScreen({ navigation }: any) {
           refreshControl={<RefreshControl refreshing={atualizando} onRefresh={onRefresh} tintColor={theme.primary} />}
         >
           <View style={{ width: r.contentWidth, paddingHorizontal: r.horizontalPadding, paddingTop: 14 }}>
-            {desejos.length > 0 && renderChips()}
+            {desejos.length > 0 && (
+              <FilterSortBar
+                prioridadeSelecionada={selectedFilter}
+                onSelecionarPrioridade={setSelectedFilter}
+                opcoesPrioridade={priorityOptions}
+                lojaSelecionada={selectedLoja}
+                onSelecionarLoja={setSelectedLoja}
+                lojasDisponiveis={lojasDisponiveis}
+                ordemAtual={ordem}
+                onAbrirModalOrdenacao={() => setModalOrdenacaoVisivel(true)}
+                totalFiltrosAtivos={totalFiltrosAtivos}
+                onLimparFiltros={handleLimparFiltros}
+                horizontalPadding={r.horizontalPadding}
+              />
+            )}
             {renderHomeContent()}
           </View>
         </ScrollView>
@@ -561,6 +654,14 @@ export default function HomeScreen({ navigation }: any) {
         aoDeslogar={handleDeslogar}
         aoCriarNovaConta={handleCriarNovaConta}
         aoMudarDeConta={handleMudarDeConta}
+      />
+
+      {/* Modal de Ordenação dos Desejos */}
+      <ModalOrdenacao
+        visivel={modalOrdenacaoVisivel}
+        ordemAtual={ordem}
+        onSelecionar={setOrdem}
+        onFechar={() => setModalOrdenacaoVisivel(false)}
       />
     </View>
   );

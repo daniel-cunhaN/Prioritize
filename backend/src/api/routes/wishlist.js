@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import crypto from 'node:crypto';
 import { obterBanco } from '../../db/database.js';
 import { exigirAutenticacao } from '../middlewares/autenticacao.js';
@@ -99,15 +99,17 @@ router.post('/', (req, res) => {
 
 /**
  * GET /api/v1/wishlist
- * Retorna os itens de desejo do usuario autenticado, com suporte a filtro por prioridade.
+ * Retorna os itens de desejo do usuário autenticado, com suporte a filtros
+ * por prioridade, busca textual, loja e múltiplos critérios de ordenação.
  */
 router.get('/', (req, res) => {
-  const { prioridade } = req.query;
+  const { prioridade, busca, q, loja, ordem, sort } = req.query;
   const db = obterBanco();
 
   let sql = 'SELECT * FROM wishlist_items WHERE user_id = ?';
   const parametros = [req.usuario.id];
 
+  // Filtro por prioridade (1: Baixa, 2: Média, 3: Alta)
   if (prioridade) {
     const prioridadeNum = parseInt(prioridade, 10);
     if ([1, 2, 3].includes(prioridadeNum)) {
@@ -116,7 +118,43 @@ router.get('/', (req, res) => {
     }
   }
 
-  sql += ' ORDER BY created_at DESC';
+  // Filtro por termo de busca no título ou na URL do produto
+  const termoBusca = (busca || q)?.trim();
+  if (termoBusca) {
+    sql += ' AND (title LIKE ? OR url LIKE ?)';
+    parametros.push(`%${termoBusca}%`, `%${termoBusca}%`);
+  }
+
+  // Filtro por domínio ou loja específica
+  const filtroLoja = loja?.trim();
+  if (filtroLoja) {
+    sql += ' AND url LIKE ?';
+    parametros.push(`%${filtroLoja}%`);
+  }
+
+  // Ordenação configurável (padrão: mais recentes)
+  const criterioOrdem = (ordem || sort || 'recentes').toLowerCase();
+  switch (criterioOrdem) {
+    case 'prioridade_desc':
+      sql += ' ORDER BY priority DESC, created_at DESC';
+      break;
+    case 'prioridade_asc':
+      sql += ' ORDER BY priority ASC, created_at DESC';
+      break;
+    case 'antigos':
+      sql += ' ORDER BY created_at ASC';
+      break;
+    case 'alfabetica_az':
+      sql += ' ORDER BY LOWER(title) ASC, created_at DESC';
+      break;
+    case 'alfabetica_za':
+      sql += ' ORDER BY LOWER(title) DESC, created_at DESC';
+      break;
+    case 'recentes':
+    default:
+      sql += ' ORDER BY created_at DESC';
+      break;
+  }
 
   const stmt = db.prepare(sql);
   const itens = stmt.all(...parametros);

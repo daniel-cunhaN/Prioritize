@@ -117,8 +117,14 @@ Todos os endpoints abaixo exigem cabeçalho `Authorization: Bearer <token>`.
   - **Body**: `{ "url": "...", "titulo": "...", "imagem_url": "...", "prioridade": 1|2|3 }`
   - **Retorno**: Item criado com `id`, `user_id`, `created_at`, etc. (`status 201`).
 - `GET /wishlist/`:
-  - **Função**: Lista todos os desejos do usuário autenticado, ordenados por data decrescente.
-  - **Parâmetro opcional de Query**: `?prioridade=1|2|3` para filtrar por importância.
+  - **Função**: Lista os desejos cadastrados do usuário autenticado.
+  - **Parâmetros de Query Opcionais**:
+    - `prioridade=1|2|3`: Filtra por nível de importância (1: Baixa, 2: Média, 3: Alta).
+    - `busca=texto` ou `q=texto`: Filtro por correspondência textual no título ou na URL do produto.
+    - `loja=dominio`: Filtra por loja ou domínio específico (ex: `amazon.com.br`, `mercadolivre.com.br`).
+    - `ordem=criterio` ou `sort=criterio`: Define o critério de ordenação (`prioridade_desc`, `prioridade_asc`, `recentes`, `antigos`, `alfabetica_az`, `alfabetica_za`).
+- `PUT /wishlist/{item_id}`:
+  - **Função**: Atualiza dados de um item existente (título, URL, imagem ou prioridade).
 - `DELETE /wishlist/{item_id}`:
   - **Função**: Exclui o desejo pertencente ao usuário (`status 204`).
 
@@ -203,11 +209,29 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
 - **Persistência de Sessão (`LoginScreen.tsx`)**:
   - Verificação automática de token ativo na inicialização para redirecionamento direto à `HomeScreen`, garantindo que links compartilhados sejam importados sem exigir novo login toda vez.
 
+### 6.6. Sistema de Filtro e Ordenação (`FilterSortBar.tsx` e `ModalOrdenacao.tsx`)
+- **Barra de Controles Responsiva (`FilterSortBar.tsx`)**:
+  - **Botão Ordenar**: Exibe o critério de ordenação ativo com ícone e destaque visual quando modificado em relação ao padrão (`prioridade_desc`). Abre o modal dedicado de seleção de ordenação.
+  - **Chips de Prioridade**: Filtros rápidos por nível de importância ("Todos", "🔥 Alta", "⭐ Média", "🌱 Baixa") exibindo o quantitativo de itens em cada categoria em tempo real.
+  - **Chips Dinâmicos de Loja/Domínio**: Extrai automaticamente os domínios únicos presentes na lista de desejos do usuário (ex.: `amazon.com.br`, `mercadolivre.com.br`, `shopee.com.br`) com o total de produtos de cada fornecedor, permitindo filtrar por loja com um único clique.
+  - **Botão Limpar Filtros**: Exibido dinamicamente com animação e contador de filtros ativos, permitindo restaurar a visão completa em um toque.
+- **Modal de Ordenação (`ModalOrdenacao.tsx`)**:
+  - Permite alternar instantaneamente entre 6 critérios:
+    1. **Maior Prioridade**: Alta (🔥) → Baixa (🌱).
+    2. **Menor Prioridade**: Baixa (🌱) → Alta (🔥).
+    3. **Mais Recentes**: Data de criação decrescente.
+    4. **Mais Antigos**: Data de criação crescente.
+    5. **Alfabética (A - Z)**: Pelo título com `localeCompare` pt-BR.
+    6. **Alfabética (Z - A)**: Inversa pelo título.
+  - Indicador de seleção com checkmark, acessibilidade e tema integrado.
+- **Tratamento de Estado Vazio de Filtros**:
+  - Quando a busca ou filtros ativos não encontram itens, exibe mensagem amigável e botão "Limpar Filtros e Busca".
+
 ---
 
 ## 7. Como Executar os Testes
 
-O projeto conta com uma suíte completa de **46 testes automatizados** desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
+O projeto conta com uma suíte completa de **60 testes automatizados** desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
 
 ### Execução Unificada (Backend + Frontend)
 Na raiz do projeto:
@@ -215,16 +239,19 @@ Na raiz do projeto:
 npm test
 ```
 
-### Testes do Backend (38 testes)
+### Testes do Backend (41 testes)
+Testes unitários e de integração de autenticação, banco de dados, rotas de wishlist (filtros, busca e ordenação), scraping e segurança:
 ```bash
 cd backend
 npm test
 ```
 
-### Testes do Frontend (8 testes de utilitários e compartilhamento)
+### Testes do Frontend (19 testes)
+Testes unitários de extração de compartilhamento, prevenção de reabertura no reload, algoritmos de ordenação e filtros combinados:
 ```bash
 cd frontend
 npm test
 ```
+
 
 

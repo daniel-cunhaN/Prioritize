@@ -171,6 +171,47 @@ describe('Rotas da API Prioritize (Integração Express)', () => {
     assert.ok(dados.some((item) => item.id === idDesejoCriado));
   });
 
+  test('GET /api/v1/wishlist com filtro por prioridade deve retornar apenas a prioridade solicitada', async () => {
+    const res = await fetch(`${urlBase}/api/v1/wishlist?prioridade=3`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${tokenAcesso}`,
+      },
+    });
+    const dados = await res.json();
+
+    assert.strictEqual(res.status, 200);
+    assert.ok(Array.isArray(dados));
+    assert.ok(dados.every((item) => item.priority === 3));
+  });
+
+  test('GET /api/v1/wishlist com busca textual deve filtrar itens correspondentes', async () => {
+    const res = await fetch(`${urlBase}/api/v1/wishlist?busca=Teclado`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${tokenAcesso}`,
+      },
+    });
+    const dados = await res.json();
+
+    assert.strictEqual(res.status, 200);
+    assert.ok(Array.isArray(dados));
+    assert.ok(dados.some((item) => item.id === idDesejoCriado));
+  });
+
+  test('GET /api/v1/wishlist com ordenação alfabética deve responder com status 200', async () => {
+    const res = await fetch(`${urlBase}/api/v1/wishlist?ordem=alfabetica_az`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${tokenAcesso}`,
+      },
+    });
+    const dados = await res.json();
+
+    assert.strictEqual(res.status, 200);
+    assert.ok(Array.isArray(dados));
+  });
+
   test('DELETE /api/v1/wishlist/:id deve excluir o item com status 204', async () => {
     const res = await fetch(`${urlBase}/api/v1/wishlist/${idDesejoCriado}`, {
       method: 'DELETE',

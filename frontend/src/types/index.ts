@@ -26,3 +26,28 @@ export interface WishlistPayload {
   image_url?: string | null;
   priority: number;
 }
+
+/** Critérios de ordenação suportados pela aplicação */
+export type TipoOrdenacao =
+  | 'prioridade_desc'
+  | 'prioridade_asc'
+  | 'recentes'
+  | 'antigos'
+  | 'alfabetica_az'
+  | 'alfabetica_za';
+
+/** Metadados de cada opção de ordenação */
+export interface OpcaoOrdenacao {
+  id: TipoOrdenacao;
+  label: string;
+  icon: string;
+  descricao: string;
+}
+
+/** Estado consolidado dos filtros ativos */
+export interface FiltrosDesejo {
+  prioridade: number | 'ALL';
+  loja: string | 'ALL';
+  busca: string;
+  ordem: TipoOrdenacao;
+}
