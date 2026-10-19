@@ -25,10 +25,28 @@ import BottomNav, { BOTTOM_NAV_HEIGHT, HomeTab } from '../components/home/Bottom
 import DesktopHeader from '../components/home/DesktopHeader';
 import FilterSortBar from '../components/home/FilterSortBar';
 import ModalOrdenacao, { OPCOES_ORDENACAO } from '../components/home/ModalOrdenacao';
+import KanbanBoard from '../components/home/KanbanBoard';
+import ProductListItem from '../components/home/ProductListItem';
 import { useResponsive } from '../hooks/useResponsive';
-import { WishlistItem, TipoOrdenacao } from '../types';
+import { WishlistItem, TipoOrdenacao, ModoVisualizacao } from '../types';
 
 const APP_NAME = 'Prioritize';
+const STORAGE_KEY_MODO_VISUALIZACAO = 'prioritize_view_mode';
+
+/** Obtém o modo de visualização inicial salvo em disco (Web) ou padrão (grade) */
+const obterModoVisualizacaoInicial = (): ModoVisualizacao => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const salvo = window.localStorage.getItem(STORAGE_KEY_MODO_VISUALIZACAO);
+      if (salvo === 'grid' || salvo === 'list' || salvo === 'kanban') {
+        return salvo as ModoVisualizacao;
+      }
+    } catch {
+      // Silencia falha em storage protegido
+    }
+  }
+  return 'grid';
+};
 
 /** Confirmação compatível com Mobile e Web */
 const confirmAction = (title: string, message: string, confirmText: string, onConfirm: () => void) => {
@@ -65,11 +83,12 @@ export default function HomeScreen({ navigation }: any) {
   const [itemParaEditar, setItemParaEditar] = useState<WishlistItem | null>(null);
   const [urlCompartilhadaModal, setUrlCompartilhadaModal] = useState('');
 
-  // Filtros, ordenação e busca
+  // Filtros, ordenação, busca e tipo de visualização
   const [query, setQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<number | 'ALL'>('ALL');
   const [selectedLoja, setSelectedLoja] = useState<string | 'ALL'>('ALL');
   const [ordem, setOrdem] = useState<TipoOrdenacao>('prioridade_desc');
+  const [modoVisualizacao, setModoVisualizacao] = useState<ModoVisualizacao>(obterModoVisualizacaoInicial);
   const [view, setView] = useState<HomeTab>('home');
   const [offersExpanded, setOffersExpanded] = useState(false);
 
@@ -291,6 +310,18 @@ export default function HomeScreen({ navigation }: any) {
     setQuery('');
   }, []);
 
+  // Altera o modo de visualização e persiste a escolha no navegador (Web)
+  const handleAlterarModoVisualizacao = useCallback((novoModo: ModoVisualizacao) => {
+    setModoVisualizacao(novoModo);
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem(STORAGE_KEY_MODO_VISUALIZACAO, novoModo);
+      } catch {
+        // Silencia em ambientes com storage inacessível
+      }
+    }
+  }, []);
+
   // Separação inteligente para o layout estilo Amazon (ou unificada quando filtros estão ativos)
   const { topPicks, offers, categoryTitle } = useMemo(() => {
     // Se o usuário filtrou ou ordenou especificamente, exibe em grade única
@@ -433,6 +464,20 @@ export default function HomeScreen({ navigation }: any) {
       </ScrollView>
     );
 
+  // Renderizador para o modo de lista compacta
+  const renderList = (data: WishlistItem[], keyPrefix: string) => (
+    <View style={styles.listaContainer}>
+      {data.map((item) => (
+        <ProductListItem
+          key={`${keyPrefix}-${item.id}`}
+          item={item}
+          onEdit={() => handleAbrirEditar(item)}
+          onDelete={() => handleExcluirDesejo(item.id, item.title)}
+        />
+      ))}
+    </View>
+  );
+
   const renderHomeContent = () => {
     // 1. Estado quando o usuário não possui nenhum desejo cadastrado
     if (desejos.length === 0) {
@@ -476,7 +521,80 @@ export default function HomeScreen({ navigation }: any) {
       );
     }
 
-    // 3. Exibição de grade unificada quando filtros, ordenação customizada ou busca estão ativos
+    // 3. Visualização em Quadro KANBAN agrupado por prioridades (Alta, Média, Baixa)
+    if (modoVisualizacao === 'kanban') {
+      const tituloKanban = isSearching
+        ? `Quadro Kanban — Resultados para “${query.trim()}”`
+        : 'Quadro Kanban por Prioridade';
+
+      return (
+        <View style={styles.section}>
+          <SectionHeader title={tituloKanban} />
+          <KanbanBoard
+            items={filteredItems}
+            onEdit={handleAbrirEditar}
+            onDelete={handleExcluirDesejo}
+            isDesktop={r.isDesktop}
+          />
+        </View>
+      );
+    }
+
+    // 4. Visualização em LISTA horizontal compacta
+    if (modoVisualizacao === 'list') {
+      if (isSearching || selectedFilter !== 'ALL' || selectedLoja !== 'ALL' || ordem !== 'prioridade_desc') {
+        let tituloSecao = `Itens filtrados (${filteredItems.length})`;
+        if (isSearching) {
+          tituloSecao = `Resultados para “${query.trim()}” (${filteredItems.length})`;
+        } else if (selectedFilter !== 'ALL') {
+          const conf = PRIORITY_CONFIG[selectedFilter];
+          tituloSecao = `${conf?.label || ''} prioridade (${filteredItems.length})`;
+        } else if (selectedLoja !== 'ALL') {
+          tituloSecao = `Produtos de ${selectedLoja} (${filteredItems.length})`;
+        } else {
+          const confOrdem = OPCOES_ORDENACAO.find((o) => o.id === ordem);
+          tituloSecao = `Ordenado por ${confOrdem?.label.toLowerCase() || 'prioridade'} (${filteredItems.length})`;
+        }
+
+        return (
+          <View style={styles.section}>
+            <SectionHeader title={tituloSecao} />
+            {renderList(filteredItems, 'list-filtered')}
+          </View>
+        );
+      }
+
+      return (
+        <>
+          <View style={styles.section}>
+            <SectionHeader
+              title={`Melhores escolhas de ${categoryTitle} para você`}
+            />
+            {topPicks.length > 0 ? (
+              renderList(topPicks, 'list-top')
+            ) : (
+              <Text style={{ color: theme.mutedForeground, marginVertical: 16 }}>
+                Nenhum item com essa prioridade.
+              </Text>
+            )}
+          </View>
+
+          {offers.length > 0 && (
+            <View style={styles.section}>
+              <SectionHeader
+                title="Ofertas do seu interesse"
+                expanded={offersExpanded}
+                moreLabel={r.isDesktop ? (offersExpanded ? 'Ver menos' : 'Ver tudo') : undefined}
+                onMorePress={() => setOffersExpanded((v) => !v)}
+              />
+              {renderList(offersExpanded ? offers : offers.slice(0, 4), 'list-offer')}
+            </View>
+          )}
+        </>
+      );
+    }
+
+    // 5. Visualização padrão em GRADE (Grid) com cartões verticais
     if (isSearching || selectedFilter !== 'ALL' || selectedLoja !== 'ALL' || ordem !== 'prioridade_desc') {
       let tituloSecao = `Itens filtrados (${filteredItems.length})`;
       if (isSearching) {
@@ -499,7 +617,6 @@ export default function HomeScreen({ navigation }: any) {
       );
     }
 
-    // 4. Exibição padrão dividida no estilo Amazon (Top picks + Ofertas)
     return (
       <>
         {/* Seção Principal: Melhores escolhas para você */}
@@ -596,6 +713,9 @@ export default function HomeScreen({ navigation }: any) {
                 onAbrirModalOrdenacao={() => setModalOrdenacaoVisivel(true)}
                 totalFiltrosAtivos={totalFiltrosAtivos}
                 onLimparFiltros={handleLimparFiltros}
+                modoVisualizacao={modoVisualizacao}
+                onAlterarModoVisualizacao={handleAlterarModoVisualizacao}
+                isDesktop={r.isDesktop}
                 horizontalPadding={r.horizontalPadding}
               />
             )}
@@ -693,6 +813,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   section: { marginTop: 20 },
+  listaContainer: { width: '100%' },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   emptyContainer: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 20 },
   emptyTitle: { fontFamily: typography.fonts.sans, fontWeight: typography.weights.bold, fontSize: 18, marginBottom: 8 },

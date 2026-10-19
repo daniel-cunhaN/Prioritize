@@ -227,11 +227,27 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
 - **Tratamento de Estado Vazio de Filtros**:
   - Quando a busca ou filtros ativos não encontram itens, exibe mensagem amigável e botão "Limpar Filtros e Busca".
 
+### 6.7. Alternância de Modos de Visualização (Grade, Lista e Kanban)
+- **Seletor de Visualização Segmentado (`FilterSortBar.tsx`)**:
+  - Integrado diretamente na barra de controles com ícones vetoriais Feather (`grid`, `list`, `columns`).
+  - No Desktop, exibe rótulos textuais completos ("Grade", "Lista", "Kanban"); no Mobile, mantém formato compacto e ergonômico.
+  - Persiste a preferência selecionada no `localStorage` do navegador sob a chave `prioritize_view_mode`, mantendo o modo escolhido mesmo após atualizar a página (F5) ou fechar a aba.
+- **Modo Grade (`ProductCard.tsx`)**:
+  - Exibição visual padrão em múltiplas colunas adaptativas com imagem em destaque, títulos truncados e carrossel de ofertas no layout estilo e-commerce.
+- **Modo Lista (`ProductListItem.tsx`)**:
+  - Visualização em linhas horizontais compactas, ideal para varredura rápida de muitos produtos.
+  - Miniatura de produto com fallbacks inteligentes, pílula de loja/domínio, data formatada em pt-BR, badge colorido de prioridade, preço no estilo Amazon e botões diretos de link externo, edição e exclusão.
+- **Modo Kanban (`KanbanBoard.tsx`)**:
+  - Organização visual dos desejos em **3 colunas por classificação de importância** ("🔥 Alta", "⭐ Média" e "🌱 Baixa"), atendendo integralmente à especificação do projeto descrita em `.agents/AGENTS.md`.
+  - **Desktop**: 3 colunas simultâneas lado a lado com cabeçalho colorido, contadores de itens em badges e cartões de itens individuais.
+  - **Mobile**: Sistema de abas táteis com alternância fluida entre as colunas e contadores de itens.
+  - Totalmente compatível com busca e filtros aplicados: as colunas refletem em tempo real os itens que atendem aos filtros.
+
 ---
 
 ## 7. Como Executar os Testes
 
-O projeto conta com uma suíte completa de **60 testes automatizados** desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
+O projeto conta com uma suíte completa de **67 testes automatizados** desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
 
 ### Execução Unificada (Backend + Frontend)
 Na raiz do projeto:
@@ -246,8 +262,8 @@ cd backend
 npm test
 ```
 
-### Testes do Frontend (19 testes)
-Testes unitários de extração de compartilhamento, prevenção de reabertura no reload, algoritmos de ordenação e filtros combinados:
+### Testes do Frontend (26 testes)
+Testes unitários de extração de compartilhamento, prevenção de reabertura no reload, algoritmos de ordenação, filtros combinados, agrupamento Kanban e persistência de modos de visualização:
 ```bash
 cd frontend
 npm test

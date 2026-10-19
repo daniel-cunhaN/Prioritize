@@ -27,6 +27,9 @@ export interface WishlistPayload {
   priority: number;
 }
 
+/** Modos de visualização suportados na tela principal */
+export type ModoVisualizacao = 'grid' | 'list' | 'kanban';
+
 /** Critérios de ordenação suportados pela aplicação */
 export type TipoOrdenacao =
   | 'prioridade_desc'

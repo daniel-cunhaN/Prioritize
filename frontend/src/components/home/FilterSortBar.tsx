@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme, useIsDark, typography, radius } from '../../theme';
-import { TipoOrdenacao } from '../../types';
+import { TipoOrdenacao, ModoVisualizacao } from '../../types';
 import { PRIORITY_CONFIG } from './ProductCard';
 import { OPCOES_ORDENACAO } from './ModalOrdenacao';
 
@@ -36,14 +36,25 @@ interface Props {
   onAbrirModalOrdenacao: () => void;
   totalFiltrosAtivos: number;
   onLimparFiltros: () => void;
+  modoVisualizacao: ModoVisualizacao;
+  onAlterarModoVisualizacao: (modo: ModoVisualizacao) => void;
+  isDesktop?: boolean;
   horizontalPadding?: number;
 }
 
+/** Configuração dos modos de visualização com ícones Feather */
+const OPCOES_MODO: { id: ModoVisualizacao; label: string; icon: keyof typeof Feather.glyphMap }[] = [
+  { id: 'grid', label: 'Grade', icon: 'grid' },
+  { id: 'list', label: 'Lista', icon: 'list' },
+  { id: 'kanban', label: 'Kanban', icon: 'columns' },
+];
+
 /**
- * FilterSortBar — Barra de controle de filtros e ordenação
+ * FilterSortBar — Barra de controle de filtros, ordenação e tipo de visualização
  *
  * Fornece acesso rápido a:
  * - Botão de ordenação com indicador do critério atual
+ * - Botão seletor de tipo de visualização (Grade, Lista e Kanban)
  * - Chips de prioridade (Todos, Alta, Média, Baixa)
  * - Chips dinâmicos de lojas/domínios dos produtos salvos
  * - Botão de limpeza de filtros com contador
@@ -59,6 +70,9 @@ export default function FilterSortBar({
   onAbrirModalOrdenacao,
   totalFiltrosAtivos,
   onLimparFiltros,
+  modoVisualizacao,
+  onAlterarModoVisualizacao,
+  isDesktop = false,
   horizontalPadding = 16,
 }: Props) {
   const theme = useTheme();
@@ -70,68 +84,135 @@ export default function FilterSortBar({
 
   return (
     <View style={styles.container}>
-      {/* Linha Superior: Botão de Ordenação + Ação de Limpar Filtros */}
+      {/* Linha Superior: Botão de Ordenação + Limpar Filtros + Seletor de Visualização */}
       <View style={styles.linhaControles}>
-        <TouchableOpacity
-          onPress={onAbrirModalOrdenacao}
-          activeOpacity={0.75}
-          style={[
-            styles.botaoOrdenar,
-            {
-              backgroundColor: isDark ? theme.card : '#FFFFFF',
-              borderColor: ordemModificada
-                ? theme.primary
-                : isDark
-                ? theme.border
-                : '#D8D4CC',
-            },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={`Ordenar por: ${opcaoOrdem?.label || 'Prioridade'}`}
-        >
-          <Feather
-            name="sliders"
-            size={15}
-            color={ordemModificada ? theme.primary : textStrong}
-          />
-          <Text
-            style={[
-              styles.textoBotaoOrdenar,
-              {
-                color: ordemModificada ? theme.primary : textStrong,
-                fontWeight: ordemModificada ? '700' : '600',
-              },
-            ]}
-          >
-            {opcaoOrdem?.label || 'Ordenar'}
-          </Text>
-          <Feather
-            name="chevron-down"
-            size={14}
-            color={theme.mutedForeground}
-          />
-        </TouchableOpacity>
-
-        {totalFiltrosAtivos > 0 && (
+        <View style={styles.grupoEsquerda}>
           <TouchableOpacity
-            onPress={onLimparFiltros}
-            activeOpacity={0.7}
+            onPress={onAbrirModalOrdenacao}
+            activeOpacity={0.75}
             style={[
-              styles.botaoLimpar,
+              styles.botaoOrdenar,
               {
-                backgroundColor: isDark ? '#2D1B1B' : '#FDF0EE',
-                borderColor: isDark ? '#6B2F2F' : '#F5B8B0',
+                backgroundColor: isDark ? theme.card : '#FFFFFF',
+                borderColor: ordemModificada
+                  ? theme.primary
+                  : isDark
+                  ? theme.border
+                  : '#D8D4CC',
               },
             ]}
             accessibilityRole="button"
-            accessibilityLabel="Limpar todos os filtros"
+            accessibilityLabel={`Ordenar por: ${opcaoOrdem?.label || 'Prioridade'}`}
           >
-            <Feather name="x" size={13} color="#B84332" />
-            <Text style={styles.textoBotaoLimpar}>
-              Limpar ({totalFiltrosAtivos})
+            <Feather
+              name="sliders"
+              size={15}
+              color={ordemModificada ? theme.primary : textStrong}
+            />
+            <Text
+              style={[
+                styles.textoBotaoOrdenar,
+                {
+                  color: ordemModificada ? theme.primary : textStrong,
+                  fontWeight: ordemModificada ? '700' : '600',
+                },
+              ]}
+            >
+              {opcaoOrdem?.label || 'Ordenar'}
             </Text>
+            <Feather
+              name="chevron-down"
+              size={14}
+              color={theme.mutedForeground}
+            />
           </TouchableOpacity>
-        )}
+
+          {totalFiltrosAtivos > 0 && (
+            <TouchableOpacity
+              onPress={onLimparFiltros}
+              activeOpacity={0.7}
+              style={[
+                styles.botaoLimpar,
+                {
+                  backgroundColor: isDark ? '#2D1B1B' : '#FDF0EE',
+                  borderColor: isDark ? '#6B2F2F' : '#F5B8B0',
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Limpar todos os filtros"
+            >
+              <Feather name="x" size={13} color="#B84332" />
+              <Text style={styles.textoBotaoLimpar}>
+                Limpar ({totalFiltrosAtivos})
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Seletor Segmentado de Visualização (Grade / Lista / Kanban) */}
+        <View
+          style={[
+            styles.seletorModo,
+            {
+              backgroundColor: isDark ? theme.card : '#EBE8E1',
+              borderColor: isDark ? theme.border : '#DDD9D0',
+            },
+          ]}
+          accessibilityRole="radiogroup"
+          accessibilityLabel="Modo de visualização dos itens"
+        >
+          {OPCOES_MODO.map((opcao) => {
+            const ativo = modoVisualizacao === opcao.id;
+            return (
+              <TouchableOpacity
+                key={`modo-${opcao.id}`}
+                onPress={() => onAlterarModoVisualizacao(opcao.id)}
+                activeOpacity={0.75}
+                style={[
+                  styles.botaoModo,
+                  ativo && [
+                    styles.botaoModoAtivo,
+                    {
+                      backgroundColor: isDark ? theme.primary : '#FFFFFF',
+                    },
+                  ],
+                ]}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: ativo }}
+                accessibilityLabel={`Visualização em ${opcao.label}`}
+              >
+                <Feather
+                  name={opcao.icon}
+                  size={14}
+                  color={
+                    ativo
+                      ? isDark
+                        ? theme.primaryForeground
+                        : theme.primary
+                      : theme.mutedForeground
+                  }
+                />
+                {isDesktop && (
+                  <Text
+                    style={[
+                      styles.textoModo,
+                      {
+                        color: ativo
+                          ? isDark
+                            ? theme.primaryForeground
+                            : textStrong
+                          : theme.mutedForeground,
+                        fontWeight: ativo ? '700' : '500',
+                      },
+                    ]}
+                  >
+                    {opcao.label}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       {/* Linha de Chips com Scroll Horizontal */}
@@ -259,6 +340,38 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 10,
     gap: 8,
+  },
+  grupoEsquerda: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 1,
+  },
+  seletorModo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 3,
+    borderRadius: radius.md,
+    borderWidth: 1,
+  },
+  botaoModo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    borderRadius: radius.sm,
+    gap: 5,
+  },
+  botaoModoAtivo: {
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  textoModo: {
+    fontSize: 12,
+    fontFamily: typography.fonts.sans,
   },
   botaoOrdenar: {
     flexDirection: 'row',
