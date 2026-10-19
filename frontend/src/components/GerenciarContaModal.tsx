@@ -29,6 +29,7 @@ interface GerenciarContaModalProps {
   emailUsuario?: string;
   aoDeslogar: () => Promise<void> | void;
   aoCriarNovaConta: () => void;
+  aoMudarDeConta?: () => void;
 }
 
 export default function GerenciarContaModal({
