@@ -205,7 +205,7 @@ function ProductListItem({ item, onEdit, onDelete }: Props) {
 
       {/* 3. Preço e botões de ação na extremidade direita */}
       <View style={styles.actionsContainer}>
-        <PriceTag value={price} size="sm" />
+        <PriceTag value={price} color={textColor} size="sm" />
 
         <View style={styles.buttonGroup}>
           <TouchableOpacity

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { typography } from '../../theme';
+import { useTheme, useIsDark, typography } from '../../theme';
 
 interface Props {
   value: number;
@@ -15,23 +15,28 @@ const SIZES = {
 };
 
 /**
- * Preço no estilo Amazon (fiel ao image_1.png):
+ * Preço no estilo Amazon:
  * "R$" alinhado no topo, valor inteiro grande em negrito, centavos sobrescritos sem vírgula (ex: R$78⁹⁵)
+ * Adota automaticamente a cor do tema (claro ou escuro) quando `color` não for explicitamente fornecido.
  */
-export default function PriceTag({ value, color = '#0F1111', size = 'md' }: Props) {
+export default function PriceTag({ value, color, size = 'md' }: Props) {
+  const theme = useTheme();
+  const isDark = useIsDark();
   const s = SIZES[size];
   const [intPart, cents] = Math.abs(value).toFixed(2).split('.');
   const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
+  const corTexto = color || (isDark ? theme.foreground : '#0F1111');
+
   return (
     <View style={styles.row} accessibilityLabel={`R$ ${formattedInt},${cents}`}>
-      <Text style={[styles.currency, { color, fontSize: s.small, marginTop: s.offset + 1 }]}>
+      <Text style={[styles.currency, { color: corTexto, fontSize: s.small, marginTop: s.offset + 1 }]}>
         R$
       </Text>
-      <Text style={[styles.main, { color, fontSize: s.main, lineHeight: s.main + 1 }]}>
+      <Text style={[styles.main, { color: corTexto, fontSize: s.main, lineHeight: s.main + 1 }]}>
         {formattedInt}
       </Text>
-      <Text style={[styles.cents, { color, fontSize: s.small, marginTop: s.offset }]}>
+      <Text style={[styles.cents, { color: corTexto, fontSize: s.small, marginTop: s.offset }]}>
         {cents}
       </Text>
     </View>

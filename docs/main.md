@@ -236,7 +236,7 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
   - Exibição visual padrão em múltiplas colunas adaptativas com imagem em destaque, títulos truncados e carrossel de ofertas no layout estilo e-commerce.
 - **Modo Lista (`ProductListItem.tsx`)**:
   - Visualização em linhas horizontais compactas, ideal para varredura rápida de muitos produtos.
-  - Miniatura de produto com fallbacks inteligentes, pílula de loja/domínio, data formatada em pt-BR, badge colorido de prioridade, preço no estilo Amazon e botões diretos de link externo, edição e exclusão.
+  - Miniatura de produto com fallbacks inteligentes, pílula de loja/domínio, data formatada em pt-BR, badge colorido de prioridade, preço no estilo Amazon com adaptação automática ao tema (claro/escuro) e botões diretos de link externo, edição e exclusão.
 - **Modo Kanban (`KanbanBoard.tsx`)**:
   - Organização visual dos desejos em **3 colunas por classificação de importância** ("🔥 Alta", "⭐ Média" e "🌱 Baixa"), atendendo integralmente à especificação do projeto descrita em `.agents/AGENTS.md`.
   - **Desktop**: 3 colunas simultâneas lado a lado com cabeçalho colorido, contadores de itens em badges e cartões de itens individuais.
