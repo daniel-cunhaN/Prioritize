@@ -42,11 +42,21 @@ router.post('/preview', async (req, res) => {
  * Cadastra um novo desejo para o usuario logado com escala de importancia (1, 2 ou 3).
  */
 router.post('/', (req, res) => {
-  const { url, titulo, title, imagem_url, image_url, prioridade, priority } = req.body || {};
+  const { url, titulo, title, imagem_url, image_url, prioridade, priority, preco, price } = req.body || {};
   const finalTitle = titulo || title;
   const finalUrl = url;
   const finalPriority = prioridade !== undefined ? prioridade : priority;
   const finalImageUrl = imagem_url !== undefined ? imagem_url : image_url;
+  const rawPrice = preco !== undefined ? preco : price;
+  let finalPrice = null;
+  if (rawPrice !== undefined && rawPrice !== null && rawPrice !== '') {
+    const parsed = typeof rawPrice === 'number'
+      ? rawPrice
+      : parseFloat(String(rawPrice).replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3})/g, '').replace(',', '.'));
+    if (Number.isFinite(parsed) && parsed > 0) {
+      finalPrice = Math.round(parsed * 100) / 100;
+    }
+  }
 
   // Validacao dos dados essenciais do produto
   if (!finalUrl || !finalTitle || finalPriority === undefined || finalPriority === null) {
@@ -68,10 +78,10 @@ router.post('/', (req, res) => {
   const id = crypto.randomUUID();
   const agora = new Date().toISOString();
 
-  // Insere novo item associado ao usuario autenticado
+  // Insere novo item associado ao usuario autenticado com preco opcional
   const insertStmt = db.prepare(`
-    INSERT INTO wishlist_items (id, user_id, url, title, image_url, priority, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO wishlist_items (id, user_id, url, title, image_url, priority, price, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   insertStmt.run(
@@ -81,6 +91,7 @@ router.post('/', (req, res) => {
     finalTitle.trim(),
     finalImageUrl ? String(finalImageUrl).trim() : null,
     prioridadeNum,
+    finalPrice,
     agora,
     agora
   );
@@ -92,6 +103,7 @@ router.post('/', (req, res) => {
     title: finalTitle.trim(),
     image_url: finalImageUrl ? String(finalImageUrl).trim() : null,
     priority: prioridadeNum,
+    price: finalPrice,
     created_at: agora,
     updated_at: agora,
   });
@@ -168,7 +180,7 @@ router.get('/', (req, res) => {
  */
 router.put('/:item_id', (req, res) => {
   const { item_id } = req.params;
-  const { url, titulo, title, imagem_url, image_url, prioridade, priority } = req.body || {};
+  const { url, titulo, title, imagem_url, image_url, prioridade, priority, preco, price } = req.body || {};
   const db = obterBanco();
 
   const consulta = db.prepare('SELECT * FROM wishlist_items WHERE id = ? AND user_id = ?');
@@ -186,11 +198,21 @@ router.put('/:item_id', (req, res) => {
   const finalImageUrl = imagem_url !== undefined ? imagem_url : image_url !== undefined ? image_url : item.image_url;
   const rawPriority = prioridade !== undefined ? prioridade : priority !== undefined ? priority : item.priority;
   const finalPriority = parseInt(rawPriority, 10) || item.priority;
+  const rawPrice = preco !== undefined ? preco : price !== undefined ? price : item.price;
+  let finalPrice = null;
+  if (rawPrice !== undefined && rawPrice !== null && rawPrice !== '') {
+    const parsed = typeof rawPrice === 'number'
+      ? rawPrice
+      : parseFloat(String(rawPrice).replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3})/g, '').replace(',', '.'));
+    if (Number.isFinite(parsed) && parsed > 0) {
+      finalPrice = Math.round(parsed * 100) / 100;
+    }
+  }
   const agora = new Date().toISOString();
 
   const updateStmt = db.prepare(`
     UPDATE wishlist_items
-    SET title = ?, url = ?, image_url = ?, priority = ?, updated_at = ?
+    SET title = ?, url = ?, image_url = ?, priority = ?, price = ?, updated_at = ?
     WHERE id = ? AND user_id = ?
   `);
 
@@ -199,6 +221,7 @@ router.put('/:item_id', (req, res) => {
     finalUrl,
     finalImageUrl ? String(finalImageUrl).trim() : null,
     finalPriority,
+    finalPrice,
     agora,
     item_id,
     req.usuario.id

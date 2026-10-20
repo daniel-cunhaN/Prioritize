@@ -25,6 +25,7 @@ export interface WishlistPayload {
   title: string;
   image_url?: string | null;
   priority: number;
+  price?: number | null;
 }
 
 /** Modos de visualização suportados na tela principal */

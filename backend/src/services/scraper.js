@@ -64,6 +64,47 @@ const SELETORES_IMAGEM_SECUNDARIOS = [
   { seletor: 'link[rel="image_src"]', atributo: 'href' },
 ];
 
+// Seletores de preço em meta tags e microdados em ordem de prioridade
+const SELETORES_PRECO_META = [
+  { seletor: 'meta[property="product:price:amount"]', atributo: 'content' },
+  { seletor: 'meta[property="og:price:amount"]', atributo: 'content' },
+  { seletor: 'meta[property="price"]', atributo: 'content' },
+  { seletor: 'meta[name="twitter:data1"]', atributo: 'content' },
+  { seletor: 'meta[itemprop="price"]', atributo: 'content' },
+  { seletor: '[itemprop="price"]', atributo: 'content' },
+];
+
+/**
+ * Converte diferentes formatos de valor monetário (ex: "88.02", "88,02", "R$ 1.250,90")
+ * em um número de ponto flutuante arredondado para 2 casas decimais.
+ */
+export function normalizarPreco(valor) {
+  if (valor === null || valor === undefined) return null;
+  if (typeof valor === 'number') {
+    return Number.isFinite(valor) && valor > 0 ? Math.round(valor * 100) / 100 : null;
+  }
+  const str = String(valor).trim();
+  if (!str) return null;
+
+  // Extrai padrão de moeda R$ XX,XX ou valores com decimais
+  const padraoMoeda = str.match(/(?:R\$|\$)?\s*(\d{1,3}(?:\.\d{3})*,\d{2}|\d+(?:[.,]\d{1,2})?)/);
+  if (padraoMoeda) {
+    const raw = padraoMoeda[1]
+      .replace(/\.(?=\d{3})/g, '') // remove separador de milhar
+      .replace(',', '.');          // converte vírgula decimal
+    const num = parseFloat(raw);
+    if (Number.isFinite(num) && num > 0) return Math.round(num * 100) / 100;
+  }
+
+  const limpo = str
+    .replace(/[^\d,.-]/g, '')
+    .replace(/\.(?=\d{3})/g, '')
+    .replace(',', '.');
+
+  const num = parseFloat(limpo);
+  return Number.isFinite(num) && num > 0 ? Math.round(num * 100) / 100 : null;
+}
+
 /**
  * Retorna o primeiro valor não vazio encontrado na lista de seletores.
  */
@@ -154,6 +195,59 @@ function extrairImagemJsonLd($) {
 }
 
 /**
+ * Percorre recursivamente o JSON-LD em busca de ofertas com preço do produto.
+ */
+function buscarPrecoProdutoJsonLd(no, profundidade = 0) {
+  if (!no || typeof no !== 'object' || profundidade > 6) return null;
+
+  if (Array.isArray(no)) {
+    for (const item of no) {
+      const preco = buscarPrecoProdutoJsonLd(item, profundidade + 1);
+      if (preco !== null) return preco;
+    }
+    return null;
+  }
+
+  if (ehProduto(no) && no.offers) {
+    const offers = no.offers;
+    if (Array.isArray(offers)) {
+      for (const o of offers) {
+        const p = normalizarPreco(o?.price || o?.lowPrice);
+        if (p !== null) return p;
+      }
+    } else if (typeof offers === 'object') {
+      const p = normalizarPreco(offers.price || offers.lowPrice || offers.highPrice);
+      if (p !== null) return p;
+    }
+  }
+
+  for (const valor of Object.values(no)) {
+    if (valor && typeof valor === 'object') {
+      const preco = buscarPrecoProdutoJsonLd(valor, profundidade + 1);
+      if (preco !== null) return preco;
+    }
+  }
+  return null;
+}
+
+/**
+ * Lê blocos JSON-LD e extrai o preço caso disponível.
+ */
+function extrairPrecoJsonLd($) {
+  const scripts = $('script[type="application/ld+json"]').toArray();
+  for (const script of scripts) {
+    try {
+      const dados = JSON.parse($(script).text());
+      const preco = buscarPrecoProdutoJsonLd(dados);
+      if (preco !== null) return preco;
+    } catch {
+      // Ignora JSON inválido
+    }
+  }
+  return null;
+}
+
+/**
  * Converte um caminho de imagem possivelmente relativo em URL absoluta.
  */
 function resolverUrlAbsoluta(caminho, urlOrigem) {
@@ -184,21 +278,39 @@ function analisarHtml(html, urlOrigem) {
     extrairImagemJsonLd($) ||
     primeiroValor($, SELETORES_IMAGEM_SECUNDARIOS);
 
+  // Precedência de preços: metas OG/Twitter/Product > JSON-LD Product > seletores HTML > Texto/descrição
+  const precoMeta = normalizarPreco(primeiroValor($, SELETORES_PRECO_META));
+  const precoJsonLd = extrairPrecoJsonLd($);
+  const precoHtml = normalizarPreco(
+    $('[itemprop="price"]').first().text() ||
+    $('.a-price .a-offscreen').first().text() ||
+    null
+  );
+  const precoTexto = normalizarPreco(
+    $('meta[property="og:description"]').attr('content') ||
+    $('meta[name="description"]').attr('content') ||
+    titulo ||
+    null
+  );
+  const price = precoMeta ?? precoJsonLd ?? precoHtml ?? precoTexto ?? null;
+
   return {
     titulo,
     imagem_url: resolverUrlAbsoluta(imagemBruta, urlOrigem),
+    price,
   };
 }
 
 /**
- * Processa uma string HTML e extrai título e imagem do produto.
+ * Processa uma string HTML e extrai título, imagem e preço do produto.
  * Caso não haja título, gera um título amigável a partir do domínio.
  */
 export function extrairMetadadosDeHtml(html, urlOrigem) {
-  const { titulo, imagem_url } = analisarHtml(html, urlOrigem);
+  const { titulo, imagem_url, price } = analisarHtml(html, urlOrigem);
   return {
     titulo: titulo || obterTituloFallback(urlOrigem),
     imagem_url: imagem_url || null,
+    price: price || null,
   };
 }
 
@@ -260,8 +372,9 @@ export async function extrairMetadadosUrl(url, { fetchFn = fetch } = {}) {
     urlNormalizada = `https://${urlNormalizada}`;
   }
 
-  // Primeiro título real encontrado (usado caso nenhuma tentativa traga imagem)
+  // Primeiro título e primeiro preço encontrados
   let primeiroTitulo = null;
+  let primeiroPreco = null;
   // URL final após redirecionamentos (útil para links encurtados, ex.: amzn.to)
   let ultimaUrlFinal = urlNormalizada;
 
@@ -280,12 +393,17 @@ export async function extrairMetadadosUrl(url, { fetchFn = fetch } = {}) {
       const html = await resposta.text();
       const metadados = analisarHtml(html, urlFinal);
 
+      if (metadados.price && !primeiroPreco) {
+        primeiroPreco = metadados.price;
+      }
+
       // Sucesso: encontrou a imagem do produto, não precisa tentar novamente
       if (metadados.imagem_url) {
         return {
           url: urlFinal,
           titulo: metadados.titulo || primeiroTitulo || obterTituloFallback(urlNormalizada),
           imagem_url: metadados.imagem_url,
+          price: metadados.price || primeiroPreco || null,
         };
       }
 
@@ -305,12 +423,12 @@ export async function extrairMetadadosUrl(url, { fetchFn = fetch } = {}) {
   const asin = extrairAsinAmazon(urlNormalizada) || extrairAsinAmazon(ultimaUrlFinal);
   const imagemAmazon = asin ? await obterImagemAmazonPorAsin(asin, fetchFn) : null;
 
-  // Nenhuma tentativa trouxe imagem: devolve o melhor título disponível.
-  // A URL original é mantida para não salvar páginas de verificação/captcha.
+  // Nenhuma tentativa trouxe imagem: devolve o melhor título e preço disponíveis.
   return {
     url: urlNormalizada,
     titulo: primeiroTitulo || obterTituloFallback(urlNormalizada),
     imagem_url: imagemAmazon,
+    price: primeiroPreco || null,
   };
 }
 

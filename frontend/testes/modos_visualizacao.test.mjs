@@ -150,4 +150,45 @@ describe('Modos de Visualização (Grade, Lista e Kanban)', () => {
       assert.strictEqual(extrairDominio(null), '');
     });
   });
+
+  describe('Formatação e Edição de Preço (Modal de Desejo)', () => {
+    // Funções espelhadas de AdicionarDesejoModal
+    function formatarPrecoParaInput(valor) {
+      if (valor === null || valor === undefined || valor === '') return '';
+      const num = typeof valor === 'number'
+        ? valor
+        : parseFloat(String(valor).replace(/[^\d,.-]/g, '').replace(',', '.'));
+      if (!Number.isFinite(num) || num <= 0) return '';
+      return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function converterInputParaNumero(texto) {
+      if (!texto || !texto.trim()) return null;
+      const limpo = texto.trim()
+        .replace(/[^\d,.-]/g, '')
+        .replace(/\.(?=\d{3})/g, '')
+        .replace(',', '.');
+      const num = parseFloat(limpo);
+      return Number.isFinite(num) && num > 0 ? Math.round(num * 100) / 100 : null;
+    }
+
+    it('deve formatar valor numérico float para o padrão de input pt-BR (ex: "88,02")', () => {
+      assert.strictEqual(formatarPrecoParaInput(88.02), '88,02');
+      assert.strictEqual(formatarPrecoParaInput(1250.5), '1.250,50');
+      assert.strictEqual(formatarPrecoParaInput(49), '49,00');
+    });
+
+    it('deve converter texto digitado pelo usuário em float arredondado', () => {
+      assert.strictEqual(converterInputParaNumero('88,02'), 88.02);
+      assert.strictEqual(converterInputParaNumero('1.250,50'), 1250.5);
+      assert.strictEqual(converterInputParaNumero('49.99'), 49.99);
+      assert.strictEqual(converterInputParaNumero('R$ 78,95'), 78.95);
+    });
+
+    it('deve retornar nulo para entradas vazias ou inválidas', () => {
+      assert.strictEqual(converterInputParaNumero(''), null);
+      assert.strictEqual(converterInputParaNumero('abc'), null);
+      assert.strictEqual(converterInputParaNumero(null), null);
+    });
+  });
 });

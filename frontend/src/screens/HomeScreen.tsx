@@ -208,6 +208,7 @@ export default function HomeScreen({ navigation }: any) {
       title: d.title,
       image_url: d.image_url,
       priority: Number(d.priority) || 2,
+      price: d.price !== undefined ? d.price : null,
       created_at: d.created_at,
       updated_at: d.updated_at || undefined,
     }));

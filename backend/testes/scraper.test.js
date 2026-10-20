@@ -80,4 +80,51 @@ describe('Serviço de Scraping de Metadados (Cheerio)', () => {
     assert.ok(resultado.titulo.includes('dominio-inexistente-123456789.com'));
     assert.strictEqual(resultado.imagem_url, null);
   });
+
+  test('deve extrair preco de meta tag product:price:amount ou og:price:amount', () => {
+    // Arrange
+    const htmlMock = `
+      <html>
+        <head>
+          <title>Kindle Paperwhite</title>
+          <meta property="product:price:amount" content="499.90" />
+        </head>
+      </html>
+    `;
+
+    // Act
+    const metadados = extrairMetadadosDeHtml(htmlMock, 'https://amazon.com.br/dp/123');
+
+    // Assert
+    assert.strictEqual(metadados.price, 499.9);
+  });
+
+  test('deve extrair preco de JSON-LD schema.org/Product com offers', () => {
+    // Arrange
+    const htmlMock = `
+      <html>
+        <head>
+          <title>Principia Sérum</title>
+          <script type="application/ld+json">
+            {
+              "@context": "https://schema.org/",
+              "@type": "Product",
+              "name": "Principia Sérum",
+              "offers": {
+                "@type": "Offer",
+                "price": "88.02",
+                "priceCurrency": "BRL"
+              }
+            }
+          </script>
+        </head>
+      </html>
+    `;
+
+    // Act
+    const metadados = extrairMetadadosDeHtml(htmlMock, 'https://shopee.com.br/serum');
+
+    // Assert
+    assert.strictEqual(metadados.price, 88.02);
+  });
 });

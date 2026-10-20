@@ -27,6 +27,28 @@ import {
 } from 'react-native';
 import client from '../api/client';
 import { useTheme, spacing, radius, shadows, typography } from '../theme';
+import PriceTag from './home/PriceTag';
+
+/** Converte valor numérico em string formatada em Real (ex: "88,02") */
+export function formatarPrecoParaInput(valor: number | string | null | undefined): string {
+  if (valor === null || valor === undefined || valor === '') return '';
+  const num = typeof valor === 'number'
+    ? valor
+    : parseFloat(String(valor).replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3})/g, '').replace(',', '.'));
+  if (!Number.isFinite(num) || num <= 0) return '';
+  return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** Converte texto digitado pelo usuário em número float */
+export function converterInputParaNumero(texto: string): number | null {
+  if (!texto || !texto.trim()) return null;
+  const limpo = texto.trim()
+    .replace(/[^\d,.-]/g, '')
+    .replace(/\.(?=\d{3})/g, '')
+    .replace(',', '.');
+  const num = parseFloat(limpo);
+  return Number.isFinite(num) && num > 0 ? Math.round(num * 100) / 100 : null;
+}
 
 // ─── Tipagem do Item de Desejo Retornado pela API ─────────────────────────────
 export interface DesejoItem {
@@ -36,6 +58,7 @@ export interface DesejoItem {
   title: string;
   image_url: string | null;
   priority: number;
+  price?: number | null;
   created_at: string;
   updated_at?: string | null;
 }
@@ -62,6 +85,7 @@ export default function AdicionarDesejoModal({
   const [url, setUrl] = useState(urlInicial);
   const [titulo, setTitulo] = useState('');
   const [imagemUrl, setImagemUrl] = useState<string | null>(null);
+  const [preco, setPreco] = useState('');
   const [prioridade, setPrioridade] = useState<NivelPrioridade>(2); // Padrão: Média
 
   // ─── Estados de Carregamento e Foco ─────────────────────────────────────────
@@ -69,6 +93,8 @@ export default function AdicionarDesejoModal({
   const [salvando, setSalvando] = useState(false);
   const [urlFocada, setUrlFocada] = useState(false);
   const [tituloFocado, setTituloFocado] = useState(false);
+  const [precoFocado, setPrecoFocado] = useState(false);
+  const [precoDetectado, setPrecoDetectado] = useState(false);
   const [mensagemErro, setMensagemErro] = useState<string | null>(null);
 
   // Preenche a URL inicial sempre que o modal for aberto com uma URL informada
@@ -88,6 +114,8 @@ export default function AdicionarDesejoModal({
     setUrl('');
     setTitulo('');
     setImagemUrl(null);
+    setPreco('');
+    setPrecoDetectado(false);
     setPrioridade(2);
     setMensagemErro(null);
   };
@@ -108,13 +136,17 @@ export default function AdicionarDesejoModal({
     try {
       // Chama o endpoint de pré-visualização do backend
       const resposta = await client.post('/wishlist/preview', { url: alvoUrl });
-      const { titulo: tituloExtraido, imagem_url: imagemExtraida } = resposta.data;
+      const { titulo: tituloExtraido, imagem_url: imagemExtraida, price: precoExtraido } = resposta.data;
 
       if (tituloExtraido) {
         setTitulo(tituloExtraido);
       }
       if (imagemExtraida) {
         setImagemUrl(imagemExtraida);
+      }
+      if (precoExtraido !== undefined && precoExtraido !== null) {
+        setPreco(formatarPrecoParaInput(precoExtraido));
+        setPrecoDetectado(true);
       }
     } catch (erro: any) {
       console.warn('Erro ao extrair metadados do link:', erro);
@@ -150,12 +182,16 @@ export default function AdicionarDesejoModal({
     setMensagemErro(null);
 
     try {
-      // Envia o novo desejo com classificação de importância para a API
+      const valorNumerico = converterInputParaNumero(preco);
+
+      // Envia o novo desejo com classificação de importância e valor para a API
       const resposta = await client.post('/wishlist/', {
         url: urlLimpa,
         titulo: tituloLimpo,
         imagem_url: imagemUrl,
         prioridade: prioridade,
+        price: valorNumerico,
+        preco: valorNumerico,
       });
 
       const desejoSalvo: DesejoItem = resposta.data;
@@ -361,6 +397,25 @@ export default function AdicionarDesejoModal({
                     </Text>
                   </View>
                 )}
+
+                {/* Exibição do valor em destaque no card de pré-visualização */}
+                {converterInputParaNumero(preco) !== null && (
+                  <View
+                    style={[
+                      styles.tagPrecoFlutuante,
+                      {
+                        backgroundColor: theme.card,
+                        borderColor: theme.border,
+                      },
+                    ]}
+                  >
+                    <PriceTag
+                      value={converterInputParaNumero(preco)!}
+                      color={theme.foreground}
+                      size="sm"
+                    />
+                  </View>
+                )}
               </View>
             </View>
 
@@ -387,7 +442,65 @@ export default function AdicionarDesejoModal({
               />
             </View>
 
-            {/* ─── Campo 3: Classificação de Importância (Baixa, Média, Alta) ─── */}
+            {/* ─── Campo 3: Valor do Produto (Exibição e Edição) ─── */}
+            <View style={styles.grupoCampo}>
+              <View style={styles.linhaRotuloPreco}>
+                <Text style={[styles.rotuloCampo, dynamicStyles.label]}>
+                  Valor do Produto
+                </Text>
+                {converterInputParaNumero(preco) !== null && (
+                  <View style={styles.badgePrecoDestaque}>
+                    <PriceTag
+                      value={converterInputParaNumero(preco)!}
+                      color={theme.foreground}
+                      size="sm"
+                    />
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.inputPrecoContainer}>
+                <View style={[styles.prefixoMoeda, { backgroundColor: theme.muted, borderColor: theme.border }]}>
+                  <Text style={[styles.textoPrefixoMoeda, { color: theme.mutedForeground }]}>
+                    R$
+                  </Text>
+                </View>
+                <TextInput
+                  style={[
+                    styles.input,
+                    dynamicStyles.input,
+                    styles.inputPreco,
+                    precoFocado && dynamicStyles.inputFocado,
+                  ]}
+                  placeholder="0,00"
+                  placeholderTextColor={theme.mutedForeground}
+                  value={preco}
+                  onChangeText={(texto) => {
+                    const limpo = texto.replace(/[^\d,.]/g, '');
+                    setPreco(limpo);
+                    setPrecoDetectado(false);
+                    if (mensagemErro) setMensagemErro(null);
+                  }}
+                  onFocus={() => setPrecoFocado(true)}
+                  onBlur={() => {
+                    setPrecoFocado(false);
+                    const n = converterInputParaNumero(preco);
+                    if (n !== null) {
+                      setPreco(formatarPrecoParaInput(n));
+                    }
+                  }}
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <Text style={[styles.ajudaPreco, { color: theme.mutedForeground }]}>
+                {precoDetectado
+                  ? '✨ Valor detectado automaticamente do link. Você pode ajustá-lo se desejar.'
+                  : 'Informe ou ajuste o preço estimado para gerenciar seus gastos.'}
+              </Text>
+            </View>
+
+            {/* ─── Campo 4: Classificação de Importância (Baixa, Média, Alta) ─── */}
             <View style={styles.grupoCampo}>
               <Text style={[styles.rotuloCampo, dynamicStyles.label]}>
                 Classificação de Importância *
@@ -648,6 +761,58 @@ const styles = StyleSheet.create({
   imagemProduto: {
     width: '100%',
     height: '100%',
+  },
+  linhaRotuloPreco: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  badgePrecoDestaque: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  tagPrecoFlutuante: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  inputPrecoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  prefixoMoeda: {
+    height: 48,
+    paddingHorizontal: spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopLeftRadius: radius.md,
+    borderBottomLeftRadius: radius.md,
+    borderWidth: 1,
+    borderRightWidth: 0,
+  },
+  textoPrefixoMoeda: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    fontFamily: typography.fonts.sans,
+  },
+  inputPreco: {
+    flex: 1,
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
+  },
+  ajudaPreco: {
+    fontSize: 11,
+    fontFamily: typography.fonts.sans,
+    marginTop: 2,
   },
   placeholderImagem: {
     width: '100%',

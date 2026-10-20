@@ -25,6 +25,13 @@ export function obterBanco(caminhoPersonalizado = null) {
     // Inicializa as tabelas se ainda não existirem
     dbInstancia.exec(TABELA_USUARIOS);
     dbInstancia.exec(TABELA_DESEJOS);
+
+    // Migração segura para adicionar a coluna 'price' caso a base já exista
+    try {
+      dbInstancia.exec('ALTER TABLE wishlist_items ADD COLUMN price REAL;');
+    } catch {
+      // Coluna já existente na tabela
+    }
   }
   return dbInstancia;
 }

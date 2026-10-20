@@ -18,6 +18,8 @@ import client from '../../api/client';
 import { useTheme, useIsDark, typography } from '../../theme';
 import { WishlistItem } from '../../types';
 import { PRIORITY_CONFIG } from './ProductCard';
+import PriceTag from './PriceTag';
+import { formatarPrecoParaInput, converterInputParaNumero } from '../AdicionarDesejoModal';
 
 interface Props {
   visivel: boolean;
@@ -33,6 +35,7 @@ export default function EditarDesejoModal({ visivel, item, aoFechar, aoSalvarSuc
   const [titulo, setTitulo] = useState('');
   const [url, setUrl] = useState('');
   const [imagemUrl, setImagemUrl] = useState<string | null>(null);
+  const [preco, setPreco] = useState<string>('');
   const [prioridade, setPrioridade] = useState<number>(2);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -42,6 +45,7 @@ export default function EditarDesejoModal({ visivel, item, aoFechar, aoSalvarSuc
       setTitulo(item.title || '');
       setUrl(item.url || '');
       setImagemUrl(item.image_url || null);
+      setPreco(item.price ? formatarPrecoParaInput(item.price) : '');
       setPrioridade(Number(item.priority) || 2);
       setErro(null);
     }
@@ -74,6 +78,8 @@ export default function EditarDesejoModal({ visivel, item, aoFechar, aoSalvarSuc
         imgFormatada = `https://${imgFormatada}`;
       }
 
+      const valorNumerico = converterInputParaNumero(preco);
+
       const payload = {
         title: titulo.trim(),
         titulo: titulo.trim(),
@@ -82,6 +88,8 @@ export default function EditarDesejoModal({ visivel, item, aoFechar, aoSalvarSuc
         imagem_url: imgFormatada,
         priority: prioridade,
         prioridade: prioridade,
+        price: valorNumerico,
+        preco: valorNumerico,
       };
 
       const resposta = await client.put(`/wishlist/${item.id}`, payload);
@@ -92,6 +100,7 @@ export default function EditarDesejoModal({ visivel, item, aoFechar, aoSalvarSuc
         url: urlFormatada,
         image_url: imgFormatada,
         priority: prioridade,
+        price: valorNumerico,
       };
 
       aoSalvarSucesso(itemAtualizado);
@@ -217,6 +226,35 @@ export default function EditarDesejoModal({ visivel, item, aoFechar, aoSalvarSuc
                   placeholderTextColor={theme.mutedForeground}
                   keyboardType="url"
                   autoCapitalize="none"
+                  style={[styles.input, { color: textColor }, Platform.OS === 'web' && ({ outlineStyle: 'none' } as any)]}
+                />
+              </View>
+            </View>
+
+            {/* Campo: Valor / Preço do Produto */}
+            <View style={styles.fieldGroup}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={[styles.label, { color: textColor }]}>Valor do Produto</Text>
+                {converterInputParaNumero(preco) !== null && (
+                  <PriceTag
+                    value={converterInputParaNumero(preco)!}
+                    color={textColor}
+                    size="sm"
+                  />
+                )}
+              </View>
+              <View style={[styles.inputWrapper, { backgroundColor: inputBg, borderColor: isDark ? theme.border : '#DDD7CD' }]}>
+                <Text style={{ fontWeight: '700', color: theme.mutedForeground, marginRight: 8 }}>R$</Text>
+                <TextInput
+                  value={preco}
+                  onChangeText={(texto) => setPreco(texto.replace(/[^\d,.]/g, ''))}
+                  onBlur={() => {
+                    const n = converterInputParaNumero(preco);
+                    if (n !== null) setPreco(formatarPrecoParaInput(n));
+                  }}
+                  placeholder="0,00"
+                  placeholderTextColor={theme.mutedForeground}
+                  keyboardType="numeric"
                   style={[styles.input, { color: textColor }, Platform.OS === 'web' && ({ outlineStyle: 'none' } as any)]}
                 />
               </View>

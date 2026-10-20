@@ -25,6 +25,7 @@ export const TABELA_DESEJOS = `
     title TEXT,
     image_url TEXT,
     priority INTEGER NOT NULL,
+    price REAL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

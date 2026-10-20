@@ -145,6 +145,7 @@ describe('Rotas da API Prioritize (Integração Express)', () => {
         titulo: 'Teclado Mecânico RGB',
         imagem_url: 'https://exemplo.com/teclado.jpg',
         prioridade: 3, // Alta
+        price: 199.90,
       }),
     });
     const dados = await res.json();
@@ -153,6 +154,7 @@ describe('Rotas da API Prioritize (Integração Express)', () => {
     assert.ok(dados.id);
     assert.strictEqual(dados.title, 'Teclado Mecânico RGB');
     assert.strictEqual(dados.priority, 3);
+    assert.strictEqual(dados.price, 199.90);
     idDesejoCriado = dados.id;
   });
 
@@ -210,6 +212,25 @@ describe('Rotas da API Prioritize (Integração Express)', () => {
 
     assert.strictEqual(res.status, 200);
     assert.ok(Array.isArray(dados));
+  });
+
+  test('PUT /api/v1/wishlist/:id deve atualizar o valor do produto e dados cadastrados', async () => {
+    const res = await fetch(`${urlBase}/api/v1/wishlist/${idDesejoCriado}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenAcesso}`,
+      },
+      body: JSON.stringify({
+        titulo: 'Teclado Mecânico RGB Pro',
+        price: 249.90,
+      }),
+    });
+    const dados = await res.json();
+
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(dados.title, 'Teclado Mecânico RGB Pro');
+    assert.strictEqual(dados.price, 249.90);
   });
 
   test('DELETE /api/v1/wishlist/:id deve excluir o item com status 204', async () => {

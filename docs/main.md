@@ -81,6 +81,7 @@ Armazena os itens da lista de desejos associados ao usuário.
 - `title` (TEXT, Opcional/Editável): Título ou descrição do produto.
 - `image_url` (TEXT, Opcional): Link da imagem representativa obtida do link.
 - `priority` (INTEGER, Obrigatório): Escala de importância do item (1 a 3).
+- `price` (REAL, Opcional): Valor numérico do produto em Reais (R$), extraído automaticamente pelo scraper ou informado/ajustado pelo usuário.
 - `created_at` (TEXT): Data e hora de inclusão em ISO 8601.
 - `updated_at` (TEXT): Data e hora da última alteração em ISO 8601.
 
@@ -109,13 +110,13 @@ Base URL: `http://127.0.0.1:8000/api/v1`
 Todos os endpoints abaixo exigem cabeçalho `Authorization: Bearer <token>`.
 
 - `POST /wishlist/preview`:
-  - **Função**: Recebe uma URL e extrai automaticamente tags OpenGraph (`og:title`, `og:image`), Twitter Cards (`twitter:title`, `twitter:image`) ou a tag HTML `<title>`.
+  - **Função**: Recebe uma URL e extrai automaticamente tags OpenGraph (`og:title`, `og:image`), metadados de preço (`product:price:amount`, JSON-LD schema.org/Product com offers, seletores de e-commerce), Twitter Cards ou a tag HTML `<title>`.
   - **Body**: `{ "url": "https://loja.com/produto" }`
-  - **Retorno**: `{ "url": "...", "titulo": "...", "imagem_url": "..." }`
+  - **Retorno**: `{ "url": "...", "titulo": "...", "imagem_url": "...", "price": 88.02 }`
 - `POST /wishlist/`:
-  - **Função**: Persiste um novo desejo vinculado ao usuário logado.
-  - **Body**: `{ "url": "...", "titulo": "...", "imagem_url": "...", "prioridade": 1|2|3 }`
-  - **Retorno**: Item criado com `id`, `user_id`, `created_at`, etc. (`status 201`).
+  - **Função**: Persiste um novo desejo vinculado ao usuário logado com prioridade e valor do produto.
+  - **Body**: `{ "url": "...", "titulo": "...", "imagem_url": "...", "prioridade": 1|2|3, "price": 88.02 }`
+  - **Retorno**: Item criado com `id`, `user_id`, `price`, `created_at`, etc. (`status 201`).
 - `GET /wishlist/`:
   - **Função**: Lista os desejos cadastrados do usuário autenticado.
   - **Parâmetros de Query Opcionais**:
@@ -171,11 +172,16 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
 - Suporte a botão de fechamento manual e ícone indicativo.
 
 ### 6.3. Modal de Adicionar Desejo (`AdicionarDesejoModal.tsx`)
-- **Herança de Dados**:
+- **Herança de Dados e Scraping Inteligente**:
   - Campo de URL do produto com suporte a busca manual ou automática no blur.
-  - Indicador visual de progresso durante o scraping.
-  - Card de pré-visualização do produto com imagem e título herdados.
-  - Título editável pelo usuário caso queira ajustar o nome do produto.
+  - Indicador visual de progresso durante a obtenção de metadados.
+  - Card de pré-visualização do produto com imagem, título herdado e etiqueta flutuante de preço (`PriceTag`).
+  - Título editável pelo usuário caso queira personalizar o nome do produto.
+- **Exibição e Edição do Valor do Produto**:
+  - Detecta automaticamente o preço do produto a partir de JSON-LD Schema.org, meta tags (`product:price:amount`, `og:price:amount`) e seletores de e-commerce.
+  - Campo dedicado para o valor do item com prefixo visual "R$", teclado numérico e formatação monetária padrão pt-BR.
+  - Permite ao usuário editar livremente o valor detectado ou inserir um preço manualmente.
+  - Mensagens contextuais indicando se o preço foi herdado do link ou preenchido manualmente.
 - **Classificação de Importância**:
   - Três seletores táteis com retorno visual de estado ativo para "Baixa", "Média" e "Alta".
 - **Integração na Tela Principal**:
@@ -247,7 +253,7 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
 
 ## 7. Como Executar os Testes
 
-O projeto conta com uma suíte completa de **67 testes automatizados** desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
+O projeto conta com uma suíte completa de **73 testes automatizados** desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
 
 ### Execução Unificada (Backend + Frontend)
 Na raiz do projeto:
@@ -255,15 +261,15 @@ Na raiz do projeto:
 npm test
 ```
 
-### Testes do Backend (41 testes)
-Testes unitários e de integração de autenticação, banco de dados, rotas de wishlist (filtros, busca e ordenação), scraping e segurança:
+### Testes do Backend (44 testes)
+Testes unitários e de integração de autenticação, banco de dados, rotas de wishlist (filtros, busca, ordenação e preço), extração de metadados e segurança:
 ```bash
 cd backend
 npm test
 ```
 
-### Testes do Frontend (26 testes)
-Testes unitários de extração de compartilhamento, prevenção de reabertura no reload, algoritmos de ordenação, filtros combinados, agrupamento Kanban e persistência de modos de visualização:
+### Testes do Frontend (29 testes)
+Testes unitários de extração de compartilhamento, prevenção de reabertura no reload, algoritmos de ordenação, filtros combinados, agrupamento Kanban, persistência de layouts e formatação/conversão de preços:
 ```bash
 cd frontend
 npm test
