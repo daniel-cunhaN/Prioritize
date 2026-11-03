@@ -37,10 +37,11 @@ export default function BottomNav({ active, bottomInset, onSelect, onAddPress }:
 
   return (
     <View
-      pointerEvents="box-none"
+      pointerEvents={Platform.OS === 'web' ? undefined : 'box-none'}
       style={[
         styles.wrapperExterno,
         { bottom: Math.max(bottomInset, 14) },
+        Platform.OS === 'web' && ({ pointerEvents: 'box-none' } as any),
       ]}
     >
       <View

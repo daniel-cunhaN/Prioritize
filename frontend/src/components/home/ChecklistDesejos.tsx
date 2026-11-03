@@ -158,90 +158,99 @@ export default function ChecklistDesejos({
                 : null;
 
             return (
-              <Pressable
+              <View
                 key={item.id}
-                onPress={() => aoAlternarConclusao(item)}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: concluido }}
-                style={({ pressed }) => [
+                style={[
                   styles.linhaChecklist,
                   {
                     backgroundColor: concluido ? theme.card : theme.background,
                     borderColor: concluido ? theme.border : theme.input,
-                    opacity: pressed ? 0.85 : 1,
                   },
                 ]}
               >
-                {/* Checkbox Quadrado Arredondado de Alto Contraste */}
-                <View
-                  style={[
-                    styles.caixaCheck,
-                    {
-                      backgroundColor: concluido ? theme.primary : theme.background,
-                      borderColor: theme.primary,
-                    },
+                {/* Área interativa de conclusão com checkbox e título */}
+                <Pressable
+                  onPress={() => aoAlternarConclusao(item)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: concluido }}
+                  accessibilityLabel={`Alternar item: ${item.title || 'Sem título'}`}
+                  style={({ pressed }) => [
+                    styles.corpoChecklist,
+                    { opacity: pressed ? 0.8 : 1 },
                   ]}
                 >
-                  {concluido && (
-                    <Feather name="check" size={14} color={theme.primaryForeground} />
-                  )}
-                </View>
-
-                {/* Título e Metadados */}
-                <View style={styles.colunaTexto}>
-                  <Text
-                    numberOfLines={2}
+                  {/* Checkbox Quadrado Arredondado de Alto Contraste */}
+                  <View
                     style={[
-                      styles.tituloItem,
+                      styles.caixaCheck,
                       {
-                        color: concluido ? theme.mutedForeground : theme.foreground,
-                        textDecorationLine: concluido ? 'line-through' : 'none',
+                        backgroundColor: concluido ? theme.primary : theme.background,
+                        borderColor: theme.primary,
                       },
                     ]}
                   >
-                    {item.title || 'Item sem título'}
-                  </Text>
-                  <View style={styles.metaLinha}>
-                    <View
+                    {concluido && (
+                      <Feather name="check" size={14} color={theme.primaryForeground} />
+                    )}
+                  </View>
+
+                  {/* Título e Metadados */}
+                  <View style={styles.colunaTexto}>
+                    <Text
+                      numberOfLines={2}
                       style={[
-                        styles.tagPrioridadeMini,
+                        styles.tituloItem,
                         {
-                          backgroundColor:
-                            item.priority === 3 ? theme.primary : theme.secondary,
-                          borderColor: theme.border,
+                          color: concluido ? theme.mutedForeground : theme.foreground,
+                          textDecorationLine: concluido ? 'line-through' : 'none',
                         },
                       ]}
                     >
-                      <Text
+                      {item.title || 'Item sem título'}
+                    </Text>
+                    <View style={styles.metaLinha}>
+                      <View
                         style={[
-                          styles.textoTagMini,
+                          styles.tagPrioridadeMini,
                           {
-                            color:
-                              item.priority === 3
-                                ? theme.primaryForeground
-                                : theme.foreground,
+                            backgroundColor:
+                              item.priority === 3 ? theme.primary : theme.secondary,
+                            borderColor: theme.border,
                           },
                         ]}
                       >
-                        {conf.icon} {conf.label}
-                      </Text>
+                        <Text
+                          style={[
+                            styles.textoTagMini,
+                            {
+                              color:
+                                item.priority === 3
+                                  ? theme.primaryForeground
+                                  : theme.foreground,
+                            },
+                          ]}
+                        >
+                          {conf.icon} {conf.label}
+                        </Text>
+                      </View>
+                      {precoNumerico !== null && (
+                        <PriceTag value={precoNumerico} size="sm" color={theme.foreground} />
+                      )}
                     </View>
-                    {precoNumerico !== null && (
-                      <PriceTag value={precoNumerico} size="sm" color={theme.foreground} />
-                    )}
                   </View>
-                </View>
+                </Pressable>
 
-                {/* Atalho para abrir o link original */}
+                {/* Atalho para abrir o link original (irmão, nunca aninhado dentro do checkbox) */}
                 <TouchableOpacity
                   onPress={() => abrirUrlExterna(item.url)}
                   hitSlop={8}
                   style={[styles.botaoLink, { backgroundColor: theme.secondary }]}
+                  accessibilityRole="button"
                   accessibilityLabel="Abrir link externo"
                 >
                   <Feather name="arrow-up-right" size={16} color={theme.foreground} />
                 </TouchableOpacity>
-              </Pressable>
+              </View>
             );
           })}
         </View>
@@ -320,6 +329,12 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: radius.lg,
     borderWidth: 1,
+    gap: 12,
+  },
+  corpoChecklist: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   caixaCheck: {

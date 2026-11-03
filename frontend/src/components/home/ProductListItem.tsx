@@ -94,7 +94,6 @@ function ProductListItem({ item, concluido = false, onToggleCheck, onEdit, onDel
     <Pressable
       onPress={openLink}
       onLongPress={onDelete}
-      accessibilityRole="button"
       accessibilityLabel={`Produto: ${item.title || 'Sem título'}`}
       style={({ pressed, hovered }: any) => [
         styles.card,
@@ -148,7 +147,7 @@ function ProductListItem({ item, concluido = false, onToggleCheck, onEdit, onDel
               Animated.timing(fade, {
                 toValue: 1,
                 duration: 200,
-                useNativeDriver: true,
+                useNativeDriver: Platform.OS !== 'web',
               }).start()
             }
             onError={() => setImageError(true)}

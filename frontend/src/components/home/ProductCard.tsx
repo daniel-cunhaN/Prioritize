@@ -115,7 +115,6 @@ function ProductCard({
     <Pressable
       onPress={openLink}
       onLongPress={onDelete}
-      accessibilityRole="button"
       accessibilityLabel={`Produto: ${item.title || 'Sem título'}`}
       style={({ pressed, hovered }: any) => [
         styles.card,
@@ -124,7 +123,9 @@ function ProductCard({
           backgroundColor: theme.background,
           borderColor: hovered ? theme.primary : theme.border,
           transform: [{ scale: pressed ? 0.985 : 1 }, { translateY: hovered ? -3 : 0 }],
-          shadowOpacity: hovered ? 0.1 : 0.03,
+          ...(Platform.OS === 'web'
+            ? { boxShadow: hovered ? '0px 6px 16px rgba(9, 9, 11, 0.1)' : '0px 2px 6px rgba(9, 9, 11, 0.03)' }
+            : { shadowOpacity: hovered ? 0.1 : 0.03 }),
         },
         Platform.OS === 'web' &&
           ({
@@ -146,7 +147,7 @@ function ProductCard({
                   Animated.timing(fade, {
                     toValue: 1,
                     duration: 240,
-                    useNativeDriver: true,
+                    useNativeDriver: Platform.OS !== 'web',
                   }).start()
                 }
                 onError={() => setImageError(true)}
@@ -314,10 +315,17 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    shadowColor: '#09090B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 2,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 4px 12px rgba(9, 9, 11, 0.04)',
+      },
+      default: {
+        shadowColor: '#09090B',
+        shadowOffset: { width: 0, height: 4 },
+        shadowRadius: 12,
+        elevation: 2,
+      },
+    }),
   },
   imageWell: {
     width: '100%',

@@ -214,14 +214,18 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
   - **Redirecionamento em Tempo Real (`HomeScreen.tsx`)**: Redireciona com segurança para a tela de autenticação caso os carregamentos de lista de desejos ou perfil retornem 401, eliminando estados de "sessão zumbi".
   - **Mensagens Amigáveis no Modal (`AdicionarDesejoModal.tsx`)**: Tratamento de respostas 401 com cópias claras que instruem o usuário a reautenticar.
 - **Eliminação de Warnings e Depreciações no React Native Web**:
+  - `In HTML, <button> cannot be a descendant of <button>`: Resolvido o erro de validação e hidratação do DOM removendo `accessibilityRole="button"` do container `<Pressable>` raiz em [`ProductListItem.tsx`](frontend/src/components/home/ProductListItem.tsx) e [`ProductCard.tsx`](frontend/src/components/home/ProductCard.tsx). Em [`ChecklistDesejos.tsx`](frontend/src/components/home/ChecklistDesejos.tsx), o checkbox interativo e o botão de link externo foram desacoplados em elementos irmãos dentro de uma `<View>`, impedindo que o navegador renderize tags `<button>` aninhadas.
+  - `"shadow*" style props are deprecated. Use "boxShadow"`: Implementado suporte condicional em [`theme.ts`](frontend/src/theme.ts) via `Platform.select`, fornecendo a propriedade padrão `boxShadow` para o ambiente Web e preservando propriedades de sombra nativas (`shadowColor`, `shadowOffset`, `shadowOpacity`, `shadowRadius`) para iOS/Android. Em [`ProductCard.tsx`](frontend/src/components/home/ProductCard.tsx), a elevação no hover e no estilo base foi adaptada para `boxShadow`.
+  - `Animated: useNativeDriver is not supported`: Atualizado o parâmetro de timing de animações em [`ProductListItem.tsx`](frontend/src/components/home/ProductListItem.tsx) e [`ProductCard.tsx`](frontend/src/components/home/ProductCard.tsx) para `useNativeDriver: Platform.OS !== 'web'`.
+  - `props.pointerEvents is deprecated. Use style.pointerEvents`: Atualizado [`BottomNav.tsx`](frontend/src/components/home/BottomNav.tsx) para declarar `pointerEvents: 'box-none'` via objeto de `style` na plataforma Web.
   - `Image: style.resizeMode is deprecated`: Removida a propriedade `resizeMode: 'contain'` dos estilos internos e declarada como propriedade nativa do componente `<Image resizeMode="contain" />` em `LoginScreen.tsx` e `RegisterScreen.tsx`.
-  - `TouchableWithoutFeedback is deprecated` e `props.pointerEvents is deprecated`: Substituído o uso de `TouchableWithoutFeedback` pelo componente moderno `Pressable` com `stopPropagation()` em `GerenciarContaModal.tsx`.
+  - `TouchableWithoutFeedback is deprecated`: Substituído pelo componente moderno `Pressable` com `stopPropagation()` em `GerenciarContaModal.tsx`.
 
 ---
 
 ## 7. Como Executar os Testes
 
-O projeto conta com uma suíte completa de **78 testes automatizados** (45 no backend e 33 no frontend) desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
+O projeto conta com uma suíte completa de **86 testes automatizados** (45 no backend e 41 no frontend) desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
 
 ### Execução Unificada (Backend + Frontend)
 Na raiz do projeto:
@@ -236,8 +240,8 @@ cd backend
 npm test
 ```
 
-### Testes do Frontend (33 testes unitários)
-Valida extração de links compartilhados, filtros e ordenação, agrupamento Kanban, formatação monetária e os novos fluxos de produtividade (Checklist Focado, Linha do Tempo e Gráfico Semanal 7D):
+### Testes do Frontend (41 testes unitários)
+Valida extração de links compartilhados, compatibilidade com React Native Web (eliminação de `<button>` aninhados, suporte a `boxShadow`, `useNativeDriver` seguro e `pointerEvents`), filtros e ordenação, agrupamento Kanban, formatação monetária e os novos fluxos de produtividade:
 ```bash
 cd frontend
 npm test

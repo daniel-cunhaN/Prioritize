@@ -137,30 +137,49 @@ export const radius = {
 
 /* ─────────────────────────────────────────────
  * Presets de Sombra Minimalistas
+ * Compatibilizados com boxShadow para Web (eliminando warnings de depreciação)
+ * e props nativas de sombra para iOS/Android
  * ───────────────────────────────────────────── */
-export const shadows = {
-  sm: {
-    shadowColor: '#09090B',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+export const shadows = Platform.select({
+  web: {
+    sm: {
+      boxShadow: '0px 1px 3px rgba(9, 9, 11, 0.04)',
+    },
+    md: {
+      boxShadow: '0px 4px 12px rgba(9, 9, 11, 0.06)',
+    },
+    lg: {
+      boxShadow: '0px 12px 28px rgba(9, 9, 11, 0.14)',
+    },
   },
-  md: {
-    shadowColor: '#09090B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 2,
+  default: {
+    sm: {
+      shadowColor: '#09090B',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.04,
+      shadowRadius: 3,
+      elevation: 1,
+    },
+    md: {
+      shadowColor: '#09090B',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.06,
+      shadowRadius: 12,
+      elevation: 2,
+    },
+    lg: {
+      shadowColor: '#09090B',
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.14,
+      shadowRadius: 28,
+      elevation: 8,
+    },
   },
-  lg: {
-    shadowColor: '#09090B',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.14,
-    shadowRadius: 28,
-    elevation: 8,
-  },
-} as const;
+}) as {
+  readonly sm: any;
+  readonly md: any;
+  readonly lg: any;
+};
 
 /* ─────────────────────────────────────────────
  * Tipografia (SF Pro Display / Sistema + Mono Tabular)
