@@ -9,7 +9,8 @@ No mesmo modal, o usuário deverá classificar o produto em importância, utiliz
 O produto será armazenado em uma tabela estilo kanban, facilitando a visualização dos produtos e suas classificações para o usuário.
 
 # Regras
-- Após qualquer atualização de código, documente sistematicamente nas documentações do projeto
+- Após qualquer atualização de código, documente sistematicamente nas documentações do projeto;
 - Mantenha o código, redigido em português brasileiro;
-- Crie comentários acima dos trechos de código importantes.
+- Crie comentários acima dos trechos de código importantes;
+- Sempre crie um commit e em seguida dê push no repositório remoto, após qualquer alteração no projeto;
 - Após qualquer alteração, gere uma mensagem de commit para o usuário copiar.
