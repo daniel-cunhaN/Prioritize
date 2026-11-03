@@ -1,19 +1,12 @@
 /**
- * RegisterScreen.tsx — Tela de criação de conta refatorada
+ * RegisterScreen.tsx — Tela de Criação de Conta Monocromática de Alto Contraste
  *
  * Características de UI/UX e Segurança:
- * - Cabeçalho consistente com o tema e branding
- * - Botão de registro com Google (sem Apple conforme diretrizes)
- * - Divisor visual padronizado
- * - Campos de input com ícones minimalistas
- * - Toggle de visibilidade com ícones profissionais (sem emojis de macaco)
- * - Indicador de força de senha em tempo real com barra progressiva
- * - Componente AlertBox integrado para feedbacks claros
+ * - Estética minimalista monocromática com monograma P., tipografia bold e botões pílula
+ * - Campos de input com ícones vetoriais Feather (mail, lock, eye / eye-off)
+ * - Indicador progressivo monocromático de força de senha em tempo real
  * - Validação estrita do lado do cliente e sanitização anti-XSS
- * - Armazenamento de token JWT em memória
- * - Responsivo e Mobile-First
- *
- * Paleta: Claude Amber (theme.ts)
+ * - Armazenamento seguro de token JWT
  */
 
 import React, { useState, useRef, useCallback, useMemo } from 'react';
@@ -23,12 +16,12 @@ import {
   TextInput,
   StyleSheet,
   Platform,
-  Image,
   TouchableOpacity,
   KeyboardAvoidingView,
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import client from '../api/client';
 import * as SecureStore from 'expo-secure-store';
 import { useTheme, spacing, radius, shadows, typography } from '../theme';
@@ -149,7 +142,6 @@ export default function RegisterScreen({ navigation }: any) {
 
     setCarregando(true);
     try {
-      /* Sanitiza antes de enviar */
       const payload = {
         email: sanitizarInput(email.trim().toLowerCase()),
         password: senha,
@@ -196,7 +188,7 @@ export default function RegisterScreen({ navigation }: any) {
     }
   };
 
-  /* ── Registro com Google (sem Apple) ── */
+  /* ── Registro com Google ── */
   const handleRegistroGoogle = () => {
     setAlerta({
       tipo: 'info',
@@ -206,7 +198,6 @@ export default function RegisterScreen({ navigation }: any) {
 
   /* ── Redirecionamento seguro para a tela de Login ── */
   const handleIrParaLogin = () => {
-    // Retorna na pilha se houver histórico ou navega explicitamente para Login
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
@@ -214,13 +205,13 @@ export default function RegisterScreen({ navigation }: any) {
     }
   };
 
-  /* ── Identificadores visuais da força de senha ── */
+  /* ── Identificadores visuais monocromáticos da força de senha ── */
   const obterCorForca = () => {
     switch (forcaSenha.forca) {
       case 'forte':
-        return '#27ae60';
+        return tema.primary;
       case 'media':
-        return '#f39c12';
+        return tema.mutedForeground;
       case 'fraca':
       default:
         return tema.destructive;
@@ -242,12 +233,12 @@ export default function RegisterScreen({ navigation }: any) {
   const obterTextoForca = () => {
     switch (forcaSenha.forca) {
       case 'forte':
-        return 'Senha forte ✓';
+        return '● Senha forte';
       case 'media':
-        return 'Senha média';
+        return '◐ Senha média';
       case 'fraca':
       default:
-        return 'Senha fraca';
+        return '○ Senha fraca';
     }
   };
 
@@ -278,7 +269,7 @@ export default function RegisterScreen({ navigation }: any) {
     },
     textoBotaoSocial: { color: tema.foreground },
     textoErro: { color: tema.destructive },
-    corIconeInput: (focado: boolean) => (focado ? tema.ring : tema.mutedForeground),
+    corIconeInput: (focado: boolean) => (focado ? tema.foreground : tema.mutedForeground),
   };
 
   return (
@@ -292,14 +283,11 @@ export default function RegisterScreen({ navigation }: any) {
         showsVerticalScrollIndicator={false}
       >
         <View style={estilos.conteudoCentralizado}>
-          {/* ── Branding e Cabeçalho ── */}
+          {/* ── Monograma e Cabeçalho Monocromático ── */}
           <View style={estilos.containerMarca}>
-            <Image
-              source={require('../../assets/logo.png')}
-              style={estilos.logo}
-              resizeMode="contain"
-              accessibilityLabel="Logotipo Prioritize"
-            />
+            <View style={[estilos.monogramaBadge, { backgroundColor: tema.primary }]}>
+              <Text style={[estilos.monogramaTexto, { color: tema.primaryForeground }]}>P.</Text>
+            </View>
             <Text
               style={[estilos.textoMarca, estilosDinamicos.textoMarca]}
               accessibilityRole="header"
@@ -307,12 +295,12 @@ export default function RegisterScreen({ navigation }: any) {
               Prioritize
             </Text>
             <Text style={[estilos.subtitulo, estilosDinamicos.subtitulo]}>
-              Crie sua conta e organize seus desejos
+              Crie sua conta e priorize o que realmente importa
             </Text>
           </View>
 
           {/* ── Card do Formulário ── */}
-          <View style={[estilos.cardFormulario, estilosDinamicos.card, shadows.md]}>
+          <View style={[estilos.cardFormulario, estilosDinamicos.card, shadows.sm]}>
             <Text
               style={[estilos.titulo, estilosDinamicos.titulo]}
               accessibilityRole="header"
@@ -320,7 +308,7 @@ export default function RegisterScreen({ navigation }: any) {
               Criar Conta
             </Text>
             <Text style={[estilos.descricaoTitulo, estilosDinamicos.subtitulo]}>
-              Cadastre-se rapidamente para começar
+              Cadastre-se em segundos para sincronizar sua lista
             </Text>
 
             {/* ── Caixa de Alerta (Feedback visual) ── */}
@@ -332,7 +320,7 @@ export default function RegisterScreen({ navigation }: any) {
               />
             )}
 
-            {/* ── Botão Social Google (Sem Apple) ── */}
+            {/* ── Botão Social em Pílula (Google) ── */}
             <TouchableOpacity
               style={[estilos.botaoSocial, estilosDinamicos.botaoSocial]}
               onPress={handleRegistroGoogle}
@@ -340,7 +328,7 @@ export default function RegisterScreen({ navigation }: any) {
               accessibilityRole="button"
               accessibilityLabel="Registrar com Google"
             >
-              <Text style={estilos.iconeSocial}>G</Text>
+              <Text style={[estilos.iconeSocial, { color: tema.foreground }]}>G</Text>
               <Text style={[estilos.textoBotaoSocial, estilosDinamicos.textoBotaoSocial]}>
                 Cadastrar com Google
               </Text>
@@ -366,14 +354,12 @@ export default function RegisterScreen({ navigation }: any) {
                   estilosDinamicos.input(emailFocado, !!erroEmail),
                 ]}
               >
-                <Text
-                  style={[
-                    estilos.iconeInput,
-                    { color: estilosDinamicos.corIconeInput(emailFocado) },
-                  ]}
-                >
-                  ✉
-                </Text>
+                <Feather
+                  name="mail"
+                  size={16}
+                  color={estilosDinamicos.corIconeInput(emailFocado)}
+                  style={estilos.iconeVetorial}
+                />
                 <TextInput
                   style={[estilos.campoTexto, { color: tema.foreground }]}
                   placeholder="seu@email.com"
@@ -404,7 +390,7 @@ export default function RegisterScreen({ navigation }: any) {
               )}
             </View>
 
-            {/* ── Campo Senha com Força ── */}
+            {/* ── Campo Senha com Força Monocromática ── */}
             <View style={estilos.grupoInput}>
               <Text style={[estilos.rotulo, { color: tema.foreground }]}>
                 Senha
@@ -415,14 +401,12 @@ export default function RegisterScreen({ navigation }: any) {
                   estilosDinamicos.input(senhaFocada, !!erroSenha),
                 ]}
               >
-                <Text
-                  style={[
-                    estilos.iconeInput,
-                    { color: estilosDinamicos.corIconeInput(senhaFocada) },
-                  ]}
-                >
-                  🔒
-                </Text>
+                <Feather
+                  name="lock"
+                  size={16}
+                  color={estilosDinamicos.corIconeInput(senhaFocada)}
+                  style={estilos.iconeVetorial}
+                />
                 <TextInput
                   ref={refInputSenha}
                   style={[estilos.campoTexto, { color: tema.foreground }]}
@@ -439,7 +423,6 @@ export default function RegisterScreen({ navigation }: any) {
                   onBlur={() => setSenhaFocada(false)}
                   accessibilityLabel="Campo de senha"
                 />
-                {/* Toggle profissional (olho aberto / fechado com corte) */}
                 <TouchableOpacity
                   onPress={() => setSenhaVisivel(!senhaVisivel)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -447,9 +430,11 @@ export default function RegisterScreen({ navigation }: any) {
                   accessibilityLabel={senhaVisivel ? 'Ocultar senha' : 'Exibir senha'}
                   style={estilos.botaoToggle}
                 >
-                  <Text style={[estilos.iconeToggle, { color: tema.mutedForeground }]}>
-                    {senhaVisivel ? '👁' : '⊘'}
-                  </Text>
+                  <Feather
+                    name={senhaVisivel ? 'eye' : 'eye-off'}
+                    size={17}
+                    color={tema.mutedForeground}
+                  />
                 </TouchableOpacity>
               </View>
 
@@ -479,34 +464,34 @@ export default function RegisterScreen({ navigation }: any) {
                   <Text
                     style={[
                       estilos.textoCriterio,
-                      { color: forcaSenha.criterios.comprimentoMinimo ? '#27ae60' : tema.mutedForeground },
+                      { color: forcaSenha.criterios.comprimentoMinimo ? tema.foreground : tema.mutedForeground },
                     ]}
                   >
-                    {forcaSenha.criterios.comprimentoMinimo ? '✓' : '•'} 8+ caracteres
+                    {forcaSenha.criterios.comprimentoMinimo ? '✓' : '○'} 8+ caracteres
                   </Text>
                   <Text
                     style={[
                       estilos.textoCriterio,
-                      { color: forcaSenha.criterios.temMaiuscula ? '#27ae60' : tema.mutedForeground },
+                      { color: forcaSenha.criterios.temMaiuscula ? tema.foreground : tema.mutedForeground },
                     ]}
                   >
-                    {forcaSenha.criterios.temMaiuscula ? '✓' : '•'} Letra maiúscula
+                    {forcaSenha.criterios.temMaiuscula ? '✓' : '○'} Letra maiúscula
                   </Text>
                   <Text
                     style={[
                       estilos.textoCriterio,
-                      { color: forcaSenha.criterios.temMinuscula ? '#27ae60' : tema.mutedForeground },
+                      { color: forcaSenha.criterios.temMinuscula ? tema.foreground : tema.mutedForeground },
                     ]}
                   >
-                    {forcaSenha.criterios.temMinuscula ? '✓' : '•'} Letra minúscula
+                    {forcaSenha.criterios.temMinuscula ? '✓' : '○'} Letra minúscula
                   </Text>
                   <Text
                     style={[
                       estilos.textoCriterio,
-                      { color: forcaSenha.criterios.temNumero ? '#27ae60' : tema.mutedForeground },
+                      { color: forcaSenha.criterios.temNumero ? tema.foreground : tema.mutedForeground },
                     ]}
                   >
-                    {forcaSenha.criterios.temNumero ? '✓' : '•'} Número
+                    {forcaSenha.criterios.temNumero ? '✓' : '○'} Número
                   </Text>
                 </View>
               )}
@@ -529,14 +514,12 @@ export default function RegisterScreen({ navigation }: any) {
                   estilosDinamicos.input(confirmarSenhaFocada, !!erroConfirmarSenha),
                 ]}
               >
-                <Text
-                  style={[
-                    estilos.iconeInput,
-                    { color: estilosDinamicos.corIconeInput(confirmarSenhaFocada) },
-                  ]}
-                >
-                  🔒
-                </Text>
+                <Feather
+                  name="lock"
+                  size={16}
+                  color={estilosDinamicos.corIconeInput(confirmarSenhaFocada)}
+                  style={estilos.iconeVetorial}
+                />
                 <TextInput
                   ref={refInputConfirmarSenha}
                   style={[estilos.campoTexto, { color: tema.foreground }]}
@@ -565,13 +548,17 @@ export default function RegisterScreen({ navigation }: any) {
                   accessibilityLabel={confirmarSenhaVisivel ? 'Ocultar confirmação' : 'Exibir confirmação'}
                   style={estilos.botaoToggle}
                 >
-                  <Text style={[estilos.iconeToggle, { color: tema.mutedForeground }]}>
-                    {confirmarSenhaVisivel ? '👁' : '⊘'}
-                  </Text>
+                  <Feather
+                    name={confirmarSenhaVisivel ? 'eye' : 'eye-off'}
+                    size={17}
+                    color={tema.mutedForeground}
+                  />
                 </TouchableOpacity>
               </View>
               {confirmarSenha.length > 0 && senha === confirmarSenha && (
-                <Text style={estilos.textoSucesso}>✓ Senhas coincidem</Text>
+                <Text style={[estilos.textoSucesso, { color: tema.foreground }]}>
+                  ✓ Senhas coincidem
+                </Text>
               )}
               {!!erroConfirmarSenha && (
                 <Text style={[estilos.textoErro, estilosDinamicos.textoErro]}>
@@ -580,7 +567,7 @@ export default function RegisterScreen({ navigation }: any) {
               )}
             </View>
 
-            {/* ── Botão Primário ── */}
+            {/* ── Botão Primário em Formato Pílula ── */}
             <TouchableOpacity
               style={[
                 estilos.botaoPrimario,
@@ -646,14 +633,23 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing['2xl'],
   },
-  logo: {
-    width: 120,
-    height: 65,
-    marginBottom: spacing.sm,
+  monogramaBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  monogramaTexto: {
+    fontSize: 22,
+    fontWeight: typography.weights.extrabold,
+    fontFamily: typography.fonts.sans,
+    letterSpacing: -0.8,
   },
   textoMarca: {
-    fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.bold,
+    fontSize: typography.sizes['2xl'],
+    fontWeight: typography.weights.extrabold,
     fontFamily: typography.fonts.sans,
     letterSpacing: typography.letterSpacing.tight,
   },
@@ -671,8 +667,9 @@ const estilos = StyleSheet.create({
   },
   titulo: {
     fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.semibold,
+    fontWeight: typography.weights.extrabold,
     fontFamily: typography.fonts.sans,
+    letterSpacing: -0.4,
     textAlign: 'center',
   },
   descricaoTitulo: {
@@ -684,7 +681,7 @@ const estilos = StyleSheet.create({
   },
   botaoSocial: {
     height: 48,
-    borderRadius: radius.md,
+    borderRadius: radius.full,
     borderWidth: 1,
     flexDirection: 'row',
     justifyContent: 'center',
@@ -694,11 +691,11 @@ const estilos = StyleSheet.create({
   },
   iconeSocial: {
     fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
+    fontWeight: typography.weights.extrabold,
   },
   textoBotaoSocial: {
     fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.medium,
+    fontWeight: typography.weights.semibold,
     fontFamily: typography.fonts.sans,
   },
   containerDivisor: {
@@ -720,23 +717,20 @@ const estilos = StyleSheet.create({
   },
   rotulo: {
     fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.medium,
+    fontWeight: typography.weights.semibold,
     fontFamily: typography.fonts.sans,
     marginBottom: spacing.sm,
   },
   containerInput: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 52,
+    height: 50,
     borderWidth: 1,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
   },
-  iconeInput: {
-    fontSize: 16,
+  iconeVetorial: {
     marginRight: spacing.sm,
-    width: 22,
-    textAlign: 'center',
   },
   campoTexto: {
     flex: 1,
@@ -749,11 +743,6 @@ const estilos = StyleSheet.create({
     paddingLeft: spacing.sm,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  iconeToggle: {
-    fontSize: 18,
-    width: 24,
-    textAlign: 'center',
   },
   containerForcaSenha: {
     flexDirection: 'row',
@@ -773,9 +762,9 @@ const estilos = StyleSheet.create({
   },
   textoForcaSenha: {
     fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.medium,
+    fontWeight: typography.weights.semibold,
     fontFamily: typography.fonts.sans,
-    minWidth: 90,
+    minWidth: 96,
     textAlign: 'right',
   },
   containerCriterios: {
@@ -793,20 +782,20 @@ const estilos = StyleSheet.create({
   },
   textoSucesso: {
     fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.semibold,
     fontFamily: typography.fonts.sans,
     marginTop: spacing.xs,
-    color: '#27ae60',
   },
   botaoPrimario: {
-    height: 52,
-    borderRadius: radius.md,
+    height: 50,
+    borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: spacing.sm,
   },
   textoBotaoPrimario: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.semibold,
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.bold,
     fontFamily: typography.fonts.sans,
   },
   botaoDesabilitado: {
@@ -819,7 +808,7 @@ const estilos = StyleSheet.create({
   linhaLogin: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   textoRodape: {
     fontSize: typography.sizes.sm,
@@ -827,7 +816,7 @@ const estilos = StyleSheet.create({
   },
   textoLinkDestaque: {
     fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
+    fontWeight: typography.weights.bold,
     fontFamily: typography.fonts.sans,
   },
 });

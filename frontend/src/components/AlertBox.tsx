@@ -1,8 +1,5 @@
 /**
- * AlertBox.tsx — Componente de Caixa de Alerta customizado
- *
- * Fornece feedback visual integrado (erro, sucesso, aviso e info)
- * utilizando estritamente a paleta de cores e tipografia Claude Amber.
+ * AlertBox.tsx — Componente Minimalista Monocromático de Feedback Contextual
  */
 
 import React from 'react';
@@ -23,37 +20,31 @@ export default function AlertBox({ tipo, mensagem, onFechar, style }: AlertBoxPr
 
   if (!mensagem) return null;
 
-  /* Mapeamento de configurações e cores por tipo de feedback */
+  // Configuração monocromática de alto contraste conforme o tipo de alerta
   const obterConfiguracao = () => {
     switch (tipo) {
-      case 'erro':
-        return {
-          fundo: `${tema.destructive}15`,
-          borda: tema.destructive,
-          texto: tema.destructive,
-          icone: '✕',
-        };
       case 'sucesso':
         return {
-          fundo: '#27ae6018',
-          borda: '#27ae60',
-          texto: '#27ae60',
+          fundo: tema.primary,
+          borda: tema.primary,
+          texto: tema.primaryForeground,
           icone: '✓',
         };
-      case 'aviso':
+      case 'erro':
         return {
-          fundo: `${tema.chart1}20`,
-          borda: tema.chart1,
-          texto: tema.chart1,
+          fundo: tema.card,
+          borda: tema.primary,
+          texto: tema.foreground,
           icone: '!',
         };
+      case 'aviso':
       case 'info':
       default:
         return {
-          fundo: `${tema.secondary}`,
+          fundo: tema.secondary,
           borda: tema.border,
           texto: tema.foreground,
-          icone: 'ℹ',
+          icone: '•',
         };
     }
   };
@@ -73,21 +64,16 @@ export default function AlertBox({ tipo, mensagem, onFechar, style }: AlertBoxPr
       accessibilityRole="alert"
     >
       <View style={estilos.linhaConteudo}>
-        {/* Ícone indicativo circular */}
-        <View style={[estilos.circuloIcone, { borderColor: config.borda }]}>
+        <View style={[estilos.circuloIcone, { borderColor: config.texto }]}>
           <Text style={[estilos.iconeTexto, { color: config.texto }]}>{config.icone}</Text>
         </View>
 
-        {/* Mensagem do alerta */}
-        <Text style={[estilos.mensagem, { color: config.texto }]}>
-          {mensagem}
-        </Text>
+        <Text style={[estilos.mensagem, { color: config.texto }]}>{mensagem}</Text>
 
-        {/* Botão de fechar opcional */}
         {onFechar && (
           <TouchableOpacity
             onPress={onFechar}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            hitSlop={8}
             style={estilos.botaoFechar}
             accessibilityLabel="Fechar alerta"
           >
@@ -101,8 +87,8 @@ export default function AlertBox({ tipo, mensagem, onFechar, style }: AlertBoxPr
 
 const estilos = StyleSheet.create({
   container: {
-    borderWidth: 1,
-    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderRadius: radius.lg,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.lg,
@@ -116,19 +102,20 @@ const estilos = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: radius.full,
-    borderWidth: 1,
+    borderWidth: 1.2,
     justifyContent: 'center',
     alignItems: 'center',
   },
   iconeTexto: {
     fontSize: 11,
-    fontWeight: typography.weights.bold,
+    fontWeight: '800',
     textAlign: 'center',
     lineHeight: 14,
   },
   mensagem: {
     flex: 1,
-    fontSize: typography.sizes.sm,
+    fontSize: 13,
+    fontWeight: '600',
     fontFamily: typography.fonts.sans,
     lineHeight: 18,
   },
@@ -137,6 +124,6 @@ const estilos = StyleSheet.create({
   },
   textoFechar: {
     fontSize: 18,
-    fontWeight: typography.weights.bold,
+    fontWeight: '800',
   },
 });

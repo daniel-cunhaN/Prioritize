@@ -1,52 +1,44 @@
+/**
+ * KanbanBoard.tsx — Matriz / Quadro Kanban Monocromático por Importância
+ *
+ * No Desktop: Exibe as 3 colunas simultaneamente lado a lado com alto contraste.
+ * No Mobile: Seletor segmentado em formato pílula para alternância fluida.
+ */
+
 import React, { useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Dimensions,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useTheme, useIsDark, typography, radius } from '../../theme';
+import { useTheme, typography, radius } from '../../theme';
 import { WishlistItem } from '../../types';
-import { PRIORITY_CONFIG } from './ProductCard';
 import ProductListItem from './ProductListItem';
 
 interface Props {
   items: WishlistItem[];
+  idsConcluidos?: string[];
+  onToggleCheck?: (item: WishlistItem) => void;
   onEdit?: (item: WishlistItem) => void;
   onDelete?: (id: string, title?: string | null) => void;
   isDesktop: boolean;
 }
 
-const COLUNAS_KANBAN: { prioridade: number; label: string; icon: string }[] = [
-  { prioridade: 3, label: 'Alta Prioridade', icon: '🔥' },
-  { prioridade: 2, label: 'Média Prioridade', icon: '⭐' },
-  { prioridade: 1, label: 'Baixa Prioridade', icon: '🌱' },
+const COLUNAS_KANBAN: { prioridade: number; label: string; subtitulo: string; icon: string; destaque: boolean }[] = [
+  { prioridade: 3, label: 'Alta Prioridade', subtitulo: 'Prioritário · Imediato', icon: '●', destaque: true },
+  { prioridade: 2, label: 'Média Prioridade', subtitulo: 'Desejável · Planejado', icon: '◐', destaque: false },
+  { prioridade: 1, label: 'Baixa Prioridade', subtitulo: 'Pode esperar · Futuro', icon: '○', destaque: false },
 ];
 
-/**
- * KanbanBoard — Visualização em colunas por escala de importância (Alta, Média, Baixa)
- *
- * No Desktop: Exibe 3 colunas lado a lado simultaneamente.
- * No Mobile: Fornece abas táteis rápidas e alternância fluida entre as colunas.
- */
 export default function KanbanBoard({
   items,
+  idsConcluidos = [],
+  onToggleCheck,
   onEdit,
   onDelete,
   isDesktop,
 }: Props) {
   const theme = useTheme();
-  const isDark = useIsDark();
   const [colunaAtivaMobile, setColunaAtivaMobile] = useState<number>(3);
 
-  const textStrong = isDark ? theme.foreground : '#0F1111';
-  const cardBg = isDark ? theme.card : '#FFFFFF';
-  const borda = isDark ? theme.border : '#E2DFD8';
-
-  // Agrupa os itens por prioridade mantendo a ordenação já calculada
+  // Agrupa os itens nas 3 colunas preservando a ordenação recebida
   const itensPorColuna = useMemo(() => {
     return {
       3: items.filter((i) => i.priority === 3),
@@ -55,10 +47,9 @@ export default function KanbanBoard({
     };
   }, [items]);
 
-  // Renderiza o conteúdo individual de uma coluna Kanban
+  // Renderiza uma coluna individual da matriz Kanban
   const renderColuna = (coluna: typeof COLUNAS_KANBAN[0]) => {
     const lista = itensPorColuna[coluna.prioridade as 1 | 2 | 3] || [];
-    const conf = PRIORITY_CONFIG[coluna.prioridade];
 
     return (
       <View
@@ -66,67 +57,68 @@ export default function KanbanBoard({
         style={[
           styles.coluna,
           {
-            backgroundColor: isDark ? '#1C1611' : '#F9F8F5',
-            borderColor: borda,
+            backgroundColor: theme.card,
+            borderColor: coluna.destaque ? theme.primary : theme.border,
+            borderWidth: coluna.destaque ? 1.5 : 1,
           },
         ]}
       >
-        {/* Cabeçalho da Coluna com Faixa Colorida de Prioridade */}
+        {/* Cabeçalho Monocromático da Coluna */}
         <View
           style={[
             styles.cabecalhoColuna,
             {
-              borderTopColor: conf?.color || theme.primary,
-              backgroundColor: cardBg,
-              borderColor: borda,
+              backgroundColor: theme.background,
+              borderBottomColor: theme.border,
             },
           ]}
         >
-          <View style={styles.tituloColunaContainer}>
-            <Text style={styles.iconeColuna}>{coluna.icon}</Text>
-            <Text style={[styles.tituloColuna, { color: textStrong }]}>
-              {coluna.label}
+          <View style={styles.tituloColunaWrapper}>
+            <View style={styles.tituloColunaContainer}>
+              <Text style={[styles.iconeColuna, { color: theme.foreground }]}>{coluna.icon}</Text>
+              <Text style={[styles.tituloColuna, { color: theme.foreground }]}>
+                {coluna.label}
+              </Text>
+            </View>
+            <Text style={[styles.subtituloColuna, { color: theme.mutedForeground }]}>
+              {coluna.subtitulo}
             </Text>
           </View>
+
           <View
             style={[
               styles.badgeContador,
               {
-                backgroundColor: isDark
-                  ? `${conf?.color}33`
-                  : conf?.bg,
-                borderColor: conf?.border,
+                backgroundColor: coluna.destaque ? theme.primary : theme.secondary,
+                borderColor: coluna.destaque ? theme.primary : theme.border,
               },
             ]}
           >
             <Text
               style={[
                 styles.textoContador,
-                { color: isDark ? theme.foreground : conf?.color },
+                {
+                  color: coluna.destaque ? theme.primaryForeground : theme.foreground,
+                },
               ]}
             >
-              {lista.length}
+              {String(lista.length).padStart(2, '0')}
             </Text>
           </View>
         </View>
 
-        {/* Lista de Itens na Coluna */}
+        {/* Lista de Itens */}
         <View style={styles.conteudoColuna}>
           {lista.length === 0 ? (
             <View style={styles.colunaVazia}>
               <Feather
                 name="inbox"
-                size={28}
+                size={24}
                 color={theme.mutedForeground}
                 style={{ opacity: 0.6, marginBottom: 8 }}
               />
-              <Text
-                style={[
-                  styles.textoColunaVazia,
-                  { color: theme.mutedForeground },
-                ]}
-              >
-                Nenhum item com {coluna.label.toLowerCase()}
+              <Text style={[styles.textoColunaVazia, { color: theme.mutedForeground }]}>
+                Nenhum item em {coluna.label.toLowerCase()}
               </Text>
             </View>
           ) : (
@@ -134,6 +126,8 @@ export default function KanbanBoard({
               <ProductListItem
                 key={`kanban-${item.id}`}
                 item={item}
+                concluido={idsConcluidos.includes(item.id)}
+                onToggleCheck={onToggleCheck ? () => onToggleCheck(item) : undefined}
                 onEdit={onEdit ? () => onEdit(item) : undefined}
                 onDelete={onDelete ? () => onDelete(item.id, item.title) : undefined}
               />
@@ -146,47 +140,43 @@ export default function KanbanBoard({
 
   return (
     <View style={styles.container}>
-      {/* Abas no Mobile para navegação rápida entre colunas */}
+      {/* Abas em pílula no Mobile */}
       {!isDesktop && (
-        <View style={styles.abasMobile}>
+        <View
+          style={[
+            styles.abasMobile,
+            { backgroundColor: theme.secondary, borderColor: theme.border },
+          ]}
+        >
           {COLUNAS_KANBAN.map((coluna) => {
             const ativo = colunaAtivaMobile === coluna.prioridade;
-            const conf = PRIORITY_CONFIG[coluna.prioridade];
             const total = (itensPorColuna[coluna.prioridade as 1 | 2 | 3] || []).length;
 
             return (
               <TouchableOpacity
                 key={`tab-${coluna.prioridade}`}
                 onPress={() => setColunaAtivaMobile(coluna.prioridade)}
-                activeOpacity={0.75}
+                activeOpacity={0.8}
                 style={[
                   styles.abaMobile,
                   {
-                    backgroundColor: ativo
-                      ? isDark
-                        ? '#2B231A'
-                        : '#FFFFFF'
-                      : 'transparent',
-                    borderColor: ativo
-                      ? conf?.color || theme.primary
-                      : 'transparent',
+                    backgroundColor: ativo ? theme.primary : 'transparent',
                   },
                 ]}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: ativo }}
                 accessibilityLabel={`${coluna.label}: ${total} itens`}
               >
-                <Text style={styles.abaIcone}>{coluna.icon}</Text>
                 <Text
                   style={[
                     styles.abaLabel,
                     {
-                      color: ativo ? textStrong : theme.mutedForeground,
-                      fontWeight: ativo ? '700' : '500',
+                      color: ativo ? theme.primaryForeground : theme.mutedForeground,
+                      fontWeight: ativo ? '700' : '600',
                     },
                   ]}
                 >
-                  {coluna.label.split(' ')[0]} ({total})
+                  {coluna.icon} {coluna.label.split(' ')[0]} ({total})
                 </Text>
               </TouchableOpacity>
             );
@@ -194,7 +184,6 @@ export default function KanbanBoard({
         </View>
       )}
 
-      {/* Exibição Desktop (3 colunas lado a lado) ou Mobile (coluna ativa selecionada) */}
       {isDesktop ? (
         <View style={styles.gradeColunasDesktop}>
           {COLUNAS_KANBAN.map((coluna) => renderColuna(coluna))}
@@ -202,8 +191,7 @@ export default function KanbanBoard({
       ) : (
         <View style={styles.containerColunaMobile}>
           {renderColuna(
-            COLUNAS_KANBAN.find((c) => c.prioridade === colunaAtivaMobile) ||
-              COLUNAS_KANBAN[0]
+            COLUNAS_KANBAN.find((c) => c.prioridade === colunaAtivaMobile) || COLUNAS_KANBAN[0]
           )}
         </View>
       )}
@@ -214,29 +202,23 @@ export default function KanbanBoard({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    marginTop: 10,
+    marginTop: 6,
   },
   abasMobile: {
     flexDirection: 'row',
-    borderRadius: radius.lg,
+    borderRadius: radius.full,
+    borderWidth: 1,
     padding: 4,
     marginBottom: 14,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
     gap: 4,
   },
   abaMobile: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 9,
     paddingHorizontal: 8,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    gap: 6,
-  },
-  abaIcone: {
-    fontSize: 14,
+    borderRadius: radius.full,
   },
   abaLabel: {
     fontSize: 12,
@@ -255,46 +237,52 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 280,
     borderRadius: radius.xl,
-    borderWidth: 1,
     overflow: 'hidden',
-    paddingBottom: 12,
+    paddingBottom: 10,
   },
   cabecalhoColuna: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderTopWidth: 4,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
+  },
+  tituloColunaWrapper: {
+    gap: 2,
   },
   tituloColunaContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 7,
   },
   iconeColuna: {
-    fontSize: 16,
+    fontSize: 12,
+    fontWeight: '800',
   },
   tituloColuna: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     fontFamily: typography.fonts.sans,
+    letterSpacing: -0.3,
+  },
+  subtituloColuna: {
+    fontSize: 11,
+    fontFamily: typography.fonts.mono,
   },
   badgeContador: {
-    paddingHorizontal: 9,
-    paddingVertical: 2.5,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: radius.full,
     borderWidth: 1,
   },
   textoContador: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
-    fontFamily: typography.fonts.sans,
+    fontFamily: typography.fonts.mono,
   },
   conteudoColuna: {
     padding: 10,
-    gap: 6,
   },
   colunaVazia: {
     alignItems: 'center',

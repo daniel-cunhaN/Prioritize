@@ -14,8 +14,8 @@ export interface WishlistItem {
   url: string;
   title: string | null;
   image_url: string | null;
-  priority: number; // 1 (Urgente/Mais alta) a 5 (Mais baixa)
-  price?: number | string | null; // Opcional (front-end): exibido no card se a API fornecer
+  priority: number; // 1 = Baixa, 2 = Média, 3 = Alta
+  price?: number | string | null;
   created_at: string;
   updated_at?: string;
 }
@@ -54,4 +54,14 @@ export interface FiltrosDesejo {
   loja: string | 'ALL';
   busca: string;
   ordem: TipoOrdenacao;
+}
+
+/** Evento cronológico exibido no Registro de Atividades (Activity Log) */
+export interface EventoAtividade {
+  id: string;
+  simbolo: '✓' | '+' | '✎' | '↺' | '✕';
+  destaque: boolean;
+  titulo: string;
+  detalhe: string;
+  dataIso: string;
 }

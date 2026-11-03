@@ -1,9 +1,9 @@
 /**
- * App.tsx — Root application component
+ * App.tsx — Componente Raiz da Aplicação Prioritize
  *
- * Configures React Navigation with the Claude Amber theme,
- * applies themed headers and StatusBar, and sets up the
- * navigation stack (Login → Register → Home).
+ * Configura o React Navigation com o Design System Monocromático de Alto Contraste,
+ * aplica StatusBar adaptativa e gerencia a pilha principal (Login → Register → Home)
+ * envolvida pelo provedor nativo de compartilhamento (ShareIntentProvider).
  */
 
 import React from 'react';
@@ -22,7 +22,7 @@ export default function App() {
   const theme = useTheme();
   const isDark = useIsDark();
 
-  /* Navigation theme — maps Claude Amber colors to React Navigation */
+  /* Mapeia os tokens monocromáticos de alto contraste para o React Navigation */
   const navigationTheme = {
     ...(isDark ? DarkTheme : DefaultTheme),
     colors: {
@@ -39,49 +39,45 @@ export default function App() {
   return (
     <ShareIntentProvider>
       <NavigationContainer theme={navigationTheme}>
-      {/* StatusBar adapts to light/dark mode */}
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
 
-      <Stack.Navigator
-        initialRouteName="Login"
-        screenOptions={{
-          /* Themed header bar */
-          headerStyle: {
-            backgroundColor: theme.card,
-          },
-          headerTintColor: theme.primary,
-          headerTitleStyle: {
-            color: theme.foreground,
-            fontFamily: typography.fonts.sans,
-            fontWeight: typography.weights.semibold,
-            fontSize: typography.sizes.md,
-          },
-          headerShadowVisible: false,
-          /* Themed content area */
-          contentStyle: {
-            backgroundColor: theme.background,
-          },
-          /* Smooth transitions */
-          animation: 'slide_from_right',
-        }}
-      >
-        <Stack.Screen
-          name="Login"
-          component={LoginScreen}
-          options={{ title: 'Login', headerShown: false }}
-        />
-        <Stack.Screen
-          name="Register"
-          component={RegisterScreen}
-          options={{ title: 'Criar Conta' }}
-        />
-        <Stack.Screen
-          name="Home"
-          component={HomeScreen}
-          options={{ title: 'Menu Principal', headerShown: false }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
-  </ShareIntentProvider>
+        <Stack.Navigator
+          initialRouteName="Login"
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: theme.background,
+            },
+            headerTintColor: theme.foreground,
+            headerTitleStyle: {
+              color: theme.foreground,
+              fontFamily: typography.fonts.sans,
+              fontWeight: typography.weights.bold,
+              fontSize: typography.sizes.md,
+            },
+            headerShadowVisible: false,
+            contentStyle: {
+              backgroundColor: theme.background,
+            },
+            animation: 'slide_from_right',
+          }}
+        >
+          <Stack.Screen
+            name="Login"
+            component={LoginScreen}
+            options={{ title: 'Login', headerShown: false }}
+          />
+          <Stack.Screen
+            name="Register"
+            component={RegisterScreen}
+            options={{ title: 'Criar Conta', headerShown: false }}
+          />
+          <Stack.Screen
+            name="Home"
+            component={HomeScreen}
+            options={{ title: 'Prioritize', headerShown: false }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </ShareIntentProvider>
   );
 }

@@ -1,3 +1,7 @@
+/**
+ * ProductListItem.tsx — Linha Compacta Monocromática de Produto / Prioridade
+ */
+
 import React, { memo, useRef, useState } from 'react';
 import {
   View,
@@ -10,13 +14,15 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useTheme, useIsDark, typography, radius } from '../../theme';
+import { useTheme, typography, radius } from '../../theme';
 import { WishlistItem } from '../../types';
 import { PRIORITY_CONFIG } from './ProductCard';
 import PriceTag from './PriceTag';
 
 interface Props {
   item: WishlistItem;
+  concluido?: boolean;
+  onToggleCheck?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
 }
@@ -37,7 +43,6 @@ const formatarData = (dataIso: string) => {
   }
 };
 
-/** Preços determinísticos quando a API não retorna valor numérico explícito */
 const SAMPLE_PRICES = [78.95, 88.02, 35.55, 38.49, 129.9, 49.99, 189.0, 64.5, 94.2, 42.15];
 
 const parseOrGeneratePrice = (item: WishlistItem): number => {
@@ -66,12 +71,8 @@ const parseOrGeneratePrice = (item: WishlistItem): number => {
   return SAMPLE_PRICES[Math.abs(hash) % SAMPLE_PRICES.length];
 };
 
-/**
- * ProductListItem — Exibição em linha horizontal compacta para a visão de Lista
- */
-function ProductListItem({ item, onEdit, onDelete }: Props) {
+function ProductListItem({ item, concluido = false, onToggleCheck, onEdit, onDelete }: Props) {
   const theme = useTheme();
-  const isDark = useIsDark();
   const [imageError, setImageError] = useState(false);
   const fade = useRef(new Animated.Value(0)).current;
 
@@ -80,11 +81,6 @@ function ProductListItem({ item, onEdit, onDelete }: Props) {
   const hasImage = Boolean(item.image_url) && !imageError;
   const domain = getDomain(item.url);
   const dataFormatada = formatarData(item.created_at);
-
-  const cardBg = isDark ? theme.card : '#FFFFFF';
-  const wellBg = isDark ? '#241D17' : '#F8F7F5';
-  const textColor = isDark ? theme.foreground : '#0F1111';
-  const borderColor = isDark ? theme.border : '#ECEAE5';
 
   const openLink = () => {
     if (!item.url) return;
@@ -103,20 +99,46 @@ function ProductListItem({ item, onEdit, onDelete }: Props) {
       style={({ pressed, hovered }: any) => [
         styles.card,
         {
-          backgroundColor: cardBg,
-          borderColor,
-          transform: [{ scale: pressed ? 0.99 : 1 }, { translateY: hovered ? -2 : 0 }],
-          shadowOpacity: hovered ? 0.1 : 0.03,
+          backgroundColor: concluido ? theme.card : theme.background,
+          borderColor: hovered ? theme.primary : theme.border,
+          transform: [{ scale: pressed ? 0.992 : 1 }, { translateY: hovered ? -1 : 0 }],
         },
         Platform.OS === 'web' &&
           ({
-            transition: 'transform 160ms ease, box-shadow 160ms ease',
+            transition: 'transform 160ms ease, border-color 160ms ease',
             cursor: 'pointer',
           } as any),
       ]}
     >
-      {/* 1. Imagem do produto em miniatura quadrada */}
-      <View style={[styles.imageContainer, { backgroundColor: wellBg }]}>
+      {/* Checkbox limpo opcional */}
+      {onToggleCheck && (
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation();
+            onToggleCheck();
+          }}
+          hitSlop={8}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: concluido }}
+          style={[
+            styles.checkbox,
+            {
+              backgroundColor: concluido ? theme.primary : theme.background,
+              borderColor: theme.primary,
+            },
+          ]}
+        >
+          {concluido && <Feather name="check" size={13} color={theme.primaryForeground} />}
+        </TouchableOpacity>
+      )}
+
+      {/* Miniatura quadrada sutil */}
+      <View
+        style={[
+          styles.imageContainer,
+          { backgroundColor: theme.secondary, borderColor: theme.border },
+        ]}
+      >
         {hasImage ? (
           <Animated.Image
             source={{ uri: item.image_url as string }}
@@ -134,26 +156,16 @@ function ProductListItem({ item, onEdit, onDelete }: Props) {
           />
         ) : (
           <View style={styles.placeholder}>
-            <Feather
-              name="image"
-              size={24}
-              color={isDark ? theme.mutedForeground : '#B5ACA0'}
-            />
+            <Feather name="shopping-bag" size={20} color={theme.mutedForeground} />
           </View>
         )}
       </View>
 
-      {/* 2. Informações centrais do produto */}
+      {/* Dados centrais */}
       <View style={styles.infoContainer}>
-        {/* Linha com loja e data de cadastro */}
         <View style={styles.metaRow}>
           {domain ? (
-            <View
-              style={[
-                styles.domainPill,
-                { backgroundColor: isDark ? '#2B231A' : '#F4F1EA' },
-              ]}
-            >
+            <View style={[styles.domainPill, { backgroundColor: theme.secondary }]}>
               <Text
                 numberOfLines={1}
                 style={[styles.domainText, { color: theme.mutedForeground }]}
@@ -169,43 +181,50 @@ function ProductListItem({ item, onEdit, onDelete }: Props) {
           ) : null}
         </View>
 
-        {/* Título do produto */}
         <Text
           numberOfLines={2}
-          style={[styles.title, { color: textColor }]}
+          style={[
+            styles.title,
+            {
+              color: concluido ? theme.mutedForeground : theme.foreground,
+              textDecorationLine: concluido ? 'line-through' : 'none',
+            },
+          ]}
         >
           {item.title || 'Sem título'}
         </Text>
 
-        {/* Badge da escala de prioridade */}
         <View style={styles.badgeRow}>
           <View
             style={[
               styles.priorityBadge,
               {
-                backgroundColor: isDark
-                  ? `${priorityConf.color}22`
-                  : priorityConf.bg,
-                borderColor: priorityConf.border,
+                backgroundColor: priorityConf.inverted ? theme.primary : theme.secondary,
+                borderColor: priorityConf.inverted ? theme.primary : theme.border,
               },
             ]}
           >
-            <Text style={styles.priorityIcon}>{priorityConf.icon}</Text>
             <Text
               style={[
                 styles.priorityLabel,
-                { color: isDark ? theme.foreground : priorityConf.color },
+                {
+                  color: priorityConf.inverted ? theme.primaryForeground : theme.foreground,
+                },
               ]}
             >
-              {priorityConf.label} Prioridade
+              {priorityConf.icon} {priorityConf.label}
             </Text>
           </View>
         </View>
       </View>
 
-      {/* 3. Preço e botões de ação na extremidade direita */}
+      {/* Preço e ações */}
       <View style={styles.actionsContainer}>
-        <PriceTag value={price} color={textColor} size="sm" />
+        <PriceTag
+          value={price}
+          color={concluido ? theme.mutedForeground : theme.foreground}
+          size="sm"
+        />
 
         <View style={styles.buttonGroup}>
           <TouchableOpacity
@@ -214,14 +233,11 @@ function ProductListItem({ item, onEdit, onDelete }: Props) {
               openLink();
             }}
             hitSlop={8}
-            style={[
-              styles.actionButton,
-              { backgroundColor: isDark ? theme.background : '#F5F3EF' },
-            ]}
+            style={[styles.actionButton, { backgroundColor: theme.secondary }]}
             accessibilityRole="button"
             accessibilityLabel="Abrir link do produto"
           >
-            <Feather name="external-link" size={14} color={theme.foreground} />
+            <Feather name="arrow-up-right" size={14} color={theme.foreground} />
           </TouchableOpacity>
 
           {onEdit && (
@@ -231,14 +247,11 @@ function ProductListItem({ item, onEdit, onDelete }: Props) {
                 onEdit();
               }}
               hitSlop={8}
-              style={[
-                styles.actionButton,
-                { backgroundColor: isDark ? theme.background : '#F5F3EF' },
-              ]}
+              style={[styles.actionButton, { backgroundColor: theme.secondary }]}
               accessibilityRole="button"
               accessibilityLabel="Editar item"
             >
-              <Feather name="edit-2" size={14} color={theme.primary} />
+              <Feather name="edit-2" size={13} color={theme.foreground} />
             </TouchableOpacity>
           )}
 
@@ -249,14 +262,11 @@ function ProductListItem({ item, onEdit, onDelete }: Props) {
                 onDelete();
               }}
               hitSlop={8}
-              style={[
-                styles.actionButton,
-                { backgroundColor: isDark ? '#3D1E1B' : '#FDF0EE' },
-              ]}
+              style={[styles.actionButton, { backgroundColor: theme.secondary }]}
               accessibilityRole="button"
               accessibilityLabel="Excluir item"
             >
-              <Feather name="trash-2" size={14} color="#B84332" />
+              <Feather name="trash-2" size={13} color={theme.foreground} />
             </TouchableOpacity>
           )}
         </View>
@@ -276,20 +286,25 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 2,
     gap: 12,
   },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 7,
+    borderWidth: 1.8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   imageContainer: {
-    width: 82,
-    height: 82,
+    width: 72,
+    height: 72,
     borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 4,
+    padding: 6,
   },
   image: {
     width: '100%',
@@ -302,7 +317,7 @@ const styles = StyleSheet.create({
   infoContainer: {
     flex: 1,
     justifyContent: 'center',
-    gap: 4,
+    gap: 5,
   },
   metaRow: {
     flexDirection: 'row',
@@ -310,46 +325,42 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   domainPill: {
-    paddingHorizontal: 7,
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: radius.sm,
+    borderRadius: radius.full,
     maxWidth: 140,
   },
   domainText: {
-    fontSize: 11,
-    fontFamily: typography.fonts.sans,
-    fontWeight: '500',
+    fontSize: 10,
+    fontFamily: typography.fonts.mono,
+    fontWeight: '600',
   },
   dataText: {
-    fontSize: 11,
-    fontFamily: typography.fonts.sans,
+    fontSize: 10,
+    fontFamily: typography.fonts.mono,
   },
   title: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     fontFamily: typography.fonts.sans,
     lineHeight: 18,
+    letterSpacing: -0.2,
   },
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
   },
   priorityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 2.5,
-    borderRadius: 12,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: radius.full,
     borderWidth: 1,
-    gap: 4,
-  },
-  priorityIcon: {
-    fontSize: 11,
   },
   priorityLabel: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
     fontFamily: typography.fonts.sans,
   },
   actionsContainer: {
@@ -360,7 +371,7 @@ const styles = StyleSheet.create({
   buttonGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   actionButton: {
     width: 30,

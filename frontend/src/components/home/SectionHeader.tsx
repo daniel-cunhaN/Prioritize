@@ -1,7 +1,11 @@
+/**
+ * SectionHeader.tsx — Cabeçalho Tipográfico de Seção em Alto Contraste
+ */
+
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useIsDark, useTheme, typography } from '../../theme';
+import { useTheme, typography, radius } from '../../theme';
 
 interface Props {
   title: string;
@@ -12,12 +16,14 @@ interface Props {
 
 export default function SectionHeader({ title, onMorePress, moreLabel, expanded }: Props) {
   const theme = useTheme();
-  const isDark = useIsDark();
-  const color = isDark ? theme.foreground : '#0F1111';
 
   return (
     <View style={styles.row}>
-      <Text accessibilityRole="header" numberOfLines={2} style={[styles.title, { color }]}>
+      <Text
+        accessibilityRole="header"
+        numberOfLines={2}
+        style={[styles.title, { color: theme.foreground }]}
+      >
         {title}
       </Text>
       {onMorePress && (
@@ -26,10 +32,23 @@ export default function SectionHeader({ title, onMorePress, moreLabel, expanded 
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel={moreLabel || 'Ver mais'}
-          style={({ pressed, hovered }: any) => [styles.more, { opacity: pressed ? 0.6 : 1, backgroundColor: hovered ? theme.secondary : 'transparent' }]}
+          style={({ pressed }: any) => [
+            styles.more,
+            {
+              backgroundColor: theme.secondary,
+              borderColor: theme.border,
+              opacity: pressed ? 0.7 : 1,
+            },
+          ]}
         >
-          {moreLabel ? <Text style={[styles.moreLabel, { color: theme.primary }]}>{moreLabel}</Text> : null}
-          <Feather name={expanded ? 'chevron-up' : 'chevron-right'} size={26} color={moreLabel ? theme.primary : color} />
+          {moreLabel ? (
+            <Text style={[styles.moreLabel, { color: theme.foreground }]}>{moreLabel}</Text>
+          ) : null}
+          <Feather
+            name={expanded ? 'chevron-up' : 'chevron-right'}
+            size={16}
+            color={theme.foreground}
+          />
         </Pressable>
       )}
     </View>
@@ -37,8 +56,32 @@ export default function SectionHeader({ title, onMorePress, moreLabel, expanded 
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 12 },
-  title: { flex: 1, fontFamily: typography.fonts.sans, fontWeight: typography.weights.bold, fontSize: 21, letterSpacing: -0.3 },
-  more: { flexDirection: 'row', alignItems: 'center', borderRadius: 20, paddingLeft: 8, paddingVertical: 2 },
-  moreLabel: { fontFamily: typography.fonts.sans, fontWeight: typography.weights.semibold, fontSize: 14 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    gap: 12,
+  },
+  title: {
+    flex: 1,
+    fontFamily: typography.fonts.sans,
+    fontWeight: '800',
+    fontSize: 20,
+    letterSpacing: -0.5,
+  },
+  more: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  moreLabel: {
+    fontFamily: typography.fonts.sans,
+    fontWeight: '700',
+    fontSize: 12,
+  },
 });

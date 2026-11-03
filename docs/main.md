@@ -1,12 +1,12 @@
 # Documentação Técnica do Projeto Prioritize
 
-O **Prioritize** é uma aplicação para centralização e classificação de listas de desejos (wishlist). O objetivo principal é permitir que o usuário colete links de produtos compartilhados de outros aplicativos ou inseridos manualmente, herde automaticamente os dados do produto (link, imagem e título), classifique o item por ordem de importância e organize visualmente seus desejos.
+O **Prioritize** é uma aplicação para centralização e classificação de listas de desejos (wishlist) e gestão de prioridades. O objetivo principal é permitir que o usuário colete links de produtos compartilhados de outros aplicativos ou inseridos manualmente, herde automaticamente os dados do produto (link, imagem, título e preço), classifique o item por ordem de importância (`Baixa`, `Média` e `Alta`) e acompanhe suas prioridades em um **Design System Monocromático de Alto Contraste**.
 
 ---
 
 ## 1. Arquitetura do Projeto
 
-O projeto é estruturado como um monorepo dividido em duas camadas principais:
+O projeto é estruturado como um monorepo dividido em camadas integradas:
 
 ```
 Prioritize/
@@ -16,7 +16,7 @@ Prioritize/
 │   │   │   ├── middlewares/
 │   │   │   │   └── autenticacao.js# Middleware de autenticação Bearer JWT
 │   │   │   └── routes/
-│   │   │       ├── auth.js        # Rotas de cadastro e login de usuários
+│   │   │       ├── auth.js        # Rotas de cadastro, login e perfil de usuários
 │   │   │       └── wishlist.js    # Rotas de gerenciamento de desejos e scraping
 │   │   ├── config/
 │   │   │   └── configuracao.js    # Variáveis e configurações da aplicação
@@ -27,7 +27,7 @@ Prioritize/
 │   │   │   └── scraper.js         # Serviço de extração de metadados com Cheerio
 │   │   ├── utils/
 │   │   │   └── seguranca.js       # Hash de senhas (bcryptjs) e tokens JWT
-│   │   ├── app.js                 # Configuração do Express e CORS
+│   │   ├── app.js                 # Configuração do Express, CORS e rota estática /showcase
 │   │   └── index.js               # Ponto de entrada do servidor HTTP
 │   ├── testes/                    # Suíte completa de testes automatizados (node:test)
 │   │   ├── autenticacao.test.js
@@ -38,18 +38,50 @@ Prioritize/
 │   ├── package.json               # Dependências do ecossistema JavaScript
 │   └── wishlist.db                # Banco de dados relacional SQLite local
 │
-├── frontend/                      # Aplicativo React Native (Expo) multi-plataforma
+├── frontend/                      # Aplicativo React Native (Expo) multiplataforma (iOS, Android e Web)
 │   ├── src/
 │   │   ├── api/
 │   │   │   └── client.ts          # Cliente HTTP Axios com interceptor de token JWT
 │   │   ├── components/
-│   │   │   └── AdicionarDesejoModal.tsx # Modal interativo para herança e criação de desejos
+│   │   │   ├── AdicionarDesejoModal.tsx # Quick Creation Bottom Sheet com herança de link e tags pílula
+│   │   │   ├── AlertBox.tsx             # Caixa de alertas monocromáticos de alto contraste
+│   │   │   ├── GerenciarContaModal.tsx  # Modal minimalista de sessão e gerenciamento de conta
+│   │   │   └── home/
+│   │   │       ├── BottomNav.tsx              # Floating Pill Navigation Bar com botão central (+)
+│   │   │       ├── ChecklistDesejos.tsx       # Tela de Checklist Focado com checkboxes e progresso
+│   │   │       ├── DesktopHeader.tsx          # Cabeçalho Web responsivo com abas em pílula
+│   │   │       ├── EditarDesejoModal.tsx      # Bottom Sheet de edição rápida com tags pílula
+│   │   │       ├── FilterSortBar.tsx          # Barra de filtros pílula e alternador Grade/Lista/Kanban
+│   │   │       ├── KanbanBoard.tsx            # Matriz/Quadro Kanban por prioridade (Alta, Média, Baixa)
+│   │   │       ├── ModalOrdenacao.tsx         # Folha deslizante de ordenação minimalista
+│   │   │       ├── PainelMetricasGrafico.tsx  # Métricas-chave e Gráfico Semanal de Conclusão (7D)
+│   │   │       ├── PriceTag.tsx               # Exibição tipográfica tabular de valores monetários
+│   │   │       ├── ProductCard.tsx            # Cartão de produto monocromático com check rápido
+│   │   │       ├── ProductListItem.tsx        # Item horizontal compacto com checkbox e domínio
+│   │   │       ├── RegistroAtividades.tsx     # Linha do tempo minimalista com bolhas de atividade
+│   │   │       ├── SearchBar.tsx              # Barra de pesquisa em formato pílula
+│   │   │       └── SectionHeader.tsx          # Cabeçalho tipográfico bold de seções
+│   │   ├── hooks/
+│   │   │   ├── useCompartilhamento.ts   # Recepção de links via Share Intent, Deep Link e Web
+│   │   │   └── useResponsive.ts         # Breakpoints responsivos Mobile / Tablet / Desktop
 │   │   ├── screens/
-│   │   │   ├── HomeScreen.tsx     # Tela principal com métricas e lista de desejos
-│   │   │   ├── LoginScreen.tsx    # Tela de login
-│   │   │   └── RegisterScreen.tsx # Tela de cadastro
-│   │   └── theme.ts               # Design system baseado na paleta Claude Amber
-│   └── App.tsx                    # Navegação em pilha (Stack Navigator)
+│   │   │   ├── HomeScreen.tsx     # Painel unificado (Dashboard, Checklist Focado e Activity Log)
+│   │   │   ├── LoginScreen.tsx    # Tela de login monocromática com monograma P. e ícones Feather
+│   │   │   └── RegisterScreen.tsx # Tela de cadastro monocromática com força de senha
+│   │   ├── types/
+│   │   │   └── index.ts           # Contratos TypeScript (WishlistItem, EventoAtividade, etc.)
+│   │   └── theme.ts               # Design System Monocromático de Alto Contraste (SF Pro / Plus Jakarta)
+│   ├── testes/                    # Testes unitários do frontend (node:test)
+│   │   ├── compartilhamento.test.mjs
+│   │   ├── filtro_ordenacao.test.mjs
+│   │   ├── modos_visualizacao.test.mjs
+│   │   └── produtividade_ui.test.mjs
+│   └── App.tsx                    # Navegação em pilha (Stack Navigator) e ShareIntentProvider
+│
+├── showcase/                      # Prancha interativa de UI/UX Showcase (Web + iOS Monocromático)
+│   ├── index.html                 # Estrutura semântica lado a lado (Desktop + iOS + 4 Artboards)
+│   ├── estilos.css                # Tokens CSS monocromáticos P&B, molduras e micro-interações
+│   └── showcase.js                # Estado reativo sincronizado entre Desktop Web e iOS
 │
 ├── docs/
 │   ├── plans/
@@ -81,20 +113,20 @@ Armazena os itens da lista de desejos associados ao usuário.
 - `title` (TEXT, Opcional/Editável): Título ou descrição do produto.
 - `image_url` (TEXT, Opcional): Link da imagem representativa obtida do link.
 - `priority` (INTEGER, Obrigatório): Escala de importância do item (1 a 3).
-- `price` (REAL, Opcional): Valor numérico do produto em Reais (R$), extraído automaticamente pelo scraper ou informado/ajustado pelo usuário.
+- `price` (REAL, Opcional): Valor numérico do produto em Reais (`R$`), extraído automaticamente pelo scraper ou informado/ajustado pelo usuário.
 - `created_at` (TEXT): Data e hora de inclusão em ISO 8601.
 - `updated_at` (TEXT): Data e hora da última alteração em ISO 8601.
 
 ---
 
-## 3. Escala de Prioridade / Importância
+## 3. Escala de Prioridade / Importância (Design System Monocromático)
 
-Conforme estabelecido nas regras de negócio:
-| Valor Numérico | Classificação | Ícone Representativo | Descrição de Uso |
+Conforme estabelecido nas regras de negócio e aplicado no Design System Monocromático de Alto Contraste:
+| Valor Numérico | Classificação | Símbolo / Tag Pílula | Descrição de Uso |
 | :--- | :--- | :--- | :--- |
-| **1** | **Baixa** | 🌱 | Compras futuras, sem urgência ("Pode esperar"). |
-| **2** | **Média** | ⭐ | Compras desejáveis a médio prazo ("Desejável"). |
-| **3** | **Alta** | 🔥 | Itens prioritários, essenciais ou urgentes ("Prioritário"). |
+| **1** | **Baixa** | `○ Baixa` (Contorno sutil `#FFFFFF` / `#E4E4E7`) | Compras futuras, sem urgência ("Pode esperar"). |
+| **2** | **Média** | `◐ Média` (Cinza neutro `#F4F4F5`) | Compras desejáveis a médio prazo ("Desejável"). |
+| **3** | **Alta** | `● Alta` (Preto sólido `#09090B` com texto branco) | Itens prioritários, essenciais ou urgentes ("Prioritário"). |
 
 ---
 
@@ -105,6 +137,7 @@ Base URL: `http://127.0.0.1:8000/api/v1`
 ### Autenticação (`/auth`)
 - `POST /auth/register`: Cadastro de novo usuário. Retorna token Bearer JWT (`status 201`).
 - `POST /auth/login`: Autenticação por e-mail e senha. Retorna token Bearer JWT (`status 200`).
+- `GET /auth/me`: Retorna os dados do perfil autenticado (`email`, `id`).
 
 ### Lista de Desejos (`/wishlist`)
 Todos os endpoints abaixo exigem cabeçalho `Authorization: Bearer <token>`.
@@ -125,7 +158,7 @@ Todos os endpoints abaixo exigem cabeçalho `Authorization: Bearer <token>`.
     - `loja=dominio`: Filtra por loja ou domínio específico (ex: `amazon.com.br`, `mercadolivre.com.br`).
     - `ordem=criterio` ou `sort=criterio`: Define o critério de ordenação (`prioridade_desc`, `prioridade_asc`, `recentes`, `antigos`, `alfabetica_az`, `alfabetica_za`).
 - `PUT /wishlist/{item_id}`:
-  - **Função**: Atualiza dados de um item existente (título, URL, imagem ou prioridade).
+  - **Função**: Atualiza dados de um item existente (título, URL, imagem, preço ou prioridade).
 - `DELETE /wishlist/{item_id}`:
   - **Função**: Exclui o desejo pertencente ao usuário (`status 204`).
 
@@ -133,121 +166,45 @@ Todos os endpoints abaixo exigem cabeçalho `Authorization: Bearer <token>`.
 
 ## 5. Serviço de Scraping de Metadados (`scraper.js`)
 
-O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nativo do Node.js com timeout controlado via `AbortSignal.timeout`, a biblioteca `cheerio` para parsing ultra-rápido de HTML e um conjunto de estratégias para contornar proteções anti-bot comuns em e-commerces:
+O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nativo do Node.js com timeout controlado via `AbortSignal.timeout`, a biblioteca `cheerio` para parsing ultra-rápido de HTML e estratégias para contornar proteções anti-bot comuns em e-commerces:
 
-1. **Perfis de Requisição Sucessivos (Anti-bot Bypass)**:
-   - Muitas lojas (ex.: Mercado Livre) bloqueiam requisições com User-Agents de navegadores que não executam JavaScript, retornando telas de verificação ou erro sem metadados.
-   - O scraper executa tentativas ordenadas com perfis de crawlers de prévia de links (`Twitterbot/1.0`, `facebookexternalhit/1.1`), amplamente permitidos pelas lojas para viabilizar o compartilhamento em redes sociais. Caso uma tentativa inicial não traga imagem, a próxima é acionada automaticamente.
-2. **Fontes Múltiplas e Precedência de Imagem**:
-   - Meta tags OpenGraph e Twitter Cards: `og:image`, `og:image:secure_url`, `og:image:url`, `twitter:image`, `twitter:image:src`.
-   - Dados Estruturados Schema.org: leitura de blocos `<script type="application/ld+json">` extraindo a propriedade `image` de nós do tipo `Product` (suporta strings diretas, arrays e objetos `ImageObject` com `url`/`contentUrl`).
-   - Microformatos e links canônicos: `itemprop="image"` e `link rel="image_src"`.
-   - Resolução automática de URLs de imagens relativas via `new URL(imagemUrl, urlBase).href`.
-3. **Fallback Resiliente da Amazon por ASIN**:
-   - Para links da Amazon que bloqueiam o HTML com páginas de captcha, o scraper extrai o código ASIN (10 caracteres) da rota da URL (`/dp/ASIN`, `/gp/product/ASIN`) e requisita a imagem diretamente da CDN oficial (`m.media-amazon.com/images/P/{ASIN}.01._SCLZZZZZZZ_.jpg`).
-   - Descarta automaticamente o pixel GIF transparente de 43 bytes retornado para produtos inativos/inválidos.
-4. **Fallback Tolerante a Falhas**:
-   - Caso nenhuma imagem seja encontrada ou o site apresente erro de DNS/rede, um título amigável é derivado do domínio (`Produto em loja.com`) sem quebrar a requisição do usuário nem salvar telas de captcha como URL do produto.
+1. **Perfis de Requisição Sucessivos (Anti-bot Bypass)**: Tentativas ordenadas com perfis `Twitterbot/1.0` e `facebookexternalhit/1.1`.
+2. **Fontes Múltiplas e Precedência de Imagem**: OpenGraph, Twitter Cards, JSON-LD `Product` e microformatos `itemprop="image"`.
+3. **Fallback Resiliente da Amazon por ASIN**: Extração do ASIN (`/dp/ASIN`) e consulta direta à CDN oficial da Amazon descartando GIFs vazios.
+4. **Fallback Tolerante a Falhas**: Geração de título amigável a partir do domínio caso o site esteja indisponível.
 
 ---
 
-## 6. Frontend: Interfaces, Telas e Componentes
+## 6. Frontend: Design System Monocromático e Telas Principais
 
-### 6.1. Telas de Autenticação (`LoginScreen.tsx` e `RegisterScreen.tsx`)
-- **UI/UX e Identidade Visual**:
-  - Cabeçalho limpo com logotipo oficial (`logo.png`) e tipografia Claude Amber.
-  - Card centralizado e responsivo (`maxWidth: 420`) com suporte a desktop, web e mobile.
-  - Botão de login/cadastro social com Google e divisor visual padronizado.
-  - Alternador de visibilidade de senha com ícones discretos e profissionais (`👁` e `⊘`).
-  - Indicador de força de senha em tempo real na tela de cadastro, com barra colorida progressiva e checagem de critérios (comprimento, maiúscula, minúscula, número e caractere especial).
-- **Segurança e Sanitização**:
-  - Validação estrita do lado do cliente via módulo `validacao.ts` (e-mail RFC 5322 e força de senha).
-  - Sanitização anti-XSS em todos os inputs de texto.
-  - Gerenciamento seguro de token JWT em memória (closure do módulo), utilizando `SecureStore` em plataformas móveis nativas e `localStorage` (com sincronização e fallback para `sessionStorage`) na Web para assegurar que a sessão logada persista entre recarregamentos de página, novas abas e reinicializações do navegador.
-  - **Confirmação de Credenciais Incorretas**: Tratamento específico no `LoginScreen.tsx` para falhas de autenticação (status 401), exibindo diálogo explícito de confirmação (`Alert.alert` no Mobile e `window.alert` na Web), mensagem em destaque no `AlertBox` e indicação de erro no campo de senha. No backend (`POST /api/v1/auth/login`), resposta padronizada com mensagem `"Credenciais de login incorretas."`.
+### 6.1. Design System Unificado (`theme.ts`)
+- **Estética Minimalista Monocromática de Alto Contraste**:
+  - Fundo branco puro (`#FFFFFF`), cartões e superfícies secundárias em cinza sutil (`#FAFAFA`, `#F4F4F5`), divisores finos (`#E4E4E7`) e ações primárias em preto profundo (`#09090B`) com suporte automático a Dark Mode (`#09090B` / `#FAFAFA`).
+  - Tipografia nativa `SF Pro Display` (iOS/macOS) e `Plus Jakarta Sans` (Web) com peso `extrabold: '800'` e espaçamento óptico reduzido, além de `JetBrains Mono` para métricas e valores.
+  - Cantos arredondados suaves (`radius.lg = 16`, `radius.xl = 24`) e pílulas completas (`radius.full = 9999`) para botões, filtros e navegação.
 
-### 6.2. Componente de Feedback (`AlertBox.tsx`)
-- Fornece notificações inline contextuais e acessíveis (`erro`, `sucesso`, `aviso`, `info`).
-- Cores e bordas calculadas a partir dos tokens dinâmicos do tema ativo.
-- Suporte a botão de fechamento manual e ícone indicativo.
+### 6.2. Telas de Autenticação (`LoginScreen.tsx` e `RegisterScreen.tsx`)
+- **Identidade Monocromática**: Monograma `P.` em badge sólido de alto contraste, inputs com ícones vetoriais `Feather` (`mail`, `lock`, `eye`, `eye-off`), botões primários e sociais em formato pílula e indicador progressivo monocromático de força de senha (`● Senha forte`, `◐ Senha média`, `○ Senha fraca`).
+- **Segurança**: Sanitização anti-XSS, validação RFC 5322, armazenamento seguro de JWT (`SecureStore` / `localStorage`) e confirmação explícita em falhas HTTP `401`.
 
-### 6.3. Modal de Adicionar Desejo (`AdicionarDesejoModal.tsx`)
-- **Herança de Dados e Scraping Inteligente**:
-  - Campo de URL do produto com suporte a busca manual ou automática no blur.
-  - Indicador visual de progresso durante a obtenção de metadados.
-  - Card de pré-visualização do produto com imagem, título herdado e etiqueta flutuante de preço (`PriceTag`).
-  - Título editável pelo usuário caso queira personalizar o nome do produto.
-- **Exibição e Edição do Valor do Produto**:
-  - Detecta automaticamente o preço do produto a partir de JSON-LD Schema.org, meta tags (`product:price:amount`, `og:price:amount`) e seletores de e-commerce.
-  - Campo dedicado para o valor do item com prefixo visual "R$", teclado numérico e formatação monetária padrão pt-BR.
-  - Permite ao usuário editar livremente o valor detectado ou inserir um preço manualmente.
-  - Mensagens contextuais indicando se o preço foi herdado do link ou preenchido manualmente.
-- **Classificação de Importância**:
-  - Três seletores táteis com retorno visual de estado ativo para "Baixa", "Média" e "Alta".
-- **Integração na Tela Principal**:
-  - Conectado ao botão flutuante (FAB) e ao botão do estado vazio na `HomeScreen.tsx`.
-  - Atualiza a lista e os cards de estatísticas (Total, Alta Prioridade, Média Prioridade) após salvar.
+### 6.3. As 4 Telas e Fluxos de Produtividade (`HomeScreen.tsx`)
+1. **Dashboard com Gráfico Semanal, Métricas-Chave e Matriz/Lista Kanban (`PainelMetricasGrafico.tsx` + `KanbanBoard.tsx`)**:
+   - Cartão inverso de Taxa de Conclusão (`%`), contador de Alta Prioridade, total de itens ativos e valor total mapeado em `R$`.
+   - Gráfico interativo de evolução dos últimos 7 dias (`Seg–Dom`) com seleção de dia por toque/clique exibindo itens concluídos e adicionados.
+   - Visualização flexível alternável entre **Grade (`ProductCard.tsx`)**, **Lista (`ProductListItem.tsx`)** e **Matriz Kanban (`KanbanBoard.tsx`)** dividida nas colunas `● Alta Prioridade`, `◐ Média Prioridade` e `○ Baixa Prioridade`.
+2. **Quick Creation Bottom Sheet com Tags Pílula (`AdicionarDesejoModal.tsx` e `EditarDesejoModal.tsx`)**:
+   - Folha deslizante inferior estilo iOS com alça de arraste (`drag handle`), herança automática de Link, Imagem, Título e Preço via `/wishlist/preview`, e seletor de tags de prioridade em formato pílula (`● Alta · Prioritário`, `◐ Média · Desejável`, `○ Baixa · Pode esperar`).
+3. **Checklist Focado (`ChecklistDesejos.tsx` — aba `Foco`)**:
+   - Lista dedicada à conclusão/aquisição de desejos com interações limpas de checkbox de alto contraste, barra de progresso animada e filtros em pílula (`Todos`, `Pendentes`, `Concluídos`), persistindo o estado em `localStorage` (`prioritize_checklist_concluidos`).
+4. **Registro de Atividades (`RegistroAtividades.tsx` — aba `Log`)**:
+   - Linha do tempo vertical minimalista com bolhas circulares (`+`, `✓`, `↺`, `✎`, `✕`) que mescla ações em tempo real da sessão (criação, conclusão, reabertura, edição e exclusão) com o histórico de itens cadastrados.
 
-### 6.4. Gerenciamento de Conta e Sessão (`GerenciarContaModal.tsx` e `HomeScreen.tsx`)
-- **Acesso Rápido no Menu Inicial**:
-  - O avatar estático do cabeçalho da `HomeScreen.tsx` foi transformado em um botão interativo e acessível (`accessibilityRole="button"`).
-  - Exibe dinamicamente a letra inicial do e-mail do usuário logado obtida via endpoint `GET /api/v1/auth/me`.
-- **Ações de Conta Disponíveis**:
-  - **Deslogar**: Encerra a sessão com confirmação de segurança, remove o token JWT da memória volátil, do `SecureStore` (mobile) e dos armazenamentos web (`localStorage` e `sessionStorage`) através da função `encerrarSessao()`, redirecionando para a tela de Login com pilha de navegação limpa (`navigation.reset`).
-  - **Criar Outra Conta**: Atalho direto para a tela de cadastro (`RegisterScreen.tsx`), mantendo a tela de Login na pilha de navegação (`routes: [{ name: 'Login' }, { name: 'Register' }]`). Na tela de cadastro, o botão "Faça Login" utiliza navegação resiliente (`handleIrParaLogin`), retornando pelo histórico se houver ou navegando explicitamente para `Login`.
-  - **Identificação da Sessão**: Exibe o e-mail completo do usuário autenticado e indicador de "Sessão ativa".
+### 6.4. Navegação Flutuante em Pílula (`BottomNav.tsx` e `DesktopHeader.tsx`)
+- **Mobile (`BottomNav.tsx`)**: Barra de navegação flutuante em formato pílula (`Floating Pill Navigation Bar`) com abas ativas em alto contraste (`Início`, `Foco`, `Log`, `Conta`) e botão circular `+` integrado para criação rápida.
+- **Desktop (`DesktopHeader.tsx`)**: Cabeçalho amplo com monograma `P.`, barra de pesquisa em pílula (`SearchBar.tsx`), seletor de abas segmentado e CTA `+ Novo Desejo`.
 
 ### 6.5. Compartilhamento Nativo ("Compartilhar com: Prioritize")
-- **Registro no Sistema Operacional (`app.json`)**:
-  - Configurado esquema de URL `scheme: "prioritize"` e pacote `com.prioritize.app`.
-  - Configurado plugin nativo `expo-share-intent` com `androidIntentFilters: ["text/*"]` para exibição no menu de compartilhamento do Android.
-- **Tratamento e Higienização (`compartilhamento.ts`)**:
-  - Parser regex que extrai URLs HTTP/HTTPS mesmo que estejam acompanhadas de textos ou mensagens de redes sociais.
-  - Remove pontuações acidentais anexadas ao final da URL e suporta deep links diretos (`prioritize://share?url=...`).
-  - **Proteção contra Abertura no Reload Web (F5)**: Rejeita a URL base do próprio aplicativo (`window.location.origin`) e endereços do servidor de desenvolvimento local (`localhost:8081`, `127.0.0.1:8081`), garantindo que apenas links externos de e-commerce sejam tratados como produtos. Desembala links embutidos em parâmetros de busca (`?url=...` ou `?text=...`).
-- **Hook e Provedor (`useCompartilhamento.ts` e `App.tsx`)**:
-  - Provedor `<ShareIntentProvider>` envolvendo a navegação raiz.
-  - Hook unificado que escuta intents nativos (`expo-share-intent`), deep links (`expo-linking`) e parâmetros web (`?url=...`).
-  - No ambiente Web (`Platform.OS === 'web'`), desativa a escuta de `Linking.getInitialURL()` (que retorna o endereço da própria janela `window.location.href`) e higieniza a barra de navegação com `window.history.replaceState` após o consumo de parâmetros, impedindo que o modal de adicionar desejo abra automaticamente ao recarregar a página.
-- **Fluxo Automático no Menu Principal (`HomeScreen.tsx`)**:
-  - Ao receber a URL compartilhada, abre automaticamente o `AdicionarDesejoModal.tsx` com a `urlInicial`.
-  - O modal dispara de imediato a requisição `/wishlist/preview`, preenchendo imagem e título para o usuário classificar e salvar.
-- **Persistência de Sessão (`LoginScreen.tsx`)**:
-  - Verificação automática de token ativo na inicialização para redirecionamento direto à `HomeScreen`, garantindo que links compartilhados sejam importados sem exigir novo login toda vez.
-
-### 6.6. Sistema de Filtro e Ordenação (`FilterSortBar.tsx` e `ModalOrdenacao.tsx`)
-- **Barra de Controles Responsiva (`FilterSortBar.tsx`)**:
-  - **Botão Ordenar**: Exibe o critério de ordenação ativo com ícone e destaque visual quando modificado em relação ao padrão (`prioridade_desc`). Abre o modal dedicado de seleção de ordenação.
-  - **Chips de Prioridade**: Filtros rápidos por nível de importância ("Todos", "🔥 Alta", "⭐ Média", "🌱 Baixa") exibindo o quantitativo de itens em cada categoria em tempo real.
-  - **Chips Dinâmicos de Loja/Domínio**: Extrai automaticamente os domínios únicos presentes na lista de desejos do usuário (ex.: `amazon.com.br`, `mercadolivre.com.br`, `shopee.com.br`) com o total de produtos de cada fornecedor, permitindo filtrar por loja com um único clique.
-  - **Botão Limpar Filtros**: Exibido dinamicamente com animação e contador de filtros ativos, permitindo restaurar a visão completa em um toque.
-- **Modal de Ordenação (`ModalOrdenacao.tsx`)**:
-  - Permite alternar instantaneamente entre 6 critérios:
-    1. **Maior Prioridade**: Alta (🔥) → Baixa (🌱).
-    2. **Menor Prioridade**: Baixa (🌱) → Alta (🔥).
-    3. **Mais Recentes**: Data de criação decrescente.
-    4. **Mais Antigos**: Data de criação crescente.
-    5. **Alfabética (A - Z)**: Pelo título com `localeCompare` pt-BR.
-    6. **Alfabética (Z - A)**: Inversa pelo título.
-  - Indicador de seleção com checkmark, acessibilidade e tema integrado.
-- **Tratamento de Estado Vazio de Filtros**:
-  - Quando a busca ou filtros ativos não encontram itens, exibe mensagem amigável e botão "Limpar Filtros e Busca".
-
-### 6.7. Alternância de Modos de Visualização (Grade, Lista e Kanban)
-- **Seletor de Visualização Segmentado (`FilterSortBar.tsx`)**:
-  - Integrado diretamente na barra de controles com ícones vetoriais Feather (`grid`, `list`, `columns`).
-  - No Desktop, exibe rótulos textuais completos ("Grade", "Lista", "Kanban"); no Mobile, mantém formato compacto e ergonômico.
-  - Persiste a preferência selecionada no `localStorage` do navegador sob a chave `prioritize_view_mode`, mantendo o modo escolhido mesmo após atualizar a página (F5) ou fechar a aba.
-- **Modo Grade (`ProductCard.tsx`)**:
-  - Exibição visual padrão em múltiplas colunas adaptativas com imagem em destaque, títulos truncados e carrossel de ofertas no layout estilo e-commerce.
-- **Modo Lista (`ProductListItem.tsx`)**:
-  - Visualização em linhas horizontais compactas, ideal para varredura rápida de muitos produtos.
-  - Miniatura de produto com fallbacks inteligentes, pílula de loja/domínio, data formatada em pt-BR, badge colorido de prioridade, preço no estilo Amazon com adaptação automática ao tema (claro/escuro) e botões diretos de link externo, edição e exclusão.
-- **Modo Kanban (`KanbanBoard.tsx`)**:
-  - Organização visual dos desejos em **3 colunas por classificação de importância** ("🔥 Alta", "⭐ Média" e "🌱 Baixa"), atendendo integralmente à especificação do projeto descrita em `.agents/AGENTS.md`.
-  - **Desktop**: 3 colunas simultâneas lado a lado com cabeçalho colorido, contadores de itens em badges e cartões de itens individuais.
-  - **Mobile**: Sistema de abas táteis com alternância fluida entre as colunas e contadores de itens.
-  - Totalmente compatível com busca e filtros aplicados: as colunas refletem em tempo real os itens que atendem aos filtros.
+- Captura links de produtos via Android/iOS Share Intent (`expo-share-intent`), Deep Links (`prioritize://share?url=...`) e query params Web (`?url=...`) por meio do hook `useCompartilhamento.ts`, abrindo automaticamente o Bottom Sheet `AdicionarDesejoModal.tsx` já preenchido com os metadados do produto.
 
 ### 6.8. Gestão Robusta de Ciclo de Vida de Sessão e Eliminação de Alertas de Depreciação
 - **Tratamento de Sessão Expirada e Invalidação Graciosa (Backend Sênior)**:
@@ -264,7 +221,7 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
 
 ## 7. Como Executar os Testes
 
-O projeto conta com uma suíte completa de **74 testes automatizados** desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
+O projeto conta com uma suíte completa de **78 testes automatizados** (45 no backend e 33 no frontend) desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
 
 ### Execução Unificada (Backend + Frontend)
 Na raiz do projeto:
@@ -279,12 +236,15 @@ cd backend
 npm test
 ```
 
-### Testes do Frontend (29 testes)
-Testes unitários de extração de compartilhamento, prevenção de reabertura no reload, algoritmos de ordenação, filtros combinados, agrupamento Kanban, persistência de layouts e formatação/conversão de preços:
+### Testes do Frontend (33 testes unitários)
+Valida extração de links compartilhados, filtros e ordenação, agrupamento Kanban, formatação monetária e os novos fluxos de produtividade (Checklist Focado, Linha do Tempo e Gráfico Semanal 7D):
 ```bash
 cd frontend
 npm test
 ```
 
+---
 
+## 8. Showcase Interativo de UI/UX (`showcase/`)
 
+O diretório `showcase/` contém a prancha interativa de portfólio (estilo Behance e Dribbble) servida estaticamente pelo backend Express em `http://127.0.0.1:8000/showcase`, exibindo viewports Desktop Web e iOS lado a lado sincronizados em tempo real.
