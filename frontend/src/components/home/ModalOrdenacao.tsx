@@ -1,3 +1,7 @@
+/**
+ * ModalOrdenacao.tsx — Modal Monocromático para Seleção de Critério de Ordenação
+ */
+
 import React from 'react';
 import {
   View,
@@ -6,10 +10,9 @@ import {
   StyleSheet,
   Pressable,
   TouchableOpacity,
-  Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useTheme, useIsDark, typography, radius } from '../../theme';
+import { useTheme, typography, radius, shadows } from '../../theme';
 import { TipoOrdenacao, OpcaoOrdenacao } from '../../types';
 
 interface Props {
@@ -19,25 +22,24 @@ interface Props {
   onFechar: () => void;
 }
 
-/** Configuração detalhada das opções de ordenação disponíveis */
 export const OPCOES_ORDENACAO: OpcaoOrdenacao[] = [
   {
     id: 'prioridade_desc',
     label: 'Maior Prioridade',
     icon: 'arrow-down',
-    descricao: 'Itens com maior importância (Alta 🔥 → Baixa 🌱)',
+    descricao: 'Itens mais importantes primeiro (Alta ● → Baixa ○)',
   },
   {
     id: 'prioridade_asc',
     label: 'Menor Prioridade',
     icon: 'arrow-up',
-    descricao: 'Itens com menor importância (Baixa 🌱 → Alta 🔥)',
+    descricao: 'Itens de menor urgência primeiro (Baixa ○ → Alta ●)',
   },
   {
     id: 'recentes',
     label: 'Mais Recentes',
     icon: 'clock',
-    descricao: 'Desejos cadastrados recentemente no topo',
+    descricao: 'Desejos adicionados recentemente no topo',
   },
   {
     id: 'antigos',
@@ -59,9 +61,6 @@ export const OPCOES_ORDENACAO: OpcaoOrdenacao[] = [
   },
 ];
 
-/**
- * ModalOrdenacao — Componente modal responsivo para seleção do critério de ordenação
- */
 export default function ModalOrdenacao({
   visivel,
   ordemAtual,
@@ -69,50 +68,39 @@ export default function ModalOrdenacao({
   onFechar,
 }: Props) {
   const theme = useTheme();
-  const isDark = useIsDark();
-
-  const bgCard = isDark ? theme.card : '#FFFFFF';
-  const textoPrincipal = isDark ? theme.foreground : '#0F1111';
-  const borda = isDark ? theme.border : '#E5E1D8';
 
   return (
-    <Modal
-      visible={visivel}
-      transparent
-      animationType="fade"
-      onRequestClose={onFechar}
-    >
+    <Modal visible={visivel} transparent animationType="fade" onRequestClose={onFechar}>
       <Pressable style={styles.backdrop} onPress={onFechar}>
         <Pressable
           style={[
             styles.conteudoModal,
             {
-              backgroundColor: bgCard,
-              borderColor: borda,
+              backgroundColor: theme.background,
+              borderColor: theme.border,
             },
+            shadows.lg,
           ]}
           onPress={(e) => e.stopPropagation()}
         >
-          {/* Cabeçalho do Modal */}
-          <View style={[styles.cabecalho, { borderBottomColor: borda }]}>
+          <View style={[styles.cabecalho, { borderBottomColor: theme.border }]}>
             <View style={styles.tituloLinha}>
-              <Feather name="sliders" size={20} color={theme.primary} />
-              <Text style={[styles.titulo, { color: textoPrincipal }]}>
-                Ordenar desejos por
+              <Feather name="sliders" size={18} color={theme.foreground} />
+              <Text style={[styles.titulo, { color: theme.foreground }]}>
+                Ordenar prioridades
               </Text>
             </View>
             <TouchableOpacity
               onPress={onFechar}
               hitSlop={8}
-              style={styles.botaoFechar}
+              style={[styles.botaoFechar, { backgroundColor: theme.secondary }]}
               accessibilityRole="button"
               accessibilityLabel="Fechar ordenação"
             >
-              <Feather name="x" size={20} color={theme.mutedForeground} />
+              <Feather name="x" size={16} color={theme.foreground} />
             </TouchableOpacity>
           </View>
 
-          {/* Lista de Opções de Ordenação */}
           <View style={styles.listaOpcoes}>
             {OPCOES_ORDENACAO.map((opcao) => {
               const ativo = ordemAtual === opcao.id;
@@ -123,37 +111,31 @@ export default function ModalOrdenacao({
                     onSelecionar(opcao.id);
                     onFechar();
                   }}
-                  activeOpacity={0.7}
+                  activeOpacity={0.8}
                   style={[
                     styles.itemOpcao,
                     {
-                      backgroundColor: ativo
-                        ? isDark
-                          ? '#2C231A'
-                          : '#FDF6EC'
-                        : 'transparent',
-                      borderColor: ativo ? theme.primary : 'transparent',
+                      backgroundColor: ativo ? theme.primary : theme.card,
+                      borderColor: ativo ? theme.primary : theme.border,
                     },
                   ]}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: ativo }}
                   accessibilityLabel={`${opcao.label}. ${opcao.descricao}`}
                 >
-                  <View style={styles.iconeContainer}>
-                    <Feather
-                      name={opcao.icon as any}
-                      size={18}
-                      color={ativo ? theme.primary : theme.mutedForeground}
-                    />
-                  </View>
+                  <Feather
+                    name={opcao.icon as any}
+                    size={17}
+                    color={ativo ? theme.primaryForeground : theme.mutedForeground}
+                  />
 
                   <View style={styles.textosOpcao}>
                     <Text
                       style={[
                         styles.labelOpcao,
                         {
-                          color: ativo ? theme.primary : textoPrincipal,
-                          fontWeight: ativo ? '700' : '600',
+                          color: ativo ? theme.primaryForeground : theme.foreground,
+                          fontWeight: '700',
                         },
                       ]}
                     >
@@ -162,18 +144,17 @@ export default function ModalOrdenacao({
                     <Text
                       style={[
                         styles.descricaoOpcao,
-                        { color: theme.mutedForeground },
+                        {
+                          color: ativo ? theme.primaryForeground : theme.mutedForeground,
+                          opacity: ativo ? 0.78 : 1,
+                        },
                       ]}
                     >
                       {opcao.descricao}
                     </Text>
                   </View>
 
-                  {ativo && (
-                    <View style={styles.checkContainer}>
-                      <Feather name="check" size={20} color={theme.primary} />
-                    </View>
-                  )}
+                  {ativo && <Feather name="check" size={18} color={theme.primaryForeground} />}
                 </TouchableOpacity>
               );
             })}
@@ -187,7 +168,7 @@ export default function ModalOrdenacao({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    backgroundColor: 'rgba(9, 9, 11, 0.48)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -198,11 +179,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     borderWidth: 1,
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    elevation: 8,
   },
   cabecalho: {
     flexDirection: 'row',
@@ -219,14 +195,19 @@ const styles = StyleSheet.create({
   titulo: {
     fontSize: 18,
     fontFamily: typography.fonts.sans,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: -0.4,
   },
   botaoFechar: {
-    padding: 4,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   listaOpcoes: {
-    paddingTop: 8,
-    gap: 6,
+    paddingTop: 12,
+    gap: 7,
   },
   itemOpcao: {
     flexDirection: 'row',
@@ -234,29 +215,19 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: radius.lg,
-    borderWidth: 1.5,
+    borderWidth: 1,
     gap: 12,
-  },
-  iconeContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   textosOpcao: {
     flex: 1,
   },
   labelOpcao: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: typography.fonts.sans,
   },
   descricaoOpcao: {
     fontSize: 12,
     fontFamily: typography.fonts.sans,
     marginTop: 2,
-  },
-  checkContainer: {
-    marginLeft: 8,
   },
 });

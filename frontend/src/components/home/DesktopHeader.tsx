@@ -1,7 +1,14 @@
+/**
+ * DesktopHeader.tsx — Cabeçalho Minimalista Monocromático para Web / Desktop
+ *
+ * Unifica marca tipográfica em alto contraste, barra de busca em pílula,
+ * seletor de navegação flutuante e botão primário de criação rápida.
+ */
+
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useIsDark, useTheme, typography } from '../../theme';
+import { useTheme, typography, radius } from '../../theme';
 import { NAV_ITEMS, HomeTab } from './BottomNav';
 
 interface Props {
@@ -9,65 +16,76 @@ interface Props {
   userEmail: string;
   onSelect: (tab: HomeTab) => void;
   onAddPress: () => void;
-  children: React.ReactNode; // barra de busca
+  children: React.ReactNode;
 }
 
-/** Header tradicional para desktop: Logo oficial do app + busca + navegação + CTA. */
 export default function DesktopHeader({ active, userEmail, onSelect, onAddPress, children }: Props) {
   const theme = useTheme();
-  const isDark = useIsDark();
-  const fg = isDark ? theme.foreground : '#0F1111';
+  const nomeCurto = (userEmail || 'usuario').split('@')[0];
 
   return (
     <View style={styles.row}>
-      {/* Logotipo oficial idêntico ao da tela de login */}
+      {/* Identidade Visual Minimalista Monocromática */}
       <Pressable
         onPress={() => onSelect('home')}
         style={styles.brand}
         accessibilityRole="link"
         accessibilityLabel="Prioritize - Início"
       >
-        <Image
-          source={require('../../../assets/logo.png')}
-          style={styles.logoImage}
-          resizeMode="contain"
-          accessibilityLabel="Logotipo Prioritize"
-        />
+        <View style={[styles.simboloMarca, { backgroundColor: theme.primary }]}>
+          <Text style={[styles.simboloTexto, { color: theme.primaryForeground }]}>P.</Text>
+        </View>
+        <Text style={[styles.textoMarca, { color: theme.foreground }]}>Prioritize</Text>
       </Pressable>
 
+      {/* Barra de busca centralizada */}
       <View style={styles.search}>{children}</View>
 
-      <View style={styles.nav}>
-        {NAV_ITEMS.map((item) => {
-          const isActive = active === item.key;
-          const color = isActive ? theme.primary : fg;
-          return (
-            <Pressable
-              key={item.key}
-              nativeID={`header-nav-${item.key}`}
-              onPress={() => onSelect(item.key)}
-              accessibilityRole="button"
-              accessibilityLabel={item.label}
-              style={({ hovered, pressed }: any) => [
-                styles.navItem,
-                {
-                  backgroundColor: hovered || isActive ? (isDark ? theme.card : '#F2EEE8') : 'transparent',
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}
-            >
-              <Feather name={item.icon} size={20} color={color} />
-              <View>
-                {item.key === 'account' && (
-                  <Text numberOfLines={1} style={[styles.navHint, { color: theme.mutedForeground }]}>
-                    Olá, {userEmail.split('@')[0]}
-                  </Text>
-                )}
-                <Text style={[styles.navLabel, { color }]}>{item.label}</Text>
-              </View>
-            </Pressable>
-          );
-        })}
+      {/* Abas em formato pílula + Botão Primário */}
+      <View style={styles.navContainer}>
+        <View
+          style={[
+            styles.trilhaPilulas,
+            { backgroundColor: theme.secondary, borderColor: theme.border },
+          ]}
+        >
+          {NAV_ITEMS.map((item) => {
+            const isActive = active === item.key;
+            return (
+              <Pressable
+                key={item.key}
+                nativeID={`header-nav-${item.key}`}
+                onPress={() => onSelect(item.key)}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
+                style={({ pressed }: any) => [
+                  styles.navItem,
+                  {
+                    backgroundColor: isActive ? theme.primary : 'transparent',
+                    opacity: pressed ? 0.75 : 1,
+                  },
+                ]}
+              >
+                <Feather
+                  name={item.icon}
+                  size={15}
+                  color={isActive ? theme.primaryForeground : theme.mutedForeground}
+                />
+                <Text
+                  style={[
+                    styles.navLabel,
+                    {
+                      color: isActive ? theme.primaryForeground : theme.foreground,
+                    },
+                  ]}
+                >
+                  {item.key === 'account' ? nomeCurto : item.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
         <Pressable
           nativeID="header-add-wish"
           onPress={onAddPress}
@@ -75,11 +93,14 @@ export default function DesktopHeader({ active, userEmail, onSelect, onAddPress,
           accessibilityLabel="Novo desejo"
           style={({ hovered, pressed }: any) => [
             styles.cta,
-            { backgroundColor: theme.primary, transform: [{ scale: pressed ? 0.96 : hovered ? 1.03 : 1 }] },
+            {
+              backgroundColor: theme.primary,
+              transform: [{ scale: pressed ? 0.97 : hovered ? 1.02 : 1 }],
+            },
           ]}
         >
-          <Feather name="plus" size={18} color={theme.primaryForeground} />
-          <Text style={[styles.ctaText, { color: theme.primaryForeground }]}>Novo desejo</Text>
+          <Feather name="plus" size={17} color={theme.primaryForeground} />
+          <Text style={[styles.ctaText, { color: theme.primaryForeground }]}>Novo Desejo</Text>
         </Pressable>
       </View>
     </View>
@@ -87,14 +108,78 @@ export default function DesktopHeader({ active, userEmail, onSelect, onAddPress,
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 20 },
-  brand: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  logoImage: { width: 140, height: 44 },
-  search: { flex: 1, maxWidth: 720 },
-  nav: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  navItem: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
-  navHint: { fontFamily: typography.fonts.sans, fontSize: 11, maxWidth: 110 },
-  navLabel: { fontFamily: typography.fonts.sans, fontSize: 14, fontWeight: typography.weights.bold },
-  cta: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 18, height: 44, borderRadius: 22, marginLeft: 8 },
-  ctaText: { fontFamily: typography.fonts.sans, fontWeight: typography.weights.bold, fontSize: 14 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 18,
+  },
+  brand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  simboloMarca: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  simboloTexto: {
+    fontFamily: typography.fonts.sans,
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  textoMarca: {
+    fontFamily: typography.fonts.sans,
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.7,
+  },
+  search: {
+    flex: 1,
+    maxWidth: 520,
+  },
+  navContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  trilhaPilulas: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 4,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    gap: 2,
+  },
+  navItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 13,
+    height: 36,
+    borderRadius: radius.full,
+  },
+  navLabel: {
+    fontFamily: typography.fonts.sans,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  cta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 18,
+    height: 44,
+    borderRadius: radius.full,
+  },
+  ctaText: {
+    fontFamily: typography.fonts.sans,
+    fontWeight: '700',
+    fontSize: 13,
+    letterSpacing: -0.2,
+  },
 });

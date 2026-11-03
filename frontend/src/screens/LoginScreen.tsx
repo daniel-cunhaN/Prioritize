@@ -1,19 +1,13 @@
 /**
- * LoginScreen.tsx — Tela de autenticação refatorada
+ * LoginScreen.tsx — Tela de Autenticação Monocromática de Alto Contraste
  *
  * Características de UI/UX e Segurança:
- * - Cabeçalho limpo com logo e branding
- * - Botão de login social (apenas Google, sem Apple conforme requisitos)
- * - Divisor visual "ou"
- * - Campos de input com ícones discretos e profissionais
- * - Toggle de visibilidade com ícones profissionais (sem emojis de macaco)
- * - Caixa de alerta (AlertBox) com feedback inline integrado ao tema
- * - Validação estrita do lado do cliente (Regex e obrigatoriedade)
- * - Sanitização anti-XSS nos inputs
- * - Tokens JWT gerenciados em memória
- * - Layout responsivo Mobile-First
- *
- * Paleta: Claude Amber (theme.ts)
+ * - Estética minimalista monocromática com monograma P., tipografia bold e botões pílula
+ * - Botão de login social (Google) e divisor limpo
+ * - Campos de input com ícones vetoriais Feather (mail, lock, eye / eye-off)
+ * - Caixa de alerta (AlertBox) integrada ao tema monocromático
+ * - Validação estrita do lado do cliente e sanitização anti-XSS
+ * - Tokens JWT gerenciados em memória + persistência segura
  */
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
@@ -23,13 +17,13 @@ import {
   TextInput,
   StyleSheet,
   Platform,
-  Image,
   TouchableOpacity,
   KeyboardAvoidingView,
   ActivityIndicator,
   ScrollView,
   Alert,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import client from '../api/client';
 import * as SecureStore from 'expo-secure-store';
 import { useTheme, spacing, radius, shadows, typography } from '../theme';
@@ -185,7 +179,6 @@ export default function LoginScreen({ navigation }: any) {
         mensagem = 'Credenciais de login incorretas. Verifique seu e-mail e senha.';
         setErroSenha('Senha ou e-mail incorreto.');
 
-        // Exibe diálogo explícito de confirmação para o usuário
         const tituloDialogo = 'Credenciais Incorretas';
         const msgDialogo = 'Credenciais de login incorretas. Por favor, confira o e-mail e a senha digitados e tente novamente.';
 
@@ -220,7 +213,7 @@ export default function LoginScreen({ navigation }: any) {
     }
   };
 
-  /* ── Login Social com Google (sem Apple) ── */
+  /* ── Login Social com Google ── */
   const handleLoginGoogle = () => {
     setAlerta({
       tipo: 'info',
@@ -228,7 +221,7 @@ export default function LoginScreen({ navigation }: any) {
     });
   };
 
-  /* ── Estilos dinâmicos orientados ao tema Claude Amber ── */
+  /* ── Estilos dinâmicos orientados ao Design System Monocromático ── */
   const estilosDinamicos = {
     container: { backgroundColor: tema.background },
     card: { backgroundColor: tema.card, borderColor: tema.border },
@@ -256,7 +249,7 @@ export default function LoginScreen({ navigation }: any) {
     },
     textoBotaoSocial: { color: tema.foreground },
     textoErro: { color: tema.destructive },
-    corIconeInput: (focado: boolean) => (focado ? tema.ring : tema.mutedForeground),
+    corIconeInput: (focado: boolean) => (focado ? tema.foreground : tema.mutedForeground),
   };
 
   return (
@@ -270,13 +263,11 @@ export default function LoginScreen({ navigation }: any) {
         showsVerticalScrollIndicator={false}
       >
         <View style={estilos.conteudoCentralizado}>
-          {/* ── Branding e Cabeçalho ── */}
+          {/* ── Monograma e Cabeçalho Monocromático ── */}
           <View style={estilos.containerMarca}>
-            <Image
-              source={require('../../assets/logo.png')}
-              style={estilos.logo}
-              accessibilityLabel="Logotipo Prioritize"
-            />
+            <View style={[estilos.monogramaBadge, { backgroundColor: tema.primary }]}>
+              <Text style={[estilos.monogramaTexto, { color: tema.primaryForeground }]}>P.</Text>
+            </View>
             <Text
               style={[estilos.textoMarca, estilosDinamicos.textoMarca]}
               accessibilityRole="header"
@@ -284,12 +275,12 @@ export default function LoginScreen({ navigation }: any) {
               Prioritize
             </Text>
             <Text style={[estilos.subtitulo, estilosDinamicos.subtitulo]}>
-              Organize seus desejos com prioridade
+              Gestão minimalista de desejos e prioridades
             </Text>
           </View>
 
           {/* ── Card Principal ── */}
-          <View style={[estilos.cardFormulario, estilosDinamicos.card, shadows.md]}>
+          <View style={[estilos.cardFormulario, estilosDinamicos.card, shadows.sm]}>
             <Text
               style={[estilos.titulo, estilosDinamicos.titulo]}
               accessibilityRole="header"
@@ -297,7 +288,7 @@ export default function LoginScreen({ navigation }: any) {
               Entrar
             </Text>
             <Text style={[estilos.descricaoTitulo, estilosDinamicos.subtitulo]}>
-              Acesse sua conta para visualizar seus itens
+              Acesse seu painel e matriz de prioridades
             </Text>
 
             {/* ── Caixa de Alerta (Feedback visual) ── */}
@@ -309,7 +300,7 @@ export default function LoginScreen({ navigation }: any) {
               />
             )}
 
-            {/* ── Botão de Login Social (Apenas Google) ── */}
+            {/* ── Botão de Login Social em Pílula (Google) ── */}
             <TouchableOpacity
               style={[estilos.botaoSocial, estilosDinamicos.botaoSocial]}
               onPress={handleLoginGoogle}
@@ -317,7 +308,7 @@ export default function LoginScreen({ navigation }: any) {
               accessibilityRole="button"
               accessibilityLabel="Entrar com o Google"
             >
-              <Text style={estilos.iconeSocial}>G</Text>
+              <Text style={[estilos.iconeSocial, { color: tema.foreground }]}>G</Text>
               <Text style={[estilos.textoBotaoSocial, estilosDinamicos.textoBotaoSocial]}>
                 Continuar com Google
               </Text>
@@ -343,14 +334,12 @@ export default function LoginScreen({ navigation }: any) {
                   estilosDinamicos.input(emailFocado, !!erroEmail),
                 ]}
               >
-                <Text
-                  style={[
-                    estilos.iconeInput,
-                    { color: estilosDinamicos.corIconeInput(emailFocado) },
-                  ]}
-                >
-                  ✉
-                </Text>
+                <Feather
+                  name="mail"
+                  size={16}
+                  color={estilosDinamicos.corIconeInput(emailFocado)}
+                  style={estilos.iconeVetorial}
+                />
                 <TextInput
                   style={[estilos.campoTexto, { color: tema.foreground }]}
                   placeholder="seu@email.com"
@@ -408,14 +397,12 @@ export default function LoginScreen({ navigation }: any) {
                   estilosDinamicos.input(senhaFocada, !!erroSenha),
                 ]}
               >
-                <Text
-                  style={[
-                    estilos.iconeInput,
-                    { color: estilosDinamicos.corIconeInput(senhaFocada) },
-                  ]}
-                >
-                  🔒
-                </Text>
+                <Feather
+                  name="lock"
+                  size={16}
+                  color={estilosDinamicos.corIconeInput(senhaFocada)}
+                  style={estilos.iconeVetorial}
+                />
                 <TextInput
                   ref={refInputSenha}
                   style={[estilos.campoTexto, { color: tema.foreground }]}
@@ -432,7 +419,6 @@ export default function LoginScreen({ navigation }: any) {
                   onBlur={() => setSenhaFocada(false)}
                   accessibilityLabel="Campo de senha"
                 />
-                {/* Toggle minimalista e profissional: Ícones de olho aberto / fechado com corte */}
                 <TouchableOpacity
                   onPress={() => setSenhaVisivel(!senhaVisivel)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -440,9 +426,11 @@ export default function LoginScreen({ navigation }: any) {
                   accessibilityLabel={senhaVisivel ? 'Ocultar senha' : 'Exibir senha'}
                   style={estilos.botaoToggle}
                 >
-                  <Text style={[estilos.iconeToggle, { color: tema.mutedForeground }]}>
-                    {senhaVisivel ? '👁' : '⊘'}
-                  </Text>
+                  <Feather
+                    name={senhaVisivel ? 'eye' : 'eye-off'}
+                    size={17}
+                    color={tema.mutedForeground}
+                  />
                 </TouchableOpacity>
               </View>
               {!!erroSenha && (
@@ -452,7 +440,7 @@ export default function LoginScreen({ navigation }: any) {
               )}
             </View>
 
-            {/* ── Botão de Ação Primária ── */}
+            {/* ── Botão Primário em Formato Pílula ── */}
             <TouchableOpacity
               style={[
                 estilos.botaoPrimario,
@@ -518,15 +506,23 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing['2xl'],
   },
-  logo: {
-    width: 120,
-    height: 65,
-    resizeMode: 'contain',
-    marginBottom: spacing.sm,
+  monogramaBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  monogramaTexto: {
+    fontSize: 22,
+    fontWeight: typography.weights.extrabold,
+    fontFamily: typography.fonts.sans,
+    letterSpacing: -0.8,
   },
   textoMarca: {
-    fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.bold,
+    fontSize: typography.sizes['2xl'],
+    fontWeight: typography.weights.extrabold,
     fontFamily: typography.fonts.sans,
     letterSpacing: typography.letterSpacing.tight,
   },
@@ -544,8 +540,9 @@ const estilos = StyleSheet.create({
   },
   titulo: {
     fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.semibold,
+    fontWeight: typography.weights.extrabold,
     fontFamily: typography.fonts.sans,
+    letterSpacing: -0.4,
     textAlign: 'center',
   },
   descricaoTitulo: {
@@ -557,7 +554,7 @@ const estilos = StyleSheet.create({
   },
   botaoSocial: {
     height: 48,
-    borderRadius: radius.md,
+    borderRadius: radius.full,
     borderWidth: 1,
     flexDirection: 'row',
     justifyContent: 'center',
@@ -567,11 +564,11 @@ const estilos = StyleSheet.create({
   },
   iconeSocial: {
     fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
+    fontWeight: typography.weights.extrabold,
   },
   textoBotaoSocial: {
     fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.medium,
+    fontWeight: typography.weights.semibold,
     fontFamily: typography.fonts.sans,
   },
   containerDivisor: {
@@ -593,7 +590,7 @@ const estilos = StyleSheet.create({
   },
   rotulo: {
     fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.medium,
+    fontWeight: typography.weights.semibold,
     fontFamily: typography.fonts.sans,
     marginBottom: spacing.sm,
   },
@@ -605,22 +602,19 @@ const estilos = StyleSheet.create({
   },
   linkEsqueciSenha: {
     fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.medium,
+    fontWeight: typography.weights.semibold,
     fontFamily: typography.fonts.sans,
   },
   containerInput: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 52,
+    height: 50,
     borderWidth: 1,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
   },
-  iconeInput: {
-    fontSize: 16,
+  iconeVetorial: {
     marginRight: spacing.sm,
-    width: 22,
-    textAlign: 'center',
   },
   campoTexto: {
     flex: 1,
@@ -634,26 +628,21 @@ const estilos = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  iconeToggle: {
-    fontSize: 18,
-    width: 24,
-    textAlign: 'center',
-  },
   textoErro: {
     fontSize: typography.sizes.xs,
     fontFamily: typography.fonts.sans,
     marginTop: spacing.xs,
   },
   botaoPrimario: {
-    height: 52,
-    borderRadius: radius.md,
+    height: 50,
+    borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: spacing.sm,
   },
   textoBotaoPrimario: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.semibold,
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.bold,
     fontFamily: typography.fonts.sans,
   },
   botaoDesabilitado: {
@@ -666,7 +655,7 @@ const estilos = StyleSheet.create({
   linhaRegistro: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   textoRodape: {
     fontSize: typography.sizes.sm,
@@ -674,7 +663,7 @@ const estilos = StyleSheet.create({
   },
   textoLinkDestaque: {
     fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
+    fontWeight: typography.weights.bold,
     fontFamily: typography.fonts.sans,
   },
 });

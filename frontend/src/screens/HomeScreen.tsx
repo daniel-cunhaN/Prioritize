@@ -1,3 +1,15 @@
+/**
+ * HomeScreen.tsx — Painel Principal Monocromático de Alto Contraste do Prioritize
+ *
+ * Integra as 4 visões e interações do novo Design System unificado:
+ * 1) Dashboard com Gráfico Semanal de Conclusão, Métricas-Chave e Lista/Matriz Kanban
+ * 2) Criação Rápida via Bottom Sheet com Tags Pílula de Prioridade (Baixa, Média, Alta)
+ * 3) Checklist Focado (aba Foco) com interações limpas de checkbox e barra de progresso
+ * 4) Registro de Atividades (aba Log) com bolhas minimalistas de linha do tempo
+ *
+ * Navegação mobile via Floating Pill Navigation Bar (BottomNav) e DesktopHeader responsivo.
+ */
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
@@ -12,14 +24,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { useTheme, useIsDark, typography } from '../theme';
+import { useTheme, typography, radius } from '../theme';
 import client from '../api/client';
-import AdicionarDesejoModal, { DesejoItem } from '../components/AdicionarDesejoModal';
+import AdicionarDesejoModal from '../components/AdicionarDesejoModal';
 import GerenciarContaModal from '../components/GerenciarContaModal';
 import { encerrarSessao } from '../utils/validacao';
 import SearchBar from '../components/home/SearchBar';
 import SectionHeader from '../components/home/SectionHeader';
-import ProductCard, { PRIORITY_CONFIG, PRIORITY_LABELS } from '../components/home/ProductCard';
+import ProductCard, { PRIORITY_CONFIG } from '../components/home/ProductCard';
 import EditarDesejoModal from '../components/home/EditarDesejoModal';
 import BottomNav, { BOTTOM_NAV_HEIGHT, HomeTab } from '../components/home/BottomNav';
 import DesktopHeader from '../components/home/DesktopHeader';
@@ -27,11 +39,16 @@ import FilterSortBar from '../components/home/FilterSortBar';
 import ModalOrdenacao, { OPCOES_ORDENACAO } from '../components/home/ModalOrdenacao';
 import KanbanBoard from '../components/home/KanbanBoard';
 import ProductListItem from '../components/home/ProductListItem';
+import PainelMetricasGrafico from '../components/home/PainelMetricasGrafico';
+import ChecklistDesejos from '../components/home/ChecklistDesejos';
+import RegistroAtividades from '../components/home/RegistroAtividades';
 import { useResponsive } from '../hooks/useResponsive';
-import { WishlistItem, TipoOrdenacao, ModoVisualizacao } from '../types';
+import { useCompartilhamento } from '../hooks/useCompartilhamento';
+import { WishlistItem, TipoOrdenacao, ModoVisualizacao, EventoAtividade } from '../types';
 
 const APP_NAME = 'Prioritize';
 const STORAGE_KEY_MODO_VISUALIZACAO = 'prioritize_view_mode';
+const STORAGE_KEY_CONCLUIDOS = 'prioritize_checklist_concluidos';
 
 /** Obtém o modo de visualização inicial salvo em disco (Web) ou padrão (grade) */
 const obterModoVisualizacaoInicial = (): ModoVisualizacao => {
@@ -46,6 +63,22 @@ const obterModoVisualizacaoInicial = (): ModoVisualizacao => {
     }
   }
   return 'grid';
+};
+
+/** Recupera os IDs de itens marcados como concluídos no navegador (Web) */
+const obterIdsConcluidosIniciais = (): string[] => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const salvo = window.localStorage.getItem(STORAGE_KEY_CONCLUIDOS);
+      if (salvo) {
+        const lista = JSON.parse(salvo);
+        if (Array.isArray(lista)) return lista.map(String);
+      }
+    } catch {
+      // Silencia erro de leitura no localStorage
+    }
+  }
+  return [];
 };
 
 /** Confirmação compatível com Mobile e Web */
@@ -64,10 +97,10 @@ const confirmAction = (title: string, message: string, confirmText: string, onCo
 
 export default function HomeScreen({ navigation }: any) {
   const theme = useTheme();
-  const isDark = useIsDark();
   const insets = useSafeAreaInsets();
   const r = useResponsive();
   const scrollRef = useRef<ScrollView>(null);
+  const { urlCompartilhada, consumirUrl } = useCompartilhamento();
 
   // Estados de dados da API
   const [desejos, setDesejos] = useState<WishlistItem[]>([]);
@@ -75,7 +108,11 @@ export default function HomeScreen({ navigation }: any) {
   const [atualizando, setAtualizando] = useState(false);
   const [usuarioEmail, setUsuarioEmail] = useState<string>('');
 
-  // Modais existentes
+  // Estados de produtividade: checklist concluídos e log de atividades da sessão
+  const [idsConcluidos, setIdsConcluidos] = useState<string[]>(obterIdsConcluidosIniciais);
+  const [eventosSessao, setEventosSessao] = useState<EventoAtividade[]>([]);
+
+  // Modais e Bottom Sheets
   const [modalVisivel, setModalVisivel] = useState(false);
   const [modalContaVisivel, setModalContaVisivel] = useState(false);
   const [modalEditarVisivel, setModalEditarVisivel] = useState(false);
@@ -83,7 +120,7 @@ export default function HomeScreen({ navigation }: any) {
   const [itemParaEditar, setItemParaEditar] = useState<WishlistItem | null>(null);
   const [urlCompartilhadaModal, setUrlCompartilhadaModal] = useState('');
 
-  // Filtros, ordenação, busca e tipo de visualização
+  // Filtros, ordenação, busca e aba ativa
   const [query, setQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<number | 'ALL'>('ALL');
   const [selectedLoja, setSelectedLoja] = useState<string | 'ALL'>('ALL');
@@ -91,6 +128,30 @@ export default function HomeScreen({ navigation }: any) {
   const [modoVisualizacao, setModoVisualizacao] = useState<ModoVisualizacao>(obterModoVisualizacaoInicial);
   const [view, setView] = useState<HomeTab>('home');
   const [offersExpanded, setOffersExpanded] = useState(false);
+
+  // Registra um novo evento na linha do tempo minimalista (Activity Log)
+  const registrarEvento = useCallback(
+    (evento: Omit<EventoAtividade, 'id' | 'dataIso'>) => {
+      const novoEvento: EventoAtividade = {
+        ...evento,
+        id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        dataIso: new Date().toISOString(),
+      };
+      setEventosSessao((prev) => [novoEvento, ...prev]);
+    },
+    []
+  );
+
+  // Escuta URLs compartilhadas de outros aplicativos e abre automaticamente o modal
+  useEffect(() => {
+    if (urlCompartilhada) {
+      const linkExtraido = consumirUrl();
+      if (linkExtraido) {
+        setUrlCompartilhadaModal(linkExtraido);
+        setModalVisivel(true);
+      }
+    }
+  }, [urlCompartilhada, consumirUrl]);
 
   // 1. Carregamento dos Desejos via API
   const carregarDesejos = useCallback(async () => {
@@ -127,6 +188,38 @@ export default function HomeScreen({ navigation }: any) {
     carregarDesejos();
   }, [carregarDesejos]);
 
+  // Alterna o estado de conclusão (checkbox) de um item e grava no Activity Log
+  const handleAlternarConclusao = useCallback(
+    (item: WishlistItem) => {
+      setIdsConcluidos((prev) => {
+        const jaConcluido = prev.includes(item.id);
+        const proximaLista = jaConcluido
+          ? prev.filter((id) => id !== item.id)
+          : [...prev, item.id];
+
+        if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+          try {
+            window.localStorage.setItem(STORAGE_KEY_CONCLUIDOS, JSON.stringify(proximaLista));
+          } catch {
+            // Silencia erro de escrita no storage
+          }
+        }
+
+        registrarEvento({
+          simbolo: jaConcluido ? '↺' : '✓',
+          destaque: !jaConcluido,
+          titulo: jaConcluido
+            ? `Reabriu "${item.title || 'Item sem título'}"`
+            : `Concluiu "${item.title || 'Item sem título'}"`,
+          detalhe: jaConcluido ? 'Movido novamente para pendentes' : 'Marcado como adquirido no checklist',
+        });
+
+        return proximaLista;
+      });
+    },
+    [registrarEvento]
+  );
+
   // Ações de Conta
   const handleAbrirModalConta = () => setModalContaVisivel(true);
   const handleFecharModalConta = () => setModalContaVisivel(false);
@@ -149,7 +242,7 @@ export default function HomeScreen({ navigation }: any) {
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
-  // Ações de Adicionar Desejo
+  // Ações de Adicionar Desejo (Quick Creation Bottom Sheet)
   const handleAbrirModal = () => {
     setUrlCompartilhadaModal('');
     setModalVisivel(true);
@@ -162,6 +255,13 @@ export default function HomeScreen({ navigation }: any) {
 
   const handleDesejoCriado = (novoDesejo: any) => {
     setDesejos((prev) => [novoDesejo, ...prev]);
+    const conf = PRIORITY_CONFIG[Number(novoDesejo.priority) || 2];
+    registrarEvento({
+      simbolo: '+',
+      destaque: Number(novoDesejo.priority) === 3,
+      titulo: `Criou "${novoDesejo.title || 'Novo desejo'}"`,
+      detalhe: `Classificado como ${conf?.label || 'Média'} Prioridade`,
+    });
   };
 
   // Ações de Editar Desejo
@@ -179,6 +279,13 @@ export default function HomeScreen({ navigation }: any) {
     setDesejos((prev) =>
       prev.map((d) => (d.id === itemAtualizado.id ? { ...d, ...itemAtualizado } : d))
     );
+    const conf = PRIORITY_CONFIG[Number(itemAtualizado.priority) || 2];
+    registrarEvento({
+      simbolo: '✎',
+      destaque: false,
+      titulo: `Atualizou "${itemAtualizado.title || 'Desejo'}"`,
+      detalhe: `Prioridade definida para ${conf?.label || 'Média'}`,
+    });
   };
 
   // Ação de Exclusão de Desejo via API
@@ -191,6 +298,12 @@ export default function HomeScreen({ navigation }: any) {
         try {
           await client.delete(`/wishlist/${id}`);
           setDesejos((prev) => prev.filter((item) => item.id !== id));
+          registrarEvento({
+            simbolo: '✕',
+            destaque: false,
+            titulo: `Removeu "${titulo || 'Item'}"`,
+            detalhe: 'Excluído permanentemente da lista',
+          });
         } catch (erro) {
           console.error('Erro ao excluir desejo:', erro);
           Alert.alert('Erro', 'Não foi possível excluir o item.');
@@ -238,7 +351,7 @@ export default function HomeScreen({ navigation }: any) {
     }));
   }, [wishlistItems]);
 
-  // Comparador robusto e configurável para ordenação dos itens
+  // Comparador configurável para ordenação dos itens
   const comparatorOrdenacao = useCallback(
     (a: WishlistItem, b: WishlistItem) => {
       switch (ordem) {
@@ -323,9 +436,8 @@ export default function HomeScreen({ navigation }: any) {
     }
   }, []);
 
-  // Separação inteligente para o layout estilo Amazon (ou unificada quando filtros estão ativos)
+  // Separação inteligente por destaque de prioridade
   const { topPicks, offers, categoryTitle } = useMemo(() => {
-    // Se o usuário filtrou ou ordenou especificamente, exibe em grade única
     if (selectedFilter !== 'ALL' || selectedLoja !== 'ALL' || ordem !== 'prioridade_desc') {
       let rotulo = 'produtos';
       if (selectedFilter !== 'ALL') {
@@ -371,7 +483,7 @@ export default function HomeScreen({ navigation }: any) {
     };
   }, [filteredItems, selectedFilter, selectedLoja, ordem]);
 
-  // Lista oficial de filtros por prioridade (3: Alta, 2: Média, 1: Baixa)
+  // Lista monocromática de filtros em formato pílula (3: Alta, 2: Média, 1: Baixa)
   const priorityOptions = useMemo(() => {
     const countAlta = desejos.filter((d) => Number(d.priority) === 3).length;
     const countMedia = desejos.filter((d) => Number(d.priority) === 2).length;
@@ -386,44 +498,45 @@ export default function HomeScreen({ navigation }: any) {
       },
       {
         value: 3,
-        label: `🔥 Alta (${countAlta})`,
-        color: PRIORITY_CONFIG[3].color,
-        activeBg: PRIORITY_CONFIG[3].color,
+        label: `● Alta (${countAlta})`,
+        color: theme.primary,
+        activeBg: theme.primary,
       },
       {
         value: 2,
-        label: `⭐ Média (${countMedia})`,
-        color: PRIORITY_CONFIG[2].color,
-        activeBg: PRIORITY_CONFIG[2].color,
+        label: `◐ Média (${countMedia})`,
+        color: theme.primary,
+        activeBg: theme.primary,
       },
       {
         value: 1,
-        label: `🌱 Baixa (${countBaixa})`,
-        color: PRIORITY_CONFIG[1].color,
-        activeBg: PRIORITY_CONFIG[1].color,
+        label: `○ Baixa (${countBaixa})`,
+        color: theme.primary,
+        activeBg: theme.primary,
       },
     ];
   }, [desejos, theme.primary]);
 
-  // Navegação por abas / atalhos
+  // Navegação unificada entre Dashboard, Checklist Focado, Activity Log e Modais
   const handleNav = (tab: HomeTab) => {
     if (tab === 'home') {
       setView('home');
-      setSelectedFilter('ALL');
-      setQuery('');
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+    } else if (tab === 'checklist') {
+      setView('checklist');
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+    } else if (tab === 'activity') {
+      setView('activity');
       scrollRef.current?.scrollTo({ y: 0, animated: true });
     } else if (tab === 'account') {
       handleAbrirModalConta();
     } else if (tab === 'explore') {
-      // Abre o modal de ordenação dos itens
       setModalOrdenacaoVisivel(true);
     }
   };
 
-  const pageBg = isDark ? theme.background : '#FFFFFF';
-  const textStrong = isDark ? theme.foreground : '#0F1111';
   const isSearching = query.trim().length > 0;
-  const bottomSpace = r.isDesktop ? 48 : BOTTOM_NAV_HEIGHT + Math.max(insets.bottom, 6) + 85;
+  const bottomSpace = r.isDesktop ? 56 : BOTTOM_NAV_HEIGHT + Math.max(insets.bottom, 14) + 32;
 
   const renderGrid = (data: WishlistItem[], keyPrefix: string) => (
     <View style={[styles.grid, { gap: r.gap }]}>
@@ -433,6 +546,8 @@ export default function HomeScreen({ navigation }: any) {
           item={item}
           width={r.cardWidth}
           compact={!r.isDesktop}
+          concluido={idsConcluidos.includes(item.id)}
+          onToggleCheck={() => handleAlternarConclusao(item)}
           onEdit={() => handleAbrirEditar(item)}
           onDelete={() => handleExcluirDesejo(item.id, item.title)}
         />
@@ -458,6 +573,8 @@ export default function HomeScreen({ navigation }: any) {
             key={`offer-${item.id}`}
             item={item}
             width={r.carouselCardWidth}
+            concluido={idsConcluidos.includes(item.id)}
+            onToggleCheck={() => handleAlternarConclusao(item)}
             onEdit={() => handleAbrirEditar(item)}
             onDelete={() => handleExcluirDesejo(item.id, item.title)}
           />
@@ -465,13 +582,15 @@ export default function HomeScreen({ navigation }: any) {
       </ScrollView>
     );
 
-  // Renderizador para o modo de lista compacta
+  // Renderizador para o modo de lista horizontal minimalista
   const renderList = (data: WishlistItem[], keyPrefix: string) => (
     <View style={styles.listaContainer}>
       {data.map((item) => (
         <ProductListItem
           key={`${keyPrefix}-${item.id}`}
           item={item}
+          concluido={idsConcluidos.includes(item.id)}
+          onToggleCheck={() => handleAlternarConclusao(item)}
           onEdit={() => handleAbrirEditar(item)}
           onDelete={() => handleExcluirDesejo(item.id, item.title)}
         />
@@ -479,15 +598,18 @@ export default function HomeScreen({ navigation }: any) {
     </View>
   );
 
-  const renderHomeContent = () => {
-    // 1. Estado quando o usuário não possui nenhum desejo cadastrado
+  // Renderiza o conteúdo principal do Dashboard (aba 'home')
+  const renderDashboardContent = () => {
+    // 1. Estado vazio inicial
     if (desejos.length === 0) {
       return (
-        <View style={styles.emptyContainer}>
-          <Feather name="shopping-bag" size={48} color={theme.primary} style={{ marginBottom: 16 }} />
-          <Text style={[styles.emptyTitle, { color: textStrong }]}>Nenhum desejo salvo</Text>
+        <View style={[styles.emptyContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={[styles.emptyIconBadge, { backgroundColor: theme.secondary }]}>
+            <Feather name="layers" size={26} color={theme.foreground} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: theme.foreground }]}>Sua lista está pronta para começar</Text>
           <Text style={[styles.emptySubtitle, { color: theme.mutedForeground }]}>
-            Cole um link da loja e classifique a prioridade para começar sua lista.
+            Compartilhe ou cole o link de um produto para herdar imagem, título e preço automaticamente e classificá-lo em Baixa, Média ou Alta prioridade.
           </Text>
           <TouchableOpacity
             onPress={handleAbrirModal}
@@ -495,20 +617,22 @@ export default function HomeScreen({ navigation }: any) {
             activeOpacity={0.85}
           >
             <Feather name="plus" size={18} color={theme.primaryForeground} />
-            <Text style={[styles.emptyBtnText, { color: theme.primaryForeground }]}>Adicionar Desejo</Text>
+            <Text style={[styles.emptyBtnText, { color: theme.primaryForeground }]}>Novo Desejo</Text>
           </TouchableOpacity>
         </View>
       );
     }
 
-    // 2. Estado quando os filtros ou busca não encontram nenhum item correspondente
+    // 2. Estado sem resultados para o filtro/busca atual
     if (filteredItems.length === 0) {
       return (
-        <View style={styles.emptyContainer}>
-          <Feather name="filter" size={42} color={theme.primary} style={{ marginBottom: 16 }} />
-          <Text style={[styles.emptyTitle, { color: textStrong }]}>Nenhum desejo encontrado</Text>
+        <View style={[styles.emptyContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={[styles.emptyIconBadge, { backgroundColor: theme.secondary }]}>
+            <Feather name="sliders" size={24} color={theme.foreground} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: theme.foreground }]}>Nenhum item correspondente</Text>
           <Text style={[styles.emptySubtitle, { color: theme.mutedForeground }]}>
-            Não encontramos itens correspondentes aos filtros ou busca aplicados.
+            Não encontramos desejos para os filtros ou termos pesquisados.
           </Text>
           <TouchableOpacity
             onPress={handleLimparFiltros}
@@ -516,23 +640,25 @@ export default function HomeScreen({ navigation }: any) {
             activeOpacity={0.85}
           >
             <Feather name="rotate-ccw" size={16} color={theme.primaryForeground} />
-            <Text style={[styles.emptyBtnText, { color: theme.primaryForeground }]}>Limpar Filtros e Busca</Text>
+            <Text style={[styles.emptyBtnText, { color: theme.primaryForeground }]}>Limpar Filtros</Text>
           </TouchableOpacity>
         </View>
       );
     }
 
-    // 3. Visualização em Quadro KANBAN agrupado por prioridades (Alta, Média, Baixa)
+    // 3. Visualização em Matriz / Quadro KANBAN por Prioridade (Alta, Média, Baixa)
     if (modoVisualizacao === 'kanban') {
       const tituloKanban = isSearching
-        ? `Quadro Kanban — Resultados para “${query.trim()}”`
-        : 'Quadro Kanban por Prioridade';
+        ? `Matriz Kanban — “${query.trim()}”`
+        : 'Matriz de Prioridades Kanban';
 
       return (
         <View style={styles.section}>
           <SectionHeader title={tituloKanban} />
           <KanbanBoard
             items={filteredItems}
+            idsConcluidos={idsConcluidos}
+            onToggleCheck={handleAlternarConclusao}
             onEdit={handleAbrirEditar}
             onDelete={handleExcluirDesejo}
             isDesktop={r.isDesktop}
@@ -549,9 +675,9 @@ export default function HomeScreen({ navigation }: any) {
           tituloSecao = `Resultados para “${query.trim()}” (${filteredItems.length})`;
         } else if (selectedFilter !== 'ALL') {
           const conf = PRIORITY_CONFIG[selectedFilter];
-          tituloSecao = `${conf?.label || ''} prioridade (${filteredItems.length})`;
+          tituloSecao = `${conf?.label || ''} Prioridade (${filteredItems.length})`;
         } else if (selectedLoja !== 'ALL') {
-          tituloSecao = `Produtos de ${selectedLoja} (${filteredItems.length})`;
+          tituloSecao = `Loja ${selectedLoja} (${filteredItems.length})`;
         } else {
           const confOrdem = OPCOES_ORDENACAO.find((o) => o.id === ordem);
           tituloSecao = `Ordenado por ${confOrdem?.label.toLowerCase() || 'prioridade'} (${filteredItems.length})`;
@@ -568,9 +694,7 @@ export default function HomeScreen({ navigation }: any) {
       return (
         <>
           <View style={styles.section}>
-            <SectionHeader
-              title={`Melhores escolhas de ${categoryTitle} para você`}
-            />
+            <SectionHeader title={`Foco Principal · ${categoryTitle}`} />
             {topPicks.length > 0 ? (
               renderList(topPicks, 'list-top')
             ) : (
@@ -583,7 +707,7 @@ export default function HomeScreen({ navigation }: any) {
           {offers.length > 0 && (
             <View style={styles.section}>
               <SectionHeader
-                title="Ofertas do seu interesse"
+                title="Demais itens na fila"
                 expanded={offersExpanded}
                 moreLabel={r.isDesktop ? (offersExpanded ? 'Ver menos' : 'Ver tudo') : undefined}
                 onMorePress={() => setOffersExpanded((v) => !v)}
@@ -595,16 +719,16 @@ export default function HomeScreen({ navigation }: any) {
       );
     }
 
-    // 5. Visualização padrão em GRADE (Grid) com cartões verticais
+    // 5. Visualização em GRADE (Grid) minimalista
     if (isSearching || selectedFilter !== 'ALL' || selectedLoja !== 'ALL' || ordem !== 'prioridade_desc') {
       let tituloSecao = `Itens filtrados (${filteredItems.length})`;
       if (isSearching) {
         tituloSecao = `Resultados para “${query.trim()}” (${filteredItems.length})`;
       } else if (selectedFilter !== 'ALL') {
         const conf = PRIORITY_CONFIG[selectedFilter];
-        tituloSecao = `${conf?.label || ''} prioridade (${filteredItems.length})`;
+        tituloSecao = `${conf?.label || ''} Prioridade (${filteredItems.length})`;
       } else if (selectedLoja !== 'ALL') {
-        tituloSecao = `Produtos de ${selectedLoja} (${filteredItems.length})`;
+        tituloSecao = `Loja ${selectedLoja} (${filteredItems.length})`;
       } else {
         const confOrdem = OPCOES_ORDENACAO.find((o) => o.id === ordem);
         tituloSecao = `Ordenado por ${confOrdem?.label.toLowerCase() || 'prioridade'} (${filteredItems.length})`;
@@ -620,11 +744,8 @@ export default function HomeScreen({ navigation }: any) {
 
     return (
       <>
-        {/* Seção Principal: Melhores escolhas para você */}
         <View style={styles.section}>
-          <SectionHeader
-            title={`Melhores escolhas de ${categoryTitle} para você`}
-          />
+          <SectionHeader title={`Foco Principal · ${categoryTitle}`} />
           {topPicks.length > 0 ? (
             renderGrid(topPicks, 'top')
           ) : (
@@ -634,11 +755,10 @@ export default function HomeScreen({ navigation }: any) {
           )}
         </View>
 
-        {/* Seção 2: Ofertas que podem te interessar */}
         {offers.length > 0 && (
           <View style={styles.section}>
             <SectionHeader
-              title="Ofertas do seu interesse"
+              title="Demais itens planejados"
               expanded={offersExpanded}
               moreLabel={r.isDesktop ? (offersExpanded ? 'Ver menos' : 'Ver tudo') : undefined}
               onMorePress={() => setOffersExpanded((v) => !v)}
@@ -650,24 +770,80 @@ export default function HomeScreen({ navigation }: any) {
     );
   };
 
+  // Alterna entre as 3 telas principais (Dashboard, Checklist Focado, Activity Log)
+  const renderActiveTabContent = () => {
+    if (view === 'checklist') {
+      return (
+        <ChecklistDesejos
+          itens={wishlistItems}
+          idsConcluidos={idsConcluidos}
+          aoAlternarConclusao={handleAlternarConclusao}
+          aoAbrirModalCriar={handleAbrirModal}
+        />
+      );
+    }
+
+    if (view === 'activity') {
+      return <RegistroAtividades eventosSessao={eventosSessao} itens={wishlistItems} />;
+    }
+
+    return (
+      <>
+        {/* Painel de Métricas-Chave e Gráfico Semanal de Conclusão (7D) */}
+        <PainelMetricasGrafico
+          itens={wishlistItems}
+          idsConcluidos={idsConcluidos}
+          isDesktop={r.isDesktop}
+        />
+
+        {/* Barra de Filtros em Pílula + Alternador Grade / Lista / Kanban */}
+        {desejos.length > 0 && (
+          <FilterSortBar
+            prioridadeSelecionada={selectedFilter}
+            onSelecionarPrioridade={setSelectedFilter}
+            opcoesPrioridade={priorityOptions}
+            lojaSelecionada={selectedLoja}
+            onSelecionarLoja={setSelectedLoja}
+            lojasDisponiveis={lojasDisponiveis}
+            ordemAtual={ordem}
+            onAbrirModalOrdenacao={() => setModalOrdenacaoVisivel(true)}
+            totalFiltrosAtivos={totalFiltrosAtivos}
+            onLimparFiltros={handleLimparFiltros}
+            modoVisualizacao={modoVisualizacao}
+            onAlterarModoVisualizacao={handleAlterarModoVisualizacao}
+            isDesktop={r.isDesktop}
+            horizontalPadding={r.horizontalPadding}
+          />
+        )}
+
+        {renderDashboardContent()}
+      </>
+    );
+  };
+
   const searchBar = (
     <SearchBar
       value={query}
-      onChangeText={setQuery}
-      placeholder={`Pesquisar em ${APP_NAME}`}
+      onChangeText={(texto) => {
+        setQuery(texto);
+        if (view !== 'home' && texto.trim().length > 0) {
+          setView('home');
+        }
+      }}
+      placeholder={`Pesquisar em ${APP_NAME}...`}
     />
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: pageBg }]}>
-      {/* Cabeçalho Fixo com Busca */}
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Cabeçalho Fixo Monocromático com Branding e Busca */}
       <View
         style={[
           styles.header,
           {
             paddingTop: insets.top + (r.isDesktop ? 14 : 10),
-            backgroundColor: pageBg,
-            borderBottomColor: isDark ? theme.border : '#E7E3DC',
+            backgroundColor: theme.background,
+            borderBottomColor: theme.border,
           },
         ]}
       >
@@ -682,7 +858,35 @@ export default function HomeScreen({ navigation }: any) {
               {searchBar}
             </DesktopHeader>
           ) : (
-            searchBar
+            <View style={styles.mobileHeaderStack}>
+              <View style={styles.mobileBrandRow}>
+                <View style={styles.mobileBrandLeft}>
+                  <View style={[styles.monogramBadge, { backgroundColor: theme.primary }]}>
+                    <Text style={[styles.monogramText, { color: theme.primaryForeground }]}>P.</Text>
+                  </View>
+                  <View>
+                    <Text style={[styles.mobileBrandTitle, { color: theme.foreground }]}>{APP_NAME}</Text>
+                    <Text style={[styles.mobileBrandSub, { color: theme.mutedForeground }]}>
+                      {view === 'home'
+                        ? 'Painel & Matriz'
+                        : view === 'checklist'
+                          ? 'Checklist Focado'
+                          : 'Registro de Atividades'}
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={handleAbrirModalConta}
+                  style={[styles.mobileAvatarBtn, { backgroundColor: theme.secondary, borderColor: theme.border }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Gerenciar conta"
+                >
+                  <Feather name="user" size={16} color={theme.foreground} />
+                </TouchableOpacity>
+              </View>
+              {view === 'home' && searchBar}
+            </View>
           )}
         </View>
       </View>
@@ -690,7 +894,9 @@ export default function HomeScreen({ navigation }: any) {
       {carregando ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={{ color: theme.mutedForeground, marginTop: 16 }}>Carregando seus desejos...</Text>
+          <Text style={[styles.loadingText, { color: theme.mutedForeground }]}>
+            Sincronizando prioridades...
+          </Text>
         </View>
       ) : (
         <ScrollView
@@ -699,59 +905,31 @@ export default function HomeScreen({ navigation }: any) {
           contentContainerStyle={{ alignItems: 'center', paddingBottom: bottomSpace }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          refreshControl={<RefreshControl refreshing={atualizando} onRefresh={onRefresh} tintColor={theme.primary} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={atualizando}
+              onRefresh={onRefresh}
+              tintColor={theme.primary}
+            />
+          }
         >
-          <View style={{ width: r.contentWidth, paddingHorizontal: r.horizontalPadding, paddingTop: 14 }}>
-            {desejos.length > 0 && (
-              <FilterSortBar
-                prioridadeSelecionada={selectedFilter}
-                onSelecionarPrioridade={setSelectedFilter}
-                opcoesPrioridade={priorityOptions}
-                lojaSelecionada={selectedLoja}
-                onSelecionarLoja={setSelectedLoja}
-                lojasDisponiveis={lojasDisponiveis}
-                ordemAtual={ordem}
-                onAbrirModalOrdenacao={() => setModalOrdenacaoVisivel(true)}
-                totalFiltrosAtivos={totalFiltrosAtivos}
-                onLimparFiltros={handleLimparFiltros}
-                modoVisualizacao={modoVisualizacao}
-                onAlterarModoVisualizacao={handleAlterarModoVisualizacao}
-                isDesktop={r.isDesktop}
-                horizontalPadding={r.horizontalPadding}
-              />
-            )}
-            {renderHomeContent()}
+          <View style={{ width: r.contentWidth, paddingHorizontal: r.horizontalPadding, paddingTop: 18 }}>
+            {renderActiveTabContent()}
           </View>
         </ScrollView>
       )}
 
-      {/* FAB Flutuante para Adicionar Desejo */}
-      {!r.isDesktop && (
-        <TouchableOpacity
-          onPress={handleAbrirModal}
-          style={[
-            styles.fab,
-            {
-              backgroundColor: theme.primary,
-              bottom: BOTTOM_NAV_HEIGHT + Math.max(insets.bottom, 6) + 16,
-            },
-          ]}
-          activeOpacity={0.85}
-        >
-          <Feather name="plus" size={26} color={theme.primaryForeground} />
-        </TouchableOpacity>
-      )}
-
-      {/* Barra de Navegação Inferior (Mobile: Início, Conta, Explorar) */}
+      {/* Barra de Navegação Flutuante em Pílula (Mobile) com Botão + Integrado */}
       {!r.isDesktop && (
         <BottomNav
           active={view}
           bottomInset={insets.bottom}
           onSelect={handleNav}
+          onAddPress={handleAbrirModal}
         />
       )}
 
-      {/* Modal Existente de Adicionar Desejo */}
+      {/* Quick Creation Bottom Sheet com Tags Pílula de Prioridade */}
       <AdicionarDesejoModal
         visivel={modalVisivel}
         aoFechar={handleFecharModalDesejo}
@@ -759,7 +937,7 @@ export default function HomeScreen({ navigation }: any) {
         urlInicial={urlCompartilhadaModal}
       />
 
-      {/* Modal de Editar Desejo */}
+      {/* Bottom Sheet de Edição de Desejo */}
       <EditarDesejoModal
         visivel={modalEditarVisivel}
         item={itemParaEditar}
@@ -767,7 +945,7 @@ export default function HomeScreen({ navigation }: any) {
         aoSalvarSucesso={handleDesejoAtualizado}
       />
 
-      {/* Modal Existente de Gerenciar Conta */}
+      {/* Modal Monocromático de Gerenciamento de Conta */}
       <GerenciarContaModal
         visivel={modalContaVisivel}
         aoFechar={handleFecharModalConta}
@@ -777,7 +955,7 @@ export default function HomeScreen({ navigation }: any) {
         aoMudarDeConta={handleMudarDeConta}
       />
 
-      {/* Modal de Ordenação dos Desejos */}
+      {/* Bottom Sheet de Ordenação */}
       <ModalOrdenacao
         visivel={modalOrdenacaoVisivel}
         ordemAtual={ordem}
@@ -792,48 +970,108 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
     paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
     zIndex: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+  },
+  mobileHeaderStack: {
+    gap: 10,
+  },
+  mobileBrandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  mobileBrandLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  monogramBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monogramText: {
+    fontFamily: typography.fonts.sans,
+    fontSize: 15,
+    fontWeight: typography.weights.extrabold,
+    letterSpacing: -0.5,
+  },
+  mobileBrandTitle: {
+    fontFamily: typography.fonts.sans,
+    fontSize: 18,
+    fontWeight: typography.weights.extrabold,
+    letterSpacing: -0.5,
+  },
+  mobileBrandSub: {
+    fontFamily: typography.fonts.sans,
+    fontSize: 11,
+    fontWeight: typography.weights.medium,
+  },
+  mobileAvatarBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scroll: { flex: 1 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  chips: { gap: 8, paddingBottom: 4 },
-  chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1.2,
-  },
-  chipText: {
+  loadingText: {
+    marginTop: 14,
     fontFamily: typography.fonts.sans,
     fontSize: 13,
+    fontWeight: typography.weights.medium,
   },
-  section: { marginTop: 20 },
+  section: { marginTop: 22 },
   listaContainer: { width: '100%' },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  emptyContainer: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 20 },
-  emptyTitle: { fontFamily: typography.fonts.sans, fontWeight: typography.weights.bold, fontSize: 18, marginBottom: 8 },
-  emptySubtitle: { fontFamily: typography.fonts.sans, fontSize: 14, textAlign: 'center', lineHeight: 20, maxWidth: 320, marginBottom: 20 },
-  emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 22, height: 48, borderRadius: 24 },
-  emptyBtnText: { fontFamily: typography.fonts.sans, fontWeight: typography.weights.bold, fontSize: 15 },
-  fab: {
-    position: 'absolute',
-    right: 18,
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 44,
+    paddingHorizontal: 24,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    marginTop: 12,
+  },
+  emptyIconBadge: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 8,
-    zIndex: 90,
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontFamily: typography.fonts.sans,
+    fontWeight: typography.weights.extrabold,
+    fontSize: 18,
+    letterSpacing: -0.3,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontFamily: typography.fonts.sans,
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 360,
+    marginBottom: 22,
+  },
+  emptyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 24,
+    height: 46,
+    borderRadius: radius.full,
+  },
+  emptyBtnText: {
+    fontFamily: typography.fonts.sans,
+    fontWeight: typography.weights.bold,
+    fontSize: 14,
   },
 });

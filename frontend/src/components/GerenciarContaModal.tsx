@@ -1,11 +1,5 @@
 /**
- * GerenciarContaModal.tsx — Modal para Gerenciamento de Conta do Usuário
- *
- * Permite ao usuário visualizar as informações do seu perfil atual,
- * deslogar da aplicação com encerramento seguro de sessão
- * ou navegar para o cadastro de uma nova conta.
- *
- * Cores, tipografia e espaçamentos integrados à paleta Claude Amber.
+ * GerenciarContaModal.tsx — Modal Minimalista Monocromático de Conta e Sessão
  */
 
 import React, { useState } from 'react';
@@ -20,9 +14,9 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { useTheme, spacing, radius, shadows, typography } from '../theme';
 
-/** Propriedades recebidas pelo componente de Gerenciamento de Conta */
 interface GerenciarContaModalProps {
   visivel: boolean;
   aoFechar: () => void;
@@ -40,18 +34,14 @@ export default function GerenciarContaModal({
   aoCriarNovaConta,
 }: GerenciarContaModalProps) {
   const theme = useTheme();
-
-  // Estado para indicar processamento de saída/deslogar
   const [processando, setProcessando] = useState(false);
 
-  // Extrai a primeira letra do e-mail para o avatar, ou usa 'U' como fallback
-  const inicialUsuario = (emailUsuario && emailUsuario.trim().length > 0)
-    ? emailUsuario.trim().charAt(0).toUpperCase()
-    : 'U';
+  const inicialUsuario =
+    emailUsuario && emailUsuario.trim().length > 0
+      ? emailUsuario.trim().charAt(0).toUpperCase()
+      : 'U';
 
-  /**
-   * Executa confirmação e encerramento de sessão para Logout
-   */
+  // Solicita confirmação e encerra a sessão atual com segurança
   const handleConfirmarDeslogar = async () => {
     const executarSaida = async () => {
       setProcessando(true);
@@ -80,22 +70,13 @@ export default function GerenciarContaModal({
     }
   };
 
-  /**
-   * Redireciona para o cadastro de uma nova conta
-   */
   const handleCriarNovaConta = () => {
     aoFechar();
     aoCriarNovaConta();
   };
 
   return (
-    <Modal
-      visible={visivel}
-      transparent
-      animationType="fade"
-      onRequestClose={aoFechar}
-    >
-      {/* Backdrop semi-transparente com clique para fechar */}
+    <Modal visible={visivel} transparent animationType="fade" onRequestClose={aoFechar}>
       <TouchableWithoutFeedback onPress={aoFechar}>
         <View style={styles.backdrop}>
           <TouchableWithoutFeedback>
@@ -103,7 +84,7 @@ export default function GerenciarContaModal({
               style={[
                 styles.modalCard,
                 {
-                  backgroundColor: theme.card,
+                  backgroundColor: theme.background,
                   borderColor: theme.border,
                 },
                 shadows.lg,
@@ -111,36 +92,30 @@ export default function GerenciarContaModal({
               accessibilityRole="summary"
               accessibilityLabel="Gerenciamento de Conta do Usuário"
             >
-              {/* ── Cabeçalho do Modal ── */}
+              {/* Cabeçalho */}
               <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
-                <Text
-                  style={[
-                    styles.modalTitulo,
-                    { color: theme.foreground },
-                  ]}
-                  accessibilityRole="header"
-                >
+                <Text style={[styles.modalTitulo, { color: theme.foreground }]} accessibilityRole="header">
                   Minha Conta
                 </Text>
 
                 <TouchableOpacity
                   onPress={aoFechar}
-                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                  style={[styles.botaoFechar, { backgroundColor: theme.muted }]}
+                  hitSlop={10}
+                  style={[styles.botaoFechar, { backgroundColor: theme.secondary }]}
                   accessibilityLabel="Fechar janela de gerenciamento de conta"
                 >
-                  <Text style={[styles.botaoFecharTexto, { color: theme.foreground }]}>✕</Text>
+                  <Feather name="x" size={16} color={theme.foreground} />
                 </TouchableOpacity>
               </View>
 
-              {/* ── Cartão Informativo do Usuário ── */}
-              <View style={[styles.perfilCard, { backgroundColor: theme.secondary }]}>
-                <View
-                  style={[
-                    styles.avatarGrande,
-                    { backgroundColor: theme.primary },
-                  ]}
-                >
+              {/* Cartão do Usuário */}
+              <View
+                style={[
+                  styles.perfilCard,
+                  { backgroundColor: theme.card, borderColor: theme.border },
+                ]}
+              >
+                <View style={[styles.avatarGrande, { backgroundColor: theme.primary }]}>
                   <Text style={[styles.avatarGrandeTexto, { color: theme.primaryForeground }]}>
                     {inicialUsuario}
                   </Text>
@@ -148,38 +123,35 @@ export default function GerenciarContaModal({
 
                 <View style={styles.perfilInfo}>
                   <Text
-                    style={[styles.perfilEmail, { color: theme.secondaryForeground }]}
+                    style={[styles.perfilEmail, { color: theme.foreground }]}
                     numberOfLines={1}
                   >
                     {emailUsuario || 'Usuário Conectado'}
                   </Text>
 
                   <View style={styles.badgeSessao}>
-                    <View style={styles.badgePontoAtivo} />
+                    <View style={[styles.badgePontoAtivo, { backgroundColor: theme.primary }]} />
                     <Text style={[styles.badgeSessaoTexto, { color: theme.mutedForeground }]}>
-                      Sessão ativa
+                      Sessão autenticada
                     </Text>
                   </View>
                 </View>
               </View>
 
-              {/* ── Indicador de Processamento ── */}
               {processando ? (
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator size="small" color={theme.primary} />
                   <Text style={[styles.loadingTexto, { color: theme.mutedForeground }]}>
-                    Processando saída...
+                    Encerrando sessão...
                   </Text>
                 </View>
               ) : (
-                /* ── Lista de Ações de Gerenciamento ── */
                 <View style={styles.acoesContainer}>
-                  {/* Opção: Criar Nova Conta */}
                   <TouchableOpacity
                     style={[
                       styles.opcaoBotao,
                       {
-                        backgroundColor: theme.background,
+                        backgroundColor: theme.card,
                         borderColor: theme.border,
                       },
                     ]}
@@ -187,55 +159,56 @@ export default function GerenciarContaModal({
                     activeOpacity={0.8}
                     accessibilityRole="button"
                     accessibilityLabel="Cadastrar nova conta"
-                    accessibilityHint="Abre a tela de cadastro para registrar um novo usuário"
                   >
-                    <View style={[styles.opcaoIconeContainer, { backgroundColor: `${theme.chart1}18` }]}>
-                      <Text style={styles.opcaoIcone}>➕</Text>
+                    <View style={[styles.opcaoIconeContainer, { backgroundColor: theme.secondary }]}>
+                      <Feather name="user-plus" size={16} color={theme.foreground} />
                     </View>
                     <View style={styles.opcaoTextoContainer}>
                       <Text style={[styles.opcaoTitulo, { color: theme.foreground }]}>
                         Criar outra conta
                       </Text>
                       <Text style={[styles.opcaoDescricao, { color: theme.mutedForeground }]}>
-                        Registrar novo usuário
+                        Registrar novo perfil de acesso
                       </Text>
                     </View>
-                    <Text style={[styles.opcaoSeta, { color: theme.mutedForeground }]}>›</Text>
+                    <Feather name="chevron-right" size={18} color={theme.mutedForeground} />
                   </TouchableOpacity>
 
-                  {/* Opção: Deslogar (Sair da Conta) */}
                   <TouchableOpacity
                     style={[
                       styles.opcaoBotao,
-                      styles.opcaoBotaoSair,
                       {
-                        backgroundColor: `${theme.destructive}12`,
-                        borderColor: `${theme.destructive}40`,
+                        backgroundColor: theme.primary,
+                        borderColor: theme.primary,
                       },
                     ]}
                     onPress={handleConfirmarDeslogar}
-                    activeOpacity={0.8}
+                    activeOpacity={0.85}
                     accessibilityRole="button"
                     accessibilityLabel="Deslogar da aplicação"
-                    accessibilityHint="Encerra a sessão atual e retorna à tela de autenticação"
                   >
                     <View
                       style={[
                         styles.opcaoIconeContainer,
-                        { backgroundColor: `${theme.destructive}20` },
+                        { backgroundColor: 'rgba(255,255,255,0.14)' },
                       ]}
                     >
-                      <Text style={styles.opcaoIcone}>🚪</Text>
+                      <Feather name="log-out" size={16} color={theme.primaryForeground} />
                     </View>
                     <View style={styles.opcaoTextoContainer}>
-                      <Text style={[styles.opcaoTitulo, { color: theme.destructive }]}>
+                      <Text style={[styles.opcaoTitulo, { color: theme.primaryForeground }]}>
                         Deslogar
                       </Text>
-                      <Text style={[styles.opcaoDescricao, { color: theme.mutedForeground }]}>
+                      <Text
+                        style={[
+                          styles.opcaoDescricao,
+                          { color: theme.primaryForeground, opacity: 0.75 },
+                        ]}
+                      >
                         Sair desta conta com segurança
                       </Text>
                     </View>
-                    <Text style={[styles.opcaoSeta, { color: theme.destructive }]}>›</Text>
+                    <Feather name="chevron-right" size={18} color={theme.primaryForeground} />
                   </TouchableOpacity>
                 </View>
               )}
@@ -250,7 +223,7 @@ export default function GerenciarContaModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    backgroundColor: 'rgba(9, 9, 11, 0.48)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.xl,
@@ -267,42 +240,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.md,
     borderBottomWidth: 1,
   },
   modalTitulo: {
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    fontSize: 20,
+    fontWeight: '800',
     fontFamily: typography.fonts.sans,
+    letterSpacing: -0.4,
   },
   botaoFechar: {
     width: 32,
     height: 32,
-    borderRadius: radius.full,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  botaoFecharTexto: {
-    fontSize: 14,
-    fontWeight: typography.weights.bold,
   },
   perfilCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: spacing.md,
     borderRadius: radius.lg,
+    borderWidth: 1,
     gap: spacing.md,
   },
   avatarGrande: {
-    width: 52,
-    height: 52,
+    width: 48,
+    height: 48,
     borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarGrandeTexto: {
-    fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.bold,
+    fontSize: 20,
+    fontWeight: '800',
     fontFamily: typography.fonts.sans,
   },
   perfilInfo: {
@@ -311,8 +282,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   perfilEmail: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.semibold,
+    fontSize: 15,
+    fontWeight: '700',
     fontFamily: typography.fonts.sans,
   },
   badgeSessao: {
@@ -321,14 +292,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   badgePontoAtivo: {
-    width: 8,
-    height: 8,
+    width: 7,
+    height: 7,
     borderRadius: radius.full,
-    backgroundColor: '#10B981', // Verde de status ativo
   },
   badgeSessaoTexto: {
-    fontSize: typography.sizes.xs,
-    fontFamily: typography.fonts.sans,
+    fontSize: 11,
+    fontFamily: typography.fonts.mono,
   },
   loadingContainer: {
     flexDirection: 'row',
@@ -342,44 +312,34 @@ const styles = StyleSheet.create({
     fontFamily: typography.fonts.sans,
   },
   acoesContainer: {
-    gap: spacing.sm,
+    gap: 10,
   },
   opcaoBotao: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: radius.md,
+    padding: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    gap: spacing.md,
-  },
-  opcaoBotaoSair: {
-    marginTop: spacing.xs,
+    gap: 12,
   },
   opcaoIconeContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.md,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  opcaoIcone: {
-    fontSize: 18,
   },
   opcaoTextoContainer: {
     flex: 1,
     gap: 2,
   },
   opcaoTitulo: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
+    fontSize: 14,
+    fontWeight: '700',
     fontFamily: typography.fonts.sans,
   },
   opcaoDescricao: {
-    fontSize: typography.sizes.xs,
+    fontSize: 12,
     fontFamily: typography.fonts.sans,
-  },
-  opcaoSeta: {
-    fontSize: 20,
-    fontWeight: typography.weights.bold,
   },
 });
