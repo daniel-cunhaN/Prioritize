@@ -166,12 +166,15 @@ Todos os endpoints abaixo exigem cabeçalho `Authorization: Bearer <token>`.
 
 ## 5. Serviço de Scraping de Metadados (`scraper.js`)
 
-O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nativo do Node.js com timeout controlado via `AbortSignal.timeout`, a biblioteca `cheerio` para parsing ultra-rápido de HTML e estratégias para contornar proteções anti-bot comuns em e-commerces:
+O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nativo do Node.js com timeout controlado via `AbortSignal.timeout`, a biblioteca `cheerio` para parsing ultra-rápido de HTML e estratégias avançadas para contornar proteções anti-bot e Single Page Applications (SPAs) comuns em grandes e-commerces:
 
-1. **Perfis de Requisição Sucessivos (Anti-bot Bypass)**: Tentativas ordenadas com perfis `Twitterbot/1.0` e `facebookexternalhit/1.1`.
-2. **Fontes Múltiplas e Precedência de Imagem**: OpenGraph, Twitter Cards, JSON-LD `Product` e microformatos `itemprop="image"`.
-3. **Fallback Resiliente da Amazon por ASIN**: Extração do ASIN (`/dp/ASIN`) e consulta direta à CDN oficial da Amazon descartando GIFs vazios.
-4. **Fallback Tolerante a Falhas**: Geração de título amigável a partir do domínio caso o site esteja indisponível.
+1. **Perfis de Requisição Sucessivos e Otimização para Marketplaces (Anti-bot Bypass)**:
+   - Tentativas ordenadas combinando navegador desktop moderno (`Chrome`), crawlers de redes sociais (`Twitterbot/1.0`, `facebookexternalhit/1.1`) e crawlers de mensageiros (`WhatsApp/2.23.23.77 A`).
+   - **Suporte Nativo a Shopee e Links Encurtados (`ehUrlShopee` e `obterPerfisParaUrl`)**: Para URLs pertencentes à Shopee (`shopee.com.br`, `shopee.com`, `shope.ee`, `s.shopee.com.br`), o scraper prioriza imediatamente o perfil do WhatsApp no topo da lista. Isso contorna o problema de SPAs vazios servidos para navegadores comuns e bloqueios HTTP 403 de bots genéricos, recebendo o HTML com SSR (Server-Side Rendering) completo com imagem de alta resolução na CDN (`down-br.img.susercontent.com`) e título do produto na 1ª tentativa.
+2. **Fontes Múltiplas e Precedência de Imagem**: OpenGraph (`og:image`, `og:image:secure_url`), Twitter Cards (`twitter:image`), JSON-LD `Product` e microformatos `itemprop="image"` e `link rel="image_src"`.
+3. **Extração Segura de Preço (`extrairPrecoDeTexto`)**: Precedência rigorosa de valores monetários a partir de meta tags específicas (`product:price:amount`, `og:price:amount`, JSON-LD `Product` com `offers`). Em textos descritivos, exige obrigatoriamente a presença explícita de símbolo de moeda (`R$` ou `$`), impedindo falso-positivo de especificações ou nomes de modelo (ex.: "VC-10", "iPhone 15") como se fossem o preço do produto.
+4. **Fallback Resiliente da Amazon por ASIN**: Extração do ASIN (`/dp/ASIN`) e consulta direta à CDN oficial da Amazon descartando GIFs vazios.
+5. **Fallback Tolerante a Falhas**: Geração de título amigável a partir do domínio caso o site esteja indisponível.
 
 ---
 
@@ -225,7 +228,7 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
 
 ## 7. Como Executar os Testes
 
-O projeto conta com uma suíte completa de **86 testes automatizados** (45 no backend e 41 no frontend) desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
+O projeto conta com uma suíte completa de **91 testes automatizados** (50 no backend e 41 no frontend) desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
 
 ### Execução Unificada (Backend + Frontend)
 Na raiz do projeto:
@@ -233,8 +236,8 @@ Na raiz do projeto:
 npm test
 ```
 
-### Testes do Backend (45 testes)
-Testes unitários e de integração de autenticação (rejeição de credenciais inválidas e tokens de usuários inexistentes), banco de dados, rotas de wishlist (filtros, busca, ordenação e preço), extração de metadados e segurança:
+### Testes do Backend (50 testes)
+Testes unitários e de integração de autenticação (rejeição de credenciais inválidas e tokens de usuários inexistentes), banco de dados, rotas de wishlist (filtros, busca, ordenação e preço), extração de metadados resiliente a lojas anti-bot e Shopee (SSR via crawler WhatsApp), normalização segura de valores e segurança:
 ```bash
 cd backend
 npm test

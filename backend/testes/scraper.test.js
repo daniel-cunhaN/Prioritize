@@ -5,7 +5,11 @@
 
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
-import { extrairMetadadosDeHtml, extrairMetadadosUrl } from '../src/services/scraper.js';
+import {
+  extrairMetadadosDeHtml,
+  extrairMetadadosUrl,
+  extrairPrecoDeTexto,
+} from '../src/services/scraper.js';
 
 describe('Serviço de Scraping de Metadados (Cheerio)', () => {
   test('deve extrair og:title e og:image prioritariamente de documento HTML', () => {
@@ -126,5 +130,33 @@ describe('Serviço de Scraping de Metadados (Cheerio)', () => {
 
     // Assert
     assert.strictEqual(metadados.price, 88.02);
+  });
+
+  test('deve extrair preco de texto livre apenas quando contiver símbolo de moeda (R$ ou $)', () => {
+    assert.strictEqual(extrairPrecoDeTexto('Compre por R$ 88,02 na promoção'), 88.02);
+    assert.strictEqual(extrairPrecoDeTexto('Valor de R$ 1.499,90 à vista'), 1499.9);
+    assert.strictEqual(extrairPrecoDeTexto('Oferta especial $ 29.99'), 29.99);
+
+    // Deve ignorar números soltos em nomes de modelos e títulos para evitar falso-positivo
+    assert.strictEqual(extrairPrecoDeTexto('Antissinais c/ Vitamina VC-10'), null);
+    assert.strictEqual(extrairPrecoDeTexto('Apple iPhone 15 Pro Max 256GB'), null);
+    assert.strictEqual(extrairPrecoDeTexto(''), null);
+    assert.strictEqual(extrairPrecoDeTexto(null), null);
+  });
+
+  test('não deve contaminar preco com número do modelo presente no título ou descrição sem moeda', () => {
+    const htmlMock = `
+      <html>
+        <head>
+          <title>Principia Antissinais Dia e Noite c/ Vitamina VC-10</title>
+          <meta property="og:title" content="Principia Antissinais Dia e Noite c/ Vitamina VC-10" />
+          <meta property="og:description" content="Kit com 2 séruns de alta performance contendo Vitamina C 10%" />
+        </head>
+      </html>
+    `;
+
+    const metadados = extrairMetadadosDeHtml(htmlMock, 'https://shopee.com.br/principia-vc10');
+
+    assert.strictEqual(metadados.price, null);
   });
 });

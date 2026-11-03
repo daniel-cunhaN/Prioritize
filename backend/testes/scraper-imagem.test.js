@@ -17,6 +17,8 @@ import {
   extrairMetadadosDeHtml,
   extrairMetadadosUrl,
   extrairAsinAmazon,
+  ehUrlShopee,
+  obterPerfisParaUrl,
 } from '../src/services/scraper.js';
 
 // ─── Utilitário: cria uma resposta HTTP simulada compatível com fetch ─────────
@@ -236,5 +238,100 @@ describe('Extração de imagem: fallback da Amazon por ASIN', () => {
     });
 
     assert.strictEqual(resultado.imagem_url, null);
+  });
+});
+
+describe('Extração de imagem: marketplaces e Shopee (SSR via crawler WhatsApp)', () => {
+  test('deve identificar URLs oficiais e encurtadas da Shopee com ehUrlShopee', () => {
+    assert.strictEqual(
+      ehUrlShopee('https://shopee.com.br/Principia-Antissinais-Dia-e-Noite-i.1613313673.58266270841'),
+      true
+    );
+    assert.strictEqual(ehUrlShopee('https://www.shopee.com.br/produto/123'), true);
+    assert.strictEqual(ehUrlShopee('https://shope.ee/8A9bXYZ'), true);
+    assert.strictEqual(ehUrlShopee('https://s.shopee.com.br/xyz'), true);
+    assert.strictEqual(ehUrlShopee('https://shopee.com/item-xyz'), true);
+
+    // Domínios que não pertencem à Shopee
+    assert.strictEqual(ehUrlShopee('https://www.mercadolivre.com.br/produto'), false);
+    assert.strictEqual(ehUrlShopee('https://www.amazon.com.br/dp/B0CHX1W1XY'), false);
+    assert.strictEqual(ehUrlShopee('https://shopee.falso.com.br'), false);
+    assert.strictEqual(ehUrlShopee(''), false);
+    assert.strictEqual(ehUrlShopee(null), false);
+  });
+
+  test('deve priorizar perfil do WhatsApp para URLs da Shopee', () => {
+    const perfisShopee = obterPerfisParaUrl('https://shopee.com.br/produto-teste');
+    assert.ok(perfisShopee.length >= 4);
+    assert.ok(
+      /WhatsApp/i.test(perfisShopee[0]['User-Agent']),
+      'O 1º perfil para a Shopee deve ser o do WhatsApp'
+    );
+
+    const perfisGerais = obterPerfisParaUrl('https://outraloja.com.br/item');
+    assert.ok(
+      /Mozilla|Chrome/i.test(perfisGerais[0]['User-Agent']),
+      'O 1º perfil para lojas em geral deve ser o navegador padrão'
+    );
+    assert.ok(
+      perfisGerais.some((p) => /WhatsApp/i.test(p['User-Agent'])),
+      'O perfil do WhatsApp deve constar na lista geral de fallbacks'
+    );
+  });
+
+  test('deve extrair og:image e og:title da Shopee na 1ª tentativa utilizando SSR do WhatsApp', async () => {
+    // Arrange: simula o comportamento da Shopee
+    // - Para WhatsApp: retorna HTML SSR com og:image e og:title
+    // - Para Chrome: retornaria SPA vazio de 155 KB sem metadados
+    // - Para Twitter/Facebook: retornaria 403 Forbidden
+    const urlShopee =
+      'https://shopee.com.br/Principia-Antissinais-Dia-e-Noite-c-Vitamina-VC-10-S%C3%A9rum-Retinol-Rn-0-3-Vitamina-C-Para-o-Rosto-Serum-Facial-i.1613313673.58266270841';
+
+    const htmlShopeeSsr = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Antissinais Dia e Noite c/ Vitamina VC-10 + Sérum Retinol | Shopee Brasil</title>
+          <meta property="og:title" content="Antissinais Dia e Noite c/ Vitamina VC-10 + Sérum Retinol Rn-0,3 - Vitamina C Para o Rosto - Serum Facial | Shopee Brasil" />
+          <meta property="og:image" content="https://down-br.img.susercontent.com/file/sg-11134201-825b8-mrwqjp841iio33" />
+          <meta property="og:description" content="Compre Antissinais Dia e Noite c/ Vitamina VC-10 na Shopee Brasil!" />
+        </head>
+        <body></body>
+      </html>
+    `;
+
+    const tentativas = [];
+    const fetchSimulado = async (url, opcoes) => {
+      const ua = opcoes?.headers?.['User-Agent'] || '';
+      tentativas.push(ua);
+
+      if (/WhatsApp/i.test(ua)) {
+        return respostaFalsa({ status: 200, html: htmlShopeeSsr, url });
+      }
+      if (/Twitterbot|facebookexternalhit/i.test(ua)) {
+        return respostaFalsa({ status: 403, html: 'Forbidden', url });
+      }
+      // Navegador comum recebe SPA vazio sem og:image
+      return respostaFalsa({
+        status: 200,
+        html: '<html><head><title>Shopee Brasil</title></head><body><div id="main"></div></body></html>',
+        url,
+      });
+    };
+
+    // Act
+    const metadados = await extrairMetadadosUrl(urlShopee, { fetchFn: fetchSimulado });
+
+    // Assert
+    assert.strictEqual(
+      metadados.imagem_url,
+      'https://down-br.img.susercontent.com/file/sg-11134201-825b8-mrwqjp841iio33'
+    );
+    assert.strictEqual(
+      metadados.titulo,
+      'Antissinais Dia e Noite c/ Vitamina VC-10 + Sérum Retinol Rn-0,3 - Vitamina C Para o Rosto - Serum Facial | Shopee Brasil'
+    );
+    assert.strictEqual(tentativas.length, 1, 'Deve ter resolvido com sucesso na 1ª tentativa');
+    assert.ok(/WhatsApp/i.test(tentativas[0]));
   });
 });

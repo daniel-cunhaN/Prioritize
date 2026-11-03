@@ -23,26 +23,82 @@ const TIMEOUT_TENTATIVA_MS = 6000;
 // ASINs inexistentes retornam um pixel GIF transparente de 43 bytes.
 const TAMANHO_MINIMO_IMAGEM_AMAZON = 1000;
 
-// ─── Perfis de requisição, na ordem em que serão tentados ─────────────────────
-const PERFIS_REQUISICAO = [
-  // 1) Navegador moderno: funciona na maioria das lojas sem proteção agressiva
-  {
-    'User-Agent':
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
-  },
-  // 2) Crawler de prévia do Twitter/X: liberado pelo Mercado Livre e outras lojas
-  {
-    'User-Agent': 'Twitterbot/1.0',
-    Accept: 'text/html,application/xhtml+xml',
-  },
-  // 3) Crawler de prévia do Facebook/WhatsApp
-  {
-    'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
-    Accept: 'text/html,application/xhtml+xml',
-  },
+// ─── Perfis de requisição com cabeçalhos específicos ──────────────────────────
+
+// Perfil de navegador desktop moderno: padrão para a maioria das lojas e sites convencionais
+export const PERFIL_NAVEGADOR = {
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+  'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+};
+
+// Perfil de crawler de prévia do WhatsApp:
+// Utilizado para contornar SPAs e proteções de marketplaces como a Shopee, que entregam
+// renderização do lado do servidor (SSR) completa com OpenGraph (og:image e og:title)
+export const PERFIL_WHATSAPP = {
+  'User-Agent': 'WhatsApp/2.23.23.77 A',
+  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+  'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+};
+
+// Perfil de crawler do Twitter/X: liberado por Mercado Livre e grandes e-commerces
+export const PERFIL_TWITTER = {
+  'User-Agent': 'Twitterbot/1.0',
+  Accept: 'text/html,application/xhtml+xml',
+};
+
+// Perfil de crawler de prévia do Facebook
+export const PERFIL_FACEBOOK = {
+  'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+  Accept: 'text/html,application/xhtml+xml',
+};
+
+// Lista padrão de perfis tentados sequencialmente para links genéricos
+export const PERFIS_REQUISICAO = [
+  PERFIL_NAVEGADOR,
+  PERFIL_TWITTER,
+  PERFIL_FACEBOOK,
+  PERFIL_WHATSAPP,
 ];
+
+/**
+ * Verifica se a URL informada pertence ao marketplace Shopee (domínios oficiais ou encurtados).
+ * Ex: shopee.com.br, shopee.com, shope.ee, s.shopee.com.br.
+ *
+ * @param {string} url - URL para checagem
+ * @returns {boolean}
+ */
+export function ehUrlShopee(url) {
+  if (!url || typeof url !== 'string') return false;
+  try {
+    const urlFormatada = url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`;
+    const { hostname } = new URL(urlFormatada);
+    // Links encurtados oficiais: shope.ee ou *.shope.ee
+    if (/(^|\.)shope\.ee$/i.test(hostname)) return true;
+    // Domínios oficiais da Shopee: o domínio principal deve ser 'shopee' (ex: shopee.com.br, shopee.com, s.shopee.com.br)
+    // Rejeita domínios maliciosos onde shopee é mero subdomínio (ex: shopee.falso.com.br)
+    return /(^|\.)shopee\.(com(\.[a-z]{2})?|co\.[a-z]{2}|[a-z]{2,3})$/i.test(hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Retorna os perfis de requisição na ordem otimizada para o domínio de destino.
+ * Para a Shopee, prioriza imediatamente o crawler do WhatsApp para receber
+ * o HTML pré-renderizado (SSR) com imagem e título, evitando o SPA vazio do navegador
+ * e os bloqueios 403 de bots comuns.
+ *
+ * @param {string} url - URL de destino
+ * @returns {Array<object>}
+ */
+export function obterPerfisParaUrl(url) {
+  if (ehUrlShopee(url)) {
+    return [PERFIL_WHATSAPP, PERFIL_NAVEGADOR, PERFIL_TWITTER, PERFIL_FACEBOOK];
+  }
+  return [PERFIL_NAVEGADOR, PERFIL_TWITTER, PERFIL_FACEBOOK, PERFIL_WHATSAPP];
+}
 
 // ─── Seletores de imagem em ordem de prioridade ───────────────────────────────
 // Cada item define o seletor CSS e o atributo de onde a URL será lida.
@@ -103,6 +159,21 @@ export function normalizarPreco(valor) {
 
   const num = parseFloat(limpo);
   return Number.isFinite(num) && num > 0 ? Math.round(num * 100) / 100 : null;
+}
+
+/**
+ * Extrai valor monetário a partir de texto livre (descrição ou corpo HTML),
+ * exigindo a presença explícita do símbolo de moeda (R$ ou $) para evitar
+ * falso-positivo com números de modelo ou especificações (ex.: iPhone 15, VC-10).
+ *
+ * @param {string} texto
+ * @returns {number|null}
+ */
+export function extrairPrecoDeTexto(texto) {
+  if (!texto || typeof texto !== 'string') return null;
+  const match = texto.match(/(?:R\$|\$)\s*(\d{1,3}(?:\.\d{3})*,\d{2}|\d+(?:[.,]\d{1,2})?)/i);
+  if (!match) return null;
+  return normalizarPreco(match[1]);
 }
 
 /**
@@ -278,7 +349,7 @@ function analisarHtml(html, urlOrigem) {
     extrairImagemJsonLd($) ||
     primeiroValor($, SELETORES_IMAGEM_SECUNDARIOS);
 
-  // Precedência de preços: metas OG/Twitter/Product > JSON-LD Product > seletores HTML > Texto/descrição
+  // Precedência de preços: metas OG/Twitter/Product > JSON-LD Product > seletores HTML > Texto com moeda explícita (R$)
   const precoMeta = normalizarPreco(primeiroValor($, SELETORES_PRECO_META));
   const precoJsonLd = extrairPrecoJsonLd($);
   const precoHtml = normalizarPreco(
@@ -286,10 +357,9 @@ function analisarHtml(html, urlOrigem) {
     $('.a-price .a-offscreen').first().text() ||
     null
   );
-  const precoTexto = normalizarPreco(
+  const precoTexto = extrairPrecoDeTexto(
     $('meta[property="og:description"]').attr('content') ||
     $('meta[name="description"]').attr('content') ||
-    titulo ||
     null
   );
   const price = precoMeta ?? precoJsonLd ?? precoHtml ?? precoTexto ?? null;
@@ -378,7 +448,10 @@ export async function extrairMetadadosUrl(url, { fetchFn = fetch } = {}) {
   // URL final após redirecionamentos (útil para links encurtados, ex.: amzn.to)
   let ultimaUrlFinal = urlNormalizada;
 
-  for (const cabecalhos of PERFIS_REQUISICAO) {
+  // Obtém a ordem otimizada de perfis de acordo com o marketplace ou loja da URL
+  const perfis = obterPerfisParaUrl(urlNormalizada);
+
+  for (const cabecalhos of perfis) {
     try {
       const resposta = await fetchFn(urlNormalizada, {
         headers: cabecalhos,
