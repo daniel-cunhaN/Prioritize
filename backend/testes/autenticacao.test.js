@@ -76,4 +76,34 @@ describe('Middleware de Autenticação JWT', () => {
     assert.strictEqual(req.usuario.id, idUsuarioTeste);
     assert.strictEqual(req.usuario.email, emailTeste);
   });
+
+  test('deve rejeitar token de usuário inexistente no banco com status 401', () => {
+    // Arrange: token válido assinado mas com sub de usuário inexistente
+    const tokenInexistente = criarTokenAcesso({ sub: 'usuario-fantasma-inexistente' });
+    const req = { headers: { authorization: `Bearer ${tokenInexistente}` } };
+    let statusRetornado = null;
+    let jsonRetornado = null;
+    const res = {
+      status: (codigo) => {
+        statusRetornado = codigo;
+        return {
+          json: (dados) => {
+            jsonRetornado = dados;
+          },
+        };
+      },
+    };
+    let nextChamado = false;
+    const next = () => {
+      nextChamado = true;
+    };
+
+    // Act
+    exigirAutenticacao(req, res, next);
+
+    // Assert
+    assert.strictEqual(statusRetornado, 401);
+    assert.strictEqual(jsonRetornado.codigo, 'CREDENCIAIS_INVALIDAS');
+    assert.strictEqual(nextChamado, false);
+  });
 });

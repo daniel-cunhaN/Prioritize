@@ -3,12 +3,13 @@
  *
  * Prioriza token da memória (via módulo validacao.ts) antes de
  * recorrer ao armazenamento persistente (SecureStore no mobile ou localStorage na Web).
+ * Inclui interceptor de resposta para invalidação e limpeza automática de sessão em caso de erro 401.
  */
 
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
-import { obterToken } from '../utils/validacao';
+import { obterToken, encerrarSessao } from '../utils/validacao';
 
 /* Resolve a URL base de acordo com a plataforma */
 const getBaseUrl = () => {
@@ -47,5 +48,29 @@ client.interceptors.request.use(async (config) => {
   }
   return config;
 });
+
+/**
+ * Interceptor de resposta — trata expiração ou rejeição de credenciais (401 Unauthorized).
+ * Em rotas protegidas, encerra a sessão pendente e notifica a aplicação para redirecionar ao login.
+ */
+client.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const status = error.response?.status;
+    const url = error.config?.url || '';
+
+    // Se o status for 401 e não for rota pública de autenticação, limpa o token expirado
+    if (status === 401 && !url.includes('/auth/login') && !url.includes('/auth/register')) {
+      await encerrarSessao();
+
+      // Dispara evento na Web para notificar componentes ativos
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('prioritize:sessao-expirada'));
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 export default client;

@@ -149,7 +149,11 @@ export default function AdicionarDesejoModal({
         setPrecoDetectado(true);
       }
     } catch (erro: any) {
-      console.warn('Erro ao extrair metadados do link:', erro);
+      if (erro?.response?.status === 401) {
+        setMensagemErro('Sua sessão expirou. Por favor, faça login novamente para consultar produtos.');
+      } else {
+        console.warn('Erro ao extrair metadados do link:', erro);
+      }
       // Fallback: não impede o usuário de preencher o título manualmente
       if (!titulo) {
         try {
@@ -205,11 +209,15 @@ export default function AdicionarDesejoModal({
         Alert.alert('Sucesso', 'Desejo adicionado com sucesso!');
       }
     } catch (erro: any) {
-      console.error('Erro ao salvar desejo:', erro);
-      const msg =
-        erro.response?.data?.detail?.mensagem ||
-        'Não foi possível salvar o desejo. Tente novamente.';
-      setMensagemErro(msg);
+      if (erro?.response?.status === 401) {
+        setMensagemErro('Sua sessão expirou. Por favor, faça login novamente para salvar desejos.');
+      } else {
+        console.error('Erro ao salvar desejo:', erro);
+        const msg =
+          erro.response?.data?.detail?.mensagem ||
+          'Não foi possível salvar o desejo. Tente novamente.';
+        setMensagemErro(msg);
+      }
     } finally {
       setSalvando(false);
     }

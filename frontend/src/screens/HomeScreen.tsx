@@ -92,18 +92,23 @@ export default function HomeScreen({ navigation }: any) {
   const [view, setView] = useState<HomeTab>('home');
   const [offersExpanded, setOffersExpanded] = useState(false);
 
-  // 1. Carregamento dos Desejos via API
+  // 1. Carregamento dos Desejos via API com tratamento de expiração de token
   const carregarDesejos = useCallback(async () => {
     try {
       const resposta = await client.get('/wishlist/');
       setDesejos(resposta.data || []);
-    } catch (erro) {
+    } catch (erro: any) {
+      if (erro?.response?.status === 401) {
+        await encerrarSessao();
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        return;
+      }
       console.warn('Erro ao carregar lista de desejos:', erro);
     } finally {
       setCarregando(false);
       setAtualizando(false);
     }
-  }, []);
+  }, [navigation]);
 
   // 2. Carregamento do Perfil do Usuário
   const carregarPerfil = useCallback(async () => {
@@ -112,15 +117,35 @@ export default function HomeScreen({ navigation }: any) {
       if (resposta.data && resposta.data.email) {
         setUsuarioEmail(resposta.data.email);
       }
-    } catch (erro) {
+    } catch (erro: any) {
+      if (erro?.response?.status === 401) {
+        await encerrarSessao();
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        return;
+      }
       console.warn('Falha ao obter perfil do usuário atual:', erro);
     }
-  }, []);
+  }, [navigation]);
 
   useEffect(() => {
     carregarDesejos();
     carregarPerfil();
-  }, [carregarDesejos, carregarPerfil]);
+
+    // Na Web, escuta evento global emitido pelo interceptor Axios caso a sessão expire
+    const tratarSessaoExpirada = () => {
+      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+    };
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.addEventListener('prioritize:sessao-expirada', tratarSessaoExpirada);
+    }
+
+    return () => {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.removeEventListener('prioritize:sessao-expirada', tratarSessaoExpirada);
+      }
+    };
+  }, [carregarDesejos, carregarPerfil, navigation]);
 
   const onRefresh = useCallback(() => {
     setAtualizando(true);

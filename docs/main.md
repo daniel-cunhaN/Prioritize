@@ -249,11 +249,22 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
   - **Mobile**: Sistema de abas táteis com alternância fluida entre as colunas e contadores de itens.
   - Totalmente compatível com busca e filtros aplicados: as colunas refletem em tempo real os itens que atendem aos filtros.
 
+### 6.8. Gestão Robusta de Ciclo de Vida de Sessão e Eliminação de Alertas de Depreciação
+- **Tratamento de Sessão Expirada e Invalidação Graciosa (Backend Sênior)**:
+  - **Middleware de Autenticação (`autenticacao.js`)**: Padronizado para responder com HTTP 401 (`CREDENCIAIS_INVALIDAS`) em conformidade com o padrão RFC 6750 quando o token JWT aponta para um usuário inexistente ou revogado (em vez de 404).
+  - **Interceptor de Resposta Axios (`client.ts`)**: Implementado interceptor global para capturar status 401 em rotas protegidas, executando automaticamente a limpeza segura de credenciais obsoletas via `encerrarSessao()` e disparando o evento `prioritize:sessao-expirada` na plataforma Web.
+  - **Handshake Inicial no Login (`LoginScreen.tsx`)**: Antes de redirecionar silenciosamente sessões existentes salvas em cache para a tela principal, valida a assinatura e expiração do token via `GET /auth/me`. Tokens expirados têm a sessão expurgada com notificação inline amigável ("Sua sessão anterior expirou. Por favor, faça login novamente.").
+  - **Redirecionamento em Tempo Real (`HomeScreen.tsx`)**: Redireciona com segurança para a tela de autenticação caso os carregamentos de lista de desejos ou perfil retornem 401, eliminando estados de "sessão zumbi".
+  - **Mensagens Amigáveis no Modal (`AdicionarDesejoModal.tsx`)**: Tratamento de respostas 401 com cópias claras que instruem o usuário a reautenticar.
+- **Eliminação de Warnings e Depreciações no React Native Web**:
+  - `Image: style.resizeMode is deprecated`: Removida a propriedade `resizeMode: 'contain'` dos estilos internos e declarada como propriedade nativa do componente `<Image resizeMode="contain" />` em `LoginScreen.tsx` e `RegisterScreen.tsx`.
+  - `TouchableWithoutFeedback is deprecated` e `props.pointerEvents is deprecated`: Substituído o uso de `TouchableWithoutFeedback` pelo componente moderno `Pressable` com `stopPropagation()` em `GerenciarContaModal.tsx`.
+
 ---
 
 ## 7. Como Executar os Testes
 
-O projeto conta com uma suíte completa de **73 testes automatizados** desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
+O projeto conta com uma suíte completa de **74 testes automatizados** desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
 
 ### Execução Unificada (Backend + Frontend)
 Na raiz do projeto:
@@ -261,8 +272,8 @@ Na raiz do projeto:
 npm test
 ```
 
-### Testes do Backend (44 testes)
-Testes unitários e de integração de autenticação, banco de dados, rotas de wishlist (filtros, busca, ordenação e preço), extração de metadados e segurança:
+### Testes do Backend (45 testes)
+Testes unitários e de integração de autenticação (rejeição de credenciais inválidas e tokens de usuários inexistentes), banco de dados, rotas de wishlist (filtros, busca, ordenação e preço), extração de metadados e segurança:
 ```bash
 cd backend
 npm test

@@ -32,10 +32,11 @@ export function exigirAutenticacao(req, res, next) {
     const stmt = db.prepare('SELECT id, email, created_at FROM users WHERE id = ?');
     const usuario = stmt.get(payload.sub);
 
+    // Se o usuário associado não existir mais, a credencial não é autorizada (401)
     if (!usuario) {
-      return res.status(404).json({
-        codigo: 'USUARIO_NAO_ENCONTRADO',
-        mensagem: 'Usuário associado ao token não foi encontrado.',
+      return res.status(401).json({
+        codigo: 'CREDENCIAIS_INVALIDAS',
+        mensagem: 'Usuário associado ao token não foi encontrado ou a credencial foi revogada.',
       });
     }
 

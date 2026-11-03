@@ -297,6 +297,7 @@ export default function RegisterScreen({ navigation }: any) {
             <Image
               source={require('../../assets/logo.png')}
               style={estilos.logo}
+              resizeMode="contain"
               accessibilityLabel="Logotipo Prioritize"
             />
             <Text
@@ -648,7 +649,6 @@ const estilos = StyleSheet.create({
   logo: {
     width: 120,
     height: 65,
-    resizeMode: 'contain',
     marginBottom: spacing.sm,
   },
   textoMarca: {

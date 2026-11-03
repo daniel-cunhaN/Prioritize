@@ -40,6 +40,7 @@ import {
   removerHTML,
   definirToken,
   obterToken,
+  encerrarSessao,
 } from '../utils/validacao';
 
 /* Largura máxima do card para telas desktop e tablets */
@@ -64,8 +65,10 @@ export default function LoginScreen({ navigation }: any) {
   const refInputSenha = useRef<TextInput>(null);
   const tema = useTheme();
 
-  /* ── Verificação de sessão ativa existente ── */
+  /* ── Verificação e validação de sessão ativa existente ── */
   useEffect(() => {
+    let cancelado = false;
+
     const verificarSessaoAtiva = async () => {
       try {
         let token = obterToken();
@@ -78,7 +81,22 @@ export default function LoginScreen({ navigation }: any) {
         }
         if (token) {
           definirToken(token);
-          navigation.replace('Home');
+          // Valida a validade do token contra a API antes de autorizar navegação
+          try {
+            await client.get('/auth/me');
+            if (!cancelado) {
+              navigation.replace('Home');
+            }
+          } catch (erroValidacao) {
+            // Token expirado ou rejeitado pelo servidor: encerra a sessão e alerta o usuário
+            await encerrarSessao();
+            if (!cancelado) {
+              setAlerta({
+                tipo: 'aviso',
+                mensagem: 'Sua sessão anterior expirou. Por favor, faça login novamente.',
+              });
+            }
+          }
         }
       } catch (erro) {
         console.warn('Erro ao verificar sessão ativa no login:', erro);
@@ -86,6 +104,10 @@ export default function LoginScreen({ navigation }: any) {
     };
 
     verificarSessaoAtiva();
+
+    return () => {
+      cancelado = true;
+    };
   }, [navigation]);
 
   /* ── Manipulação e sanitização do e-mail ── */
@@ -275,6 +297,7 @@ export default function LoginScreen({ navigation }: any) {
             <Image
               source={require('../../assets/logo.png')}
               style={estilos.logo}
+              resizeMode="contain"
               accessibilityLabel="Logotipo Prioritize"
             />
             <Text
@@ -521,7 +544,6 @@ const estilos = StyleSheet.create({
   logo: {
     width: 120,
     height: 65,
-    resizeMode: 'contain',
     marginBottom: spacing.sm,
   },
   textoMarca: {

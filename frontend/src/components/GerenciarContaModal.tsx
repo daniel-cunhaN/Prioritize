@@ -15,7 +15,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TouchableWithoutFeedback,
+  Pressable,
   ActivityIndicator,
   Alert,
   Platform,
@@ -96,23 +96,25 @@ export default function GerenciarContaModal({
       onRequestClose={aoFechar}
     >
       {/* Backdrop semi-transparente com clique para fechar */}
-      <TouchableWithoutFeedback onPress={aoFechar}>
-        <View style={styles.backdrop}>
-          <TouchableWithoutFeedback>
-            <View
-              style={[
-                styles.modalCard,
-                {
-                  backgroundColor: theme.card,
-                  borderColor: theme.border,
-                },
-                shadows.lg,
-              ]}
-              accessibilityRole="summary"
-              accessibilityLabel="Gerenciamento de Conta do Usuário"
-            >
-              {/* ── Cabeçalho do Modal ── */}
-              <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+      <Pressable style={styles.backdrop} onPress={aoFechar}>
+        <Pressable
+          style={[
+            styles.modalCard,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+            },
+            shadows.lg,
+          ]}
+          onPress={(e) => {
+            // Evita que o clique no corpo do modal feche acidentalmente o modal
+            e?.stopPropagation?.();
+          }}
+          accessibilityRole="summary"
+          accessibilityLabel="Gerenciamento de Conta do Usuário"
+        >
+          {/* ── Cabeçalho do Modal ── */}
+          <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
                 <Text
                   style={[
                     styles.modalTitulo,
@@ -239,10 +241,8 @@ export default function GerenciarContaModal({
                   </TouchableOpacity>
                 </View>
               )}
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
