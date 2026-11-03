@@ -1,0 +1,1504 @@
+/* ==========================================================================
+   estilos.css — Design System Monocromático & Showcase UI/UX "Prioritize"
+   Estética: Minimalismo Editorial Suíço de Alto Contraste (iOS + Web)
+   ========================================================================== */
+
+/* Definição centralizada de tokens de design (cores, raios, sombras e ritmo) */
+:root {
+  /* Paleta Monocromática de Alto Contraste */
+  --cor-fundo-estudio: #f2f2f4;
+  --cor-ponto-grade: #d4d4d8;
+  --cor-branco: #ffffff;
+  --cor-superficie: #fafafa;
+  --cor-superficie-sutil: #f4f4f5;
+  --cor-superficie-hover: #ededf0;
+  --cor-borda: #e4e4e7;
+  --cor-borda-forte: #d1d1d6;
+  --cor-texto-principal: #09090b;
+  --cor-texto-secundario: #52525b;
+  --cor-texto-terciario: #8e8e93;
+  --cor-preto-absoluto: #09090b;
+  --cor-destaque-inverso: #ffffff;
+
+  /* Tipografia — SF Pro Display nativa em sistemas Apple + Plus Jakarta Sans */
+  --fonte-exibicao: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Plus Jakarta Sans", sans-serif;
+  --fonte-corpo: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Plus Jakarta Sans", sans-serif;
+  --fonte-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Raios de borda elegantes (padrão iOS contínuo) */
+  --raio-xs: 8px;
+  --raio-sm: 12px;
+  --raio-md: 16px;
+  --raio-lg: 22px;
+  --raio-xl: 30px;
+  --raio-dispositivo: 46px;
+  --raio-pilula: 9999px;
+
+  /* Sombras arquitetônicas de baixa opacidade */
+  --sombra-card: 0 1px 2px rgba(9, 9, 11, 0.04), 0 4px 12px rgba(9, 9, 11, 0.03);
+  --sombra-flutuante: 0 12px 32px rgba(9, 9, 11, 0.14), 0 2px 6px rgba(9, 9, 11, 0.06);
+  --sombra-moldura: 0 24px 60px -12px rgba(9, 9, 11, 0.12), 0 4px 16px -2px rgba(9, 9, 11, 0.05);
+  --sombra-sheet: 0 -12px 40px rgba(9, 9, 11, 0.16);
+
+  /* Curvas de transição para micro-interações */
+  --curva-mola: cubic-bezier(0.22, 1, 0.36, 1);
+  --curva-suave: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Reset limpo e suavização óptica de fontes */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--fonte-corpo);
+  color: var(--cor-texto-principal);
+  background-color: var(--cor-fundo-estudio);
+  background-image: radial-gradient(var(--cor-ponto-grade) 1px, transparent 1px);
+  background-size: 20px 20px;
+  line-height: 1.5;
+  min-height: 100vh;
+  padding-bottom: 72px;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--cor-preto-absoluto);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   1. Cabeçalho Editorial de Apresentação (Estilo Portfólio Behance/Dribbble)
+   ========================================================================== */
+.cabecalho-portfolio {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 36px 28px 24px;
+}
+
+.barra-superior-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.identidade-marca {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.simbolo-marca {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--cor-preto-absoluto);
+  color: var(--cor-branco);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: -0.04em;
+  box-shadow: var(--sombra-card);
+}
+
+.identidade-texto h1 {
+  font-family: var(--fonte-exibicao);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.identidade-texto span {
+  font-family: var(--fonte-mono);
+  font-size: 0.72rem;
+  color: var(--cor-texto-secundario);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.etiquetas-showcase {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.etiqueta-meta {
+  padding: 6px 12px;
+  border-radius: var(--raio-pilula);
+  background: var(--cor-branco);
+  border: 1px solid var(--cor-borda);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--cor-texto-secundario);
+  letter-spacing: -0.01em;
+}
+
+.etiqueta-meta.destaque {
+  background: var(--cor-preto-absoluto);
+  color: var(--cor-branco);
+  border-color: var(--cor-preto-absoluto);
+}
+
+/* Bloco de título principal e seletor de modo de apresentação */
+.intro-showcase {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding-top: 28px;
+}
+
+.intro-titulos {
+  max-width: 720px;
+}
+
+.intro-titulos h2 {
+  font-family: var(--fonte-exibicao);
+  font-size: clamp(1.85rem, 3vw, 2.75rem);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1.06;
+  margin-bottom: 10px;
+}
+
+.intro-titulos p {
+  font-size: 0.96rem;
+  color: var(--cor-texto-secundario);
+  max-width: 620px;
+}
+
+/* Seletor segmentado em formato pílula para alternar modos da prancha */
+.alternador-modo-estudio {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  background: var(--cor-branco);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-pilula);
+  box-shadow: var(--sombra-card);
+}
+
+.botao-modo-estudio {
+  padding: 9px 16px;
+  border-radius: var(--raio-pilula);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--cor-texto-secundario);
+  transition: all 0.22s var(--curva-mola);
+}
+
+.botao-modo-estudio:hover {
+  color: var(--cor-texto-principal);
+}
+
+.botao-modo-estudio.ativo {
+  background: var(--cor-preto-absoluto);
+  color: var(--cor-branco);
+  box-shadow: 0 2px 8px rgba(9, 9, 11, 0.16);
+}
+
+/* ==========================================================================
+   2. Palco Principal Lado a Lado (Desktop Web + iOS Mobile Sincronizados)
+   ========================================================================== */
+.container-principal {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 12px 28px 0;
+}
+
+.palco-lado-a-lado {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 396px;
+  gap: 28px;
+  align-items: start;
+  margin-top: 12px;
+}
+
+.palco-lado-a-lado.oculto,
+.galeria-quatro-telas.oculto,
+.secao-sistema-design.oculto {
+  display: none;
+}
+
+/* Legenda superior de cada viewport */
+.rotulo-viewport {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding: 0 4px;
+}
+
+.rotulo-viewport-esq {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--fonte-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--cor-texto-secundario);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ponto-ao-vivo {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cor-preto-absoluto);
+  display: inline-block;
+  animation: pulsoDiscreto 2.4s infinite ease-in-out;
+}
+
+@keyframes pulsoDiscreto {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.85); }
+}
+
+.dimensao-badge {
+  font-family: var(--fonte-mono);
+  font-size: 0.7rem;
+  color: var(--cor-texto-terciario);
+}
+
+/* ==========================================================================
+   3. Moldura Desktop Web App (Esquerda)
+   ========================================================================== */
+.moldura-desktop {
+  background: var(--cor-branco);
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: var(--raio-xl);
+  box-shadow: var(--sombra-moldura);
+  overflow: hidden;
+  position: relative;
+  min-height: 820px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Barra de janela estilo macOS / Web Browser minimalista */
+.barra-janela-desktop {
+  height: 46px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--cor-borda);
+  background: var(--cor-superficie);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.semaforo-janela {
+  display: flex;
+  gap: 7px;
+}
+
+.semaforo-janela span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid var(--cor-borda-forte);
+  background: var(--cor-branco);
+}
+
+.semaforo-janela span:first-child {
+  background: var(--cor-preto-absoluto);
+  border-color: var(--cor-preto-absoluto);
+}
+
+.url-janela {
+  padding: 4px 18px;
+  border-radius: var(--raio-pilula);
+  background: var(--cor-branco);
+  border: 1px solid var(--cor-borda);
+  font-family: var(--fonte-mono);
+  font-size: 0.72rem;
+  color: var(--cor-texto-secundario);
+}
+
+.atalho-teclado {
+  font-family: var(--fonte-mono);
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--cor-borda);
+  color: var(--cor-texto-secundario);
+  background: var(--cor-branco);
+}
+
+/* Layout interno da aplicação Web */
+.corpo-app-desktop {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  flex: 1;
+}
+
+/* Barra lateral minimalista no Desktop */
+.sidebar-desktop {
+  border-right: 1px solid var(--cor-borda);
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: var(--cor-superficie);
+}
+
+.marca-interna {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 20px;
+  border-bottom: 1px solid var(--cor-borda);
+  margin-bottom: 18px;
+}
+
+.marca-interna strong {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.badge-versao {
+  font-family: var(--fonte-mono);
+  font-size: 0.65rem;
+  padding: 2px 7px;
+  border-radius: var(--raio-pilula);
+  background: var(--cor-superficie-sutil);
+  border: 1px solid var(--cor-borda);
+}
+
+.menu-lateral {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.item-menu-lateral {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: var(--raio-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--cor-texto-secundario);
+  transition: all 0.18s var(--curva-suave);
+  text-align: left;
+}
+
+.item-menu-lateral:hover {
+  background: var(--cor-superficie-hover);
+  color: var(--cor-texto-principal);
+}
+
+.item-menu-lateral.ativo {
+  background: var(--cor-preto-absoluto);
+  color: var(--cor-branco);
+}
+
+.item-menu-esq {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.contador-menu {
+  font-family: var(--fonte-mono);
+  font-size: 0.7rem;
+  opacity: 0.75;
+}
+
+.botao-nova-tarefa-sidebar {
+  margin-top: 18px;
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: var(--raio-pilula);
+  background: var(--cor-branco);
+  border: 1.5px solid var(--cor-preto-absoluto);
+  color: var(--cor-preto-absoluto);
+  font-size: 0.82rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s var(--curva-mola);
+}
+
+.botao-nova-tarefa-sidebar:hover {
+  background: var(--cor-preto-absoluto);
+  color: var(--cor-branco);
+}
+
+.resumo-foco-sidebar {
+  padding: 14px;
+  border-radius: var(--raio-md);
+  background: var(--cor-branco);
+  border: 1px solid var(--cor-borda);
+}
+
+.resumo-foco-sidebar small {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--cor-texto-terciario);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+
+.resumo-foco-sidebar strong {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 4px 0 8px;
+}
+
+.barra-progresso-trilha {
+  height: 6px;
+  border-radius: var(--raio-pilula);
+  background: var(--cor-superficie-sutil);
+  overflow: hidden;
+}
+
+.barra-progresso-preenchimento {
+  height: 100%;
+  background: var(--cor-preto-absoluto);
+  border-radius: var(--raio-pilula);
+  transition: width 0.4s var(--curva-mola);
+}
+
+/* Área principal do Desktop */
+.conteudo-desktop {
+  padding: 28px 30px 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  position: relative;
+}
+
+.topo-conteudo-desktop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.topo-conteudo-desktop h3 {
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+.topo-conteudo-desktop p {
+  font-size: 0.85rem;
+  color: var(--cor-texto-secundario);
+}
+
+.acoes-topo-desktop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.botao-primario-pilula {
+  padding: 10px 18px;
+  border-radius: var(--raio-pilula);
+  background: var(--cor-preto-absoluto);
+  color: var(--cor-branco);
+  font-size: 0.82rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.18s var(--curva-mola), box-shadow 0.18s var(--curva-mola);
+}
+
+.botao-primario-pilula:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(9, 9, 11, 0.18);
+}
+
+.botao-primario-pilula:active {
+  transform: scale(0.97);
+}
+
+/* Grade de métricas principais (Key Metrics) */
+.grade-metricas-desktop {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.card-metrica {
+  padding: 16px 18px;
+  border-radius: var(--raio-md);
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.2s ease;
+}
+
+.card-metrica:hover {
+  border-color: var(--cor-preto-absoluto);
+}
+
+.card-metrica.invertido {
+  background: var(--cor-preto-absoluto);
+  border-color: var(--cor-preto-absoluto);
+  color: var(--cor-branco);
+}
+
+.card-metrica-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--cor-texto-secundario);
+}
+
+.card-metrica.invertido .card-metrica-topo {
+  color: #a1a1aa;
+}
+
+.variacao-pilula {
+  font-family: var(--fonte-mono);
+  font-size: 0.68rem;
+  padding: 2px 7px;
+  border-radius: var(--raio-pilula);
+  background: var(--cor-branco);
+  border: 1px solid var(--cor-borda);
+  color: var(--cor-texto-principal);
+}
+
+.card-metrica.invertido .variacao-pilula {
+  background: #27272a;
+  border-color: #3f3f46;
+  color: var(--cor-branco);
+}
+
+.valor-metrica {
+  font-family: var(--fonte-exibicao);
+  font-size: 1.65rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+
+/* Seção combinada: Gráfico Semanal + Resumo de Atividades/Checklist */
+.grade-central-desktop {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 16px;
+}
+
+.card-painel {
+  background: var(--cor-branco);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-lg);
+  padding: 20px;
+  box-shadow: var(--sombra-card);
+}
+
+.cabecalho-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.cabecalho-card h4 {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.cabecalho-card span {
+  font-size: 0.76rem;
+  color: var(--cor-texto-terciario);
+}
+
+.grupo-pilulas-pequeno {
+  display: inline-flex;
+  background: var(--cor-superficie-sutil);
+  padding: 3px;
+  border-radius: var(--raio-pilula);
+  border: 1px solid var(--cor-borda);
+}
+
+.pilula-filtro-mini {
+  padding: 4px 10px;
+  border-radius: var(--raio-pilula);
+  font-family: var(--fonte-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--cor-texto-secundario);
+  transition: all 0.16s ease;
+}
+
+.pilula-filtro-mini.ativo {
+  background: var(--cor-preto-absoluto);
+  color: var(--cor-branco);
+}
+
+/* Gráfico de Linha Semanal (SVG Interativo) */
+.container-grafico-svg {
+  width: 100%;
+  position: relative;
+}
+
+.container-grafico-svg svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.ponto-grafico {
+  cursor: pointer;
+  transition: r 0.18s var(--curva-mola);
+}
+
+.ponto-grafico:hover {
+  r: 6.5;
+}
+
+.legenda-grafico-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--cor-superficie-sutil);
+  font-size: 0.76rem;
+  color: var(--cor-texto-secundario);
+}
+
+.detalhe-ponto-ativo {
+  font-family: var(--fonte-mono);
+  font-weight: 600;
+  color: var(--cor-texto-principal);
+}
+
+/* ==========================================================================
+   Matriz de Prioridade de Eisenhower (2x2 no Desktop)
+   ========================================================================== */
+.grade-eisenhower {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.quadrante-eisenhower {
+  padding: 16px;
+  border-radius: var(--raio-md);
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quadrante-eisenhower.q1-destaque {
+  background: var(--cor-branco);
+  border: 1.5px solid var(--cor-preto-absoluto);
+}
+
+.topo-quadrante {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.titulo-quadrante {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.tag-q {
+  font-family: var(--fonte-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--raio-pilula);
+  border: 1px solid var(--cor-preto-absoluto);
+}
+
+.tag-q.preenchida {
+  background: var(--cor-preto-absoluto);
+  color: var(--cor-branco);
+}
+
+.subtitulo-quadrante {
+  font-size: 0.7rem;
+  color: var(--cor-texto-terciario);
+  font-family: var(--fonte-mono);
+}
+
+.lista-tarefas-quadrante {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Linha de tarefa com Checkbox Minimalista Interativo */
+.item-tarefa {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-branco);
+  border: 1px solid var(--cor-borda);
+  transition: all 0.18s var(--curva-suave);
+  cursor: pointer;
+}
+
+.item-tarefa:hover {
+  border-color: var(--cor-preto-absoluto);
+  transform: translateX(2px);
+}
+
+.item-tarefa-esq {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.checkbox-minimal {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  border: 1.75px solid var(--cor-preto-absoluto);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: var(--cor-branco);
+  transition: all 0.2s var(--curva-mola);
+}
+
+.checkbox-minimal svg {
+  width: 11px;
+  height: 11px;
+  stroke: var(--cor-branco);
+  stroke-width: 2.6;
+  fill: none;
+  transform: scale(0);
+  transition: transform 0.2s var(--curva-mola);
+}
+
+.item-tarefa.concluida .checkbox-minimal {
+  background: var(--cor-preto-absoluto);
+}
+
+.item-tarefa.concluida .checkbox-minimal svg {
+  transform: scale(1);
+}
+
+.titulo-item-tarefa {
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.18s ease;
+}
+
+.item-tarefa.concluida .titulo-item-tarefa {
+  text-decoration: line-through;
+  color: var(--cor-texto-terciario);
+}
+
+.meta-item-tarefa {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.tempo-pilula {
+  font-family: var(--fonte-mono);
+  font-size: 0.66rem;
+  padding: 2px 7px;
+  border-radius: var(--raio-pilula);
+  background: var(--cor-superficie-sutil);
+  color: var(--cor-texto-secundario);
+}
+
+/* ==========================================================================
+   Linha do Tempo Minimalista (Activity Log Bubbles)
+   ========================================================================== */
+.lista-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+
+.evento-timeline {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 12px;
+  padding-bottom: 16px;
+  position: relative;
+}
+
+.evento-timeline:last-child {
+  padding-bottom: 0;
+}
+
+/* Linha conectora vertical sutil entre as bolhas */
+.evento-timeline:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 13.5px;
+  top: 26px;
+  bottom: 0;
+  width: 1px;
+  background: var(--cor-borda);
+}
+
+.bolha-timeline {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid var(--cor-borda-forte);
+  background: var(--cor-branco);
+  display: grid;
+  place-items: center;
+  font-family: var(--fonte-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  z-index: 1;
+}
+
+.bolha-timeline.escura {
+  background: var(--cor-preto-absoluto);
+  border-color: var(--cor-preto-absoluto);
+  color: var(--cor-branco);
+}
+
+.corpo-bolha-timeline {
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: 14px;
+  padding: 9px 13px;
+}
+
+.corpo-bolha-timeline p {
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.corpo-bolha-timeline small {
+  font-size: 0.7rem;
+  color: var(--cor-texto-terciario);
+}
+
+.horario-timeline {
+  font-family: var(--fonte-mono);
+  font-size: 0.68rem;
+  color: var(--cor-texto-terciario);
+  padding-top: 6px;
+}
+
+/* ==========================================================================
+   Barra de Navegação Flutuante em Formato Pílula (Floating Pill Nav Bar)
+   ========================================================================== */
+.barra-pilula-flutuante {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: var(--raio-pilula);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--cor-borda-forte);
+  box-shadow: var(--sombra-flutuante);
+  z-index: 20;
+}
+
+.aba-pilula {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--raio-pilula);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--cor-texto-secundario);
+  transition: all 0.22s var(--curva-mola);
+  white-space: nowrap;
+}
+
+.aba-pilula:hover {
+  color: var(--cor-texto-principal);
+}
+
+.aba-pilula.ativo {
+  background: var(--cor-preto-absoluto);
+  color: var(--cor-branco);
+}
+
+.botao-acao-central-pilula {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--cor-preto-absoluto);
+  color: var(--cor-branco);
+  font-size: 1.1rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  margin-left: 2px;
+  transition: transform 0.2s var(--curva-mola);
+}
+
+.botao-acao-central-pilula:hover {
+  transform: scale(1.08);
+}
+
+/* ==========================================================================
+   4. Moldura Dispositivo iOS (iPhone 16 Pro Minimal Frame)
+   ========================================================================== */
+.moldura-iphone {
+  width: 396px;
+  height: 820px;
+  border-radius: var(--raio-dispositivo);
+  background: var(--cor-preto-absoluto);
+  padding: 11px;
+  box-shadow: var(--sombra-moldura);
+  position: relative;
+}
+
+.tela-iphone {
+  width: 100%;
+  height: 100%;
+  border-radius: 36px;
+  background: var(--cor-branco);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Status Bar iOS + Dynamic Island */
+.barra-status-ios {
+  height: 48px;
+  padding: 12px 24px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.ilha-dinamica {
+  width: 96px;
+  height: 25px;
+  border-radius: var(--raio-pilula);
+  background: var(--cor-preto-absoluto);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 10px;
+}
+
+.icones-status-ios {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--fonte-mono);
+  font-size: 0.68rem;
+}
+
+/* Corpo rolável da tela iOS */
+.conteudo-rolavel-ios {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 20px 96px;
+  scrollbar-width: none;
+}
+
+.conteudo-rolavel-ios::-webkit-scrollbar {
+  display: none;
+}
+
+.cabecalho-ios {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.cabecalho-ios h3 {
+  font-family: var(--fonte-exibicao);
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.cabecalho-ios small {
+  display: block;
+  font-size: 0.73rem;
+  color: var(--cor-texto-terciario);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.botao-icone-ios {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--cor-borda);
+  background: var(--cor-superficie);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+}
+
+/* Cards compactos iOS */
+.metricas-duplas-ios {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.card-ios {
+  padding: 14px;
+  border-radius: 18px;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  margin-bottom: 14px;
+}
+
+.card-ios.escura {
+  background: var(--cor-preto-absoluto);
+  border-color: var(--cor-preto-absoluto);
+  color: var(--cor-branco);
+}
+
+.secao-titulo-ios {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 14px 0 8px;
+}
+
+.secao-titulo-ios h4 {
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.secao-titulo-ios span {
+  font-family: var(--fonte-mono);
+  font-size: 0.68rem;
+  color: var(--cor-texto-terciario);
+}
+
+/* Home Indicator iOS */
+.indicador-home-ios {
+  width: 120px;
+  height: 4px;
+  border-radius: var(--raio-pilula);
+  background: var(--cor-preto-absoluto);
+  opacity: 0.22;
+  position: absolute;
+  bottom: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+}
+
+/* ==========================================================================
+   5. Bottom Sheet de Criação Rápida (Tela 2 — Quick Task Creation)
+   ========================================================================== */
+.camada-bottom-sheet {
+  position: absolute;
+  inset: 0;
+  background: rgba(9, 9, 11, 0.34);
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  z-index: 25;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.24s var(--curva-suave);
+}
+
+.camada-bottom-sheet.aberto {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.painel-bottom-sheet {
+  background: var(--cor-branco);
+  border-top-left-radius: 28px;
+  border-top-right-radius: 28px;
+  padding: 12px 20px 30px;
+  box-shadow: var(--sombra-sheet);
+  border-top: 1px solid var(--cor-borda);
+  transform: translateY(100%);
+  transition: transform 0.32s var(--curva-mola);
+}
+
+.camada-bottom-sheet.aberto .painel-bottom-sheet {
+  transform: translateY(0);
+}
+
+/* Versão embutida estática/interativa para quando a aba "Criar" está aberta */
+.sheet-embutido {
+  background: var(--cor-branco);
+  border: 1.5px solid var(--cor-preto-absoluto);
+  border-radius: 24px;
+  padding: 16px;
+  box-shadow: var(--sombra-card);
+}
+
+.alca-arraste {
+  width: 38px;
+  height: 4px;
+  border-radius: var(--raio-pilula);
+  background: var(--cor-borda-forte);
+  margin: 0 auto 14px;
+}
+
+.campo-entrada-limpo {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1.5px solid var(--cor-borda-forte);
+  background: var(--cor-superficie);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 14px;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.campo-entrada-limpo:focus {
+  border-color: var(--cor-preto-absoluto);
+  background: var(--cor-branco);
+  outline: none;
+}
+
+.rotulo-campo-sheet {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cor-texto-secundario);
+  margin-bottom: 8px;
+}
+
+/* Seletor de Tags de Prioridade em Formato Pílula (Pill Priority Tags) */
+.grade-pilulas-prioridade {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 14px;
+}
+
+.tag-prioridade-pilula {
+  padding: 7px 13px;
+  border-radius: var(--raio-pilula);
+  border: 1.5px solid var(--cor-borda-forte);
+  background: var(--cor-branco);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--cor-texto-secundario);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.18s var(--curva-mola);
+}
+
+.tag-prioridade-pilula:hover {
+  border-color: var(--cor-preto-absoluto);
+  color: var(--cor-texto-principal);
+}
+
+.tag-prioridade-pilula.selecionada {
+  background: var(--cor-preto-absoluto);
+  border-color: var(--cor-preto-absoluto);
+  color: var(--cor-branco);
+}
+
+.botao-salvar-sheet {
+  width: 100%;
+  padding: 13px;
+  border-radius: var(--raio-pilula);
+  background: var(--cor-preto-absoluto);
+  color: var(--cor-branco);
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-top: 6px;
+  transition: transform 0.16s var(--curva-mola);
+}
+
+.botao-salvar-sheet:active {
+  transform: scale(0.98);
+}
+
+/* ==========================================================================
+   6. Modo Prancha Behance — 4 Telas iOS Lado a Lado (4-Screen Deck)
+   ========================================================================== */
+.galeria-quatro-telas {
+  margin-top: 24px;
+}
+
+.grade-quatro-iphones {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.coluna-artboard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cabecalho-artboard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+
+.numero-artboard {
+  font-family: var(--fonte-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: var(--raio-pilula);
+  background: var(--cor-preto-absoluto);
+  color: var(--cor-branco);
+}
+
+.titulo-artboard {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--cor-texto-secundario);
+}
+
+.moldura-iphone-compacta {
+  width: 100%;
+  height: 700px;
+  border-radius: 40px;
+  background: var(--cor-preto-absoluto);
+  padding: 9px;
+  box-shadow: var(--sombra-moldura);
+}
+
+.moldura-iphone-compacta .tela-iphone {
+  border-radius: 32px;
+}
+
+/* ==========================================================================
+   7. Especificação do Design System Unificado (Rodapé de Portfólio)
+   ========================================================================== */
+.secao-sistema-design {
+  margin-top: 36px;
+  background: var(--cor-branco);
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: var(--raio-xl);
+  padding: 28px 32px;
+  box-shadow: var(--sombra-card);
+}
+
+.topo-sistema-design {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--cor-borda);
+  margin-bottom: 22px;
+}
+
+.topo-sistema-design h3 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.topo-sistema-design span {
+  font-family: var(--fonte-mono);
+  font-size: 0.75rem;
+  color: var(--cor-texto-secundario);
+}
+
+.grade-tokens-design {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1.1fr;
+  gap: 24px;
+}
+
+.bloco-token h4 {
+  font-family: var(--fonte-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cor-texto-terciario);
+  margin-bottom: 12px;
+}
+
+.amostras-cores {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.amostra-cor {
+  border-radius: var(--raio-sm);
+  border: 1px solid var(--cor-borda);
+  overflow: hidden;
+  background: var(--cor-branco);
+}
+
+.visor-cor {
+  height: 44px;
+}
+
+.amostra-cor span {
+  display: block;
+  padding: 6px;
+  font-family: var(--fonte-mono);
+  font-size: 0.64rem;
+  text-align: center;
+}
+
+.especime-tipografia {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.especime-display {
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+}
+
+.especime-sub {
+  font-size: 0.82rem;
+  color: var(--cor-texto-secundario);
+}
+
+.componentes-amostra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ==========================================================================
+   8. Responsividade Adaptativa
+   ========================================================================== */
+@media (max-width: 1280px) {
+  .palco-lado-a-lado {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .coluna-desktop-wrapper {
+    width: 100%;
+  }
+
+  .grade-quatro-iphones {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .corpo-app-desktop {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar-desktop {
+    display: none;
+  }
+
+  .grade-metricas-desktop {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .grade-central-desktop,
+  .grade-eisenhower,
+  .grade-tokens-design {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .grade-quatro-iphones {
+    grid-template-columns: 1fr;
+  }
+
+  .moldura-iphone {
+    width: 100%;
+    max-width: 390px;
+  }
+}

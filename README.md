@@ -52,3 +52,16 @@ O backend possui suíte de testes com cobertura para autenticação, banco de da
 cd backend
 npm test
 ```
+
+
+---
+
+### 4. Acessar o UI/UX Design Showcase Interativo
+
+Com o backend iniciado, acesse no navegador a prancha interativa de UI/UX (Desktop Web + iOS lado a lado com as 4 telas e Design System monocromático):
+
+```text
+http://127.0.0.1:8000/showcase
+```
+
+Ou abra diretamente o arquivo `showcase/index.html` no seu navegador.

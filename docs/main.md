@@ -51,6 +51,11 @@ Prioritize/
 │   │   └── theme.ts               # Design system baseado na paleta Claude Amber
 │   └── App.tsx                    # Navegação em pilha (Stack Navigator)
 │
+├── showcase/                      # Prancha interativa de UI/UX Showcase (Web + iOS Monocromático)
+│   ├── index.html                 # Estrutura semântica lado a lado (Desktop + iOS + 4 Artboards)
+│   ├── estilos.css                # Tokens CSS monocromáticos P&B, molduras e micro-interações
+│   └── showcase.js                # Estado reativo sincronizado entre Desktop Web e iOS
+│
 ├── docs/
 │   ├── plans/
 │   │   └── 2026-10-08-migracao-stack-javascript.md # Plano de migração executado via TDD
@@ -277,3 +282,21 @@ npm test
 
 
 
+---
+
+## 8. Showcase Interativo de UI/UX (`showcase/`)
+
+O diretório `showcase/` contém uma prancha interativa de portfólio (estilo Behance e Dribbble) servida estaticamente pelo backend Express em `http://127.0.0.1:8000/showcase` (ou diretamente via abertura do arquivo `showcase/index.html`).
+
+### 8.1. Direção Estética e Design System Unificado
+- **Estética Minimalista Monocromática (Alto Contraste)**: Fundo branco puro (`#FFFFFF`), cartões e divisores sutis em cinza claro (`#FAFAFA`, `#F4F4F5`, `#E4E4E7`) e tipografia preta em negrito (`#09090B`) com acento inverso.
+- **Tipografia**: Pilha nativa `SF Pro Display` / `SF Pro Text` combinada a `Plus Jakarta Sans` (pesos 400–800, tracking óptico `-0.04em`) e `JetBrains Mono` para métricas tabulares e timestamps.
+- **Navegação Flutuante em Formato Pílula (`Floating Pill Navigation Bar`)**: Barra translúcida com `backdrop-filter: blur(16px)`, indicadores ativos em alto contraste e botão central de criação rápida (`+`).
+
+### 8.2. Arquitetura de Visualização e Sincronização em Tempo Real
+- **Viewports Lado a Lado (`Desktop Web` + `iOS Native`)**: Exibe simultaneamente a janela Web responsiva e o frame iOS (`393 × 852 pt` com Dynamic Island), sincronizados pelo motor reativo em `showcase/showcase.js`.
+- **4 Telas Principais Exibidas**:
+  1. **Dashboard & Matriz de Eisenhower**: Indicadores-chave, curva SVG interativa de conclusão semanal (`7D`/`30D`) e Matriz de Prioridade de Eisenhower (`Q1 Fazer Agora`, `Q2 Agendar`, `Q3 Delegar`, `Q4 Pós-foco`).
+  2. **Quick Task Creation Bottom Sheet**: Folha deslizante inferior (e atalho de teclado `N`) com seletor de tags de prioridade em formato pílula e estimativa de foco.
+  3. **Checklist de Execução Focada**: Lista limpa com interações animadas de checkbox, filtros rápidos (`Todas`, `Pendentes`, `Concluídas`) e barra de progresso em tempo real.
+  4. **Activity Log Timeline**: Linha do tempo minimalista com bolhas de eventos geradas automaticamente a cada conclusão ou criação de tarefa.

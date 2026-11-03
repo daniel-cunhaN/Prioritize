@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prioritize — UI/UX Design Showcase (iOS &amp; Web Monocromático)</title>
+  <!-- Tipografia complementar de alta nitidez (Plus Jakarta Sans + JetBrains Mono) combinada à SF Pro Display nativa -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="./estilos.css" />
+</head>
+<body>
+  <!-- ========================================================================
+       Cabeçalho de Portfólio UI/UX (Estilo Behance & Dribbble Featured)
+       ======================================================================== -->
+  <header class="cabecalho-portfolio">
+    <div class="barra-superior-meta">
+      <div class="identidade-marca">
+        <div class="simbolo-marca" aria-hidden="true">P.</div>
+        <div class="identidade-texto">
+          <h1>Prioritize</h1>
+          <span>UI/UX Design Showcase · iOS 18 &amp; Web</span>
+        </div>
+      </div>
+
+      <div class="etiquetas-showcase" aria-label="Especificações de design">
+        <span class="etiqueta-meta destaque">Monocromático P&amp;B</span>
+        <span class="etiqueta-meta">Matriz de Eisenhower</span>
+        <span class="etiqueta-meta">SF Pro Display</span>
+        <span class="etiqueta-meta">Floating Pill Nav</span>
+        <span class="etiqueta-meta">Sincronizado ao Vivo</span>
+      </div>
+    </div>
+
+    <div class="intro-showcase">
+      <div class="intro-titulos">
+        <h2>Clareza radical para decisões de alta prioridade.</h2>
+        <p>
+          Showcase interativo unificando layout responsivo Web e iOS em estética minimalista
+          de alto contraste. Interaja com qualquer checkbox, gráfico ou pílula de prioridade
+          para ver as duas plataformas sincronizarem em tempo real.
+        </p>
+      </div>
+
+      <!-- Alternador de visualização da prancha de apresentação -->
+      <nav class="alternador-modo-estudio" aria-label="Modo de visualização do showcase">
+        <button type="button" class="botao-modo-estudio ativo" data-modo-estudio="completo">
+          Showcase Completo
+        </button>
+        <button type="button" class="botao-modo-estudio" data-modo-estudio="lado-a-lado">
+          Desktop + iOS Lado a Lado
+        </button>
+        <button type="button" class="botao-modo-estudio" data-modo-estudio="quatro-telas">
+          Prancha 4 Telas iOS
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container-principal">
+    <!-- ======================================================================
+         SEÇÃO 1: Viewports Responsivos Lado a Lado (Desktop Web + iOS Mobile)
+         ====================================================================== -->
+    <section id="secao-lado-a-lado" class="palco-lado-a-lado" aria-label="Comparativo lado a lado Desktop e Mobile">
+      <!-- Coluna Esquerda: Aplicação Web Responsiva Desktop -->
+      <div class="coluna-desktop-wrapper">
+        <div class="rotulo-viewport">
+          <div class="rotulo-viewport-esq">
+            <span class="ponto-ao-vivo"></span>
+            <span>01 · Responsive Web Workspace</span>
+          </div>
+          <span class="dimensao-badge">1440 × 900 · Sincronizado</span>
+        </div>
+
+        <div class="moldura-desktop">
+          <!-- Barra superior da janela Web -->
+          <div class="barra-janela-desktop">
+            <div class="semaforo-janela" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+            <div class="url-janela">app.prioritize.io/workspace</div>
+            <span class="atalho-teclado" title="Pressione N para criar nova tarefa">Tecla N · Criar</span>
+          </div>
+
+          <div class="corpo-app-desktop">
+            <!-- Barra lateral de navegação e progresso -->
+            <aside class="sidebar-desktop">
+              <div>
+                <div class="marca-interna">
+                  <strong>Prioritize.</strong>
+                  <span class="badge-versao">v2.4</span>
+                </div>
+                <div id="desktop-menu-lateral" class="menu-lateral"></div>
+                <button type="button" class="botao-nova-tarefa-sidebar" data-acao="abrir-bottom-sheet">
+                  <span>+</span> Quick Task Sheet
+                </button>
+              </div>
+
+              <div id="desktop-progresso-foco" class="resumo-foco-sidebar"></div>
+            </aside>
+
+            <!-- Conteúdo dinâmico do Desktop + Barra Flutuante Pílula + Quick Sheet -->
+            <div class="conteudo-desktop">
+              <div id="desktop-area-dinamica"></div>
+
+              <!-- Barra de Navegação Flutuante em Formato Pílula (Desktop) -->
+              <nav class="barra-pilula-flutuante" aria-label="Navegação flutuante Desktop">
+                <button type="button" class="aba-pilula ativo" data-nav-desktop="dashboard">Dashboard</button>
+                <button type="button" class="aba-pilula" data-nav-desktop="checklist">Checklist</button>
+                <button type="button" class="aba-pilula" data-nav-desktop="atividades">Atividades</button>
+                <button
+                  type="button"
+                  class="botao-acao-central-pilula"
+                  data-acao="abrir-bottom-sheet"
+                  aria-label="Abrir criação rápida de tarefa"
+                >+</button>
+              </nav>
+
+              <!-- Modal/Bottom Sheet de Criação Rápida no Desktop -->
+              <div id="desktop-camada-sheet" class="camada-bottom-sheet">
+                <div
+                  id="desktop-corpo-sheet"
+                  class="painel-bottom-sheet"
+                  style="max-width:480px;width:100%;margin:0 auto;border-radius:24px;margin-bottom:24px;"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Coluna Direita: Dispositivo iOS Interativo -->
+      <div class="coluna-ios-wrapper">
+        <div class="rotulo-viewport">
+          <div class="rotulo-viewport-esq">
+            <span class="ponto-ao-vivo"></span>
+            <span>02 · iOS Native Companion</span>
+          </div>
+          <span class="dimensao-badge">393 × 852 pt · iOS</span>
+        </div>
+
+        <div class="moldura-iphone">
+          <div class="tela-iphone">
+            <!-- Status Bar iOS + Dynamic Island -->
+            <div class="barra-status-ios">
+              <span>09:41</span>
+              <div class="ilha-dinamica" aria-hidden="true"></div>
+              <div class="icones-status-ios">
+                <span>5G</span>
+                <span>100%</span>
+              </div>
+            </div>
+
+            <!-- Conteúdo rolável da aba ativa no iPhone -->
+            <div id="ios-conteudo-principal" class="conteudo-rolavel-ios"></div>
+
+            <!-- Bottom Sheet deslizante sobreposto no iPhone -->
+            <div id="ios-camada-sheet" class="camada-bottom-sheet">
+              <div id="ios-corpo-sheet" class="painel-bottom-sheet"></div>
+            </div>
+
+            <!-- Barra Flutuante em Formato Pílula (iOS) -->
+            <nav class="barra-pilula-flutuante" aria-label="Navegação flutuante iOS">
+              <button type="button" class="aba-pilula ativo" data-nav-ios="dashboard">Início</button>
+              <button type="button" class="aba-pilula" data-nav-ios="criar">Criar</button>
+              <button type="button" class="aba-pilula" data-nav-ios="checklist">Foco</button>
+              <button type="button" class="aba-pilula" data-nav-ios="atividades">Log</button>
+            </nav>
+
+            <div class="indicador-home-ios" aria-hidden="true"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         SEÇÃO 2: Prancha Portfólio das 4 Telas iOS Exibidas Simultaneamente
+         ====================================================================== -->
+    <section id="secao-quatro-telas" class="galeria-quatro-telas" aria-label="Exibição simultânea das 4 telas principais">
+      <div class="rotulo-viewport" style="margin-bottom:16px;">
+        <div class="rotulo-viewport-esq">
+          <span class="ponto-ao-vivo"></span>
+          <span>03 · Arquitetura das 4 Telas Principais (Behance Presentation Deck)</span>
+        </div>
+        <span class="dimensao-badge">4 Artboards Interativos Simultâneos</span>
+      </div>
+
+      <div class="grade-quatro-iphones">
+        <!-- Tela 1: Dashboard + Gráfico Semanal + Matriz Eisenhower -->
+        <article class="coluna-artboard">
+          <div class="cabecalho-artboard">
+            <span class="numero-artboard">TELA 01</span>
+            <span class="titulo-artboard">Dashboard &amp; Matriz</span>
+          </div>
+          <div class="moldura-iphone-compacta">
+            <div class="tela-iphone">
+              <div class="barra-status-ios">
+                <span>09:41</span>
+                <div class="ilha-dinamica"></div>
+                <span class="icones-status-ios">100%</span>
+              </div>
+              <div id="artboard-1-corpo" class="conteudo-rolavel-ios"></div>
+              <div class="indicador-home-ios"></div>
+            </div>
+          </div>
+        </article>
+
+        <!-- Tela 2: Quick Task Creation Bottom Sheet + Pill Tags -->
+        <article class="coluna-artboard">
+          <div class="cabecalho-artboard">
+            <span class="numero-artboard">TELA 02</span>
+            <span class="titulo-artboard">Quick Creation Sheet</span>
+          </div>
+          <div class="moldura-iphone-compacta">
+            <div class="tela-iphone">
+              <div class="barra-status-ios">
+                <span>09:41</span>
+                <div class="ilha-dinamica"></div>
+                <span class="icones-status-ios">100%</span>
+              </div>
+              <div id="artboard-2-corpo" class="conteudo-rolavel-ios"></div>
+              <div class="indicador-home-ios"></div>
+            </div>
+          </div>
+        </article>
+
+        <!-- Tela 3: Focused Task Checklist -->
+        <article class="coluna-artboard">
+          <div class="cabecalho-artboard">
+            <span class="numero-artboard">TELA 03</span>
+            <span class="titulo-artboard">Checklist Focado</span>
+          </div>
+          <div class="moldura-iphone-compacta">
+            <div class="tela-iphone">
+              <div class="barra-status-ios">
+                <span>09:41</span>
+                <div class="ilha-dinamica"></div>
+                <span class="icones-status-ios">100%</span>
+              </div>
+              <div id="artboard-3-corpo" class="conteudo-rolavel-ios"></div>
+              <div class="indicador-home-ios"></div>
+            </div>
+          </div>
+        </article>
+
+        <!-- Tela 4: Activity Log + Minimal Timeline Bubbles -->
+        <article class="coluna-artboard">
+          <div class="cabecalho-artboard">
+            <span class="numero-artboard">TELA 04</span>
+            <span class="titulo-artboard">Activity Log Timeline</span>
+          </div>
+          <div class="moldura-iphone-compacta">
+            <div class="tela-iphone">
+              <div class="barra-status-ios">
+                <span>09:41</span>
+                <div class="ilha-dinamica"></div>
+                <span class="icones-status-ios">100%</span>
+              </div>
+              <div id="artboard-4-corpo" class="conteudo-rolavel-ios"></div>
+              <div class="indicador-home-ios"></div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         SEÇÃO 3: Especificação do Sistema de Design Unificado
+         ====================================================================== -->
+    <section class="secao-sistema-design" aria-label="Especificação do sistema de design unificado">
+      <div class="topo-sistema-design">
+        <h3>Unified Monochromatic Design System</h3>
+        <span>Tokens Visuais · Tipografia · Componentes Atômicos</span>
+      </div>
+
+      <div class="grade-tokens-design">
+        <!-- Paleta Monocromática -->
+        <div class="bloco-token">
+          <h4>01 · Escala Acromática de Alto Contraste</h4>
+          <div class="amostras-cores">
+            <div class="amostra-cor">
+              <div class="visor-cor" style="background:#09090B;"></div>
+              <span>#09090B</span>
+            </div>
+            <div class="amostra-cor">
+              <div class="visor-cor" style="background:#52525B;"></div>
+              <span>#52525B</span>
+            </div>
+            <div class="amostra-cor">
+              <div class="visor-cor" style="background:#E4E4E7;"></div>
+              <span>#E4E4E7</span>
+            </div>
+            <div class="amostra-cor">
+              <div class="visor-cor" style="background:#FAFAFA;"></div>
+              <span>#FAFAFA</span>
+            </div>
+            <div class="amostra-cor">
+              <div class="visor-cor" style="background:#FFFFFF;"></div>
+              <span>#FFFFFF</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tipografia -->
+        <div class="bloco-token">
+          <h4>02 · Hierarquia Tipográfica</h4>
+          <div class="especime-tipografia">
+            <div class="especime-display">Aa Bb 01—99</div>
+            <div class="especime-sub">
+              <strong>SF Pro Display / Plus Jakarta Sans</strong> (800 Bold, tracking -0.04em)
+              combinada a <strong>JetBrains Mono</strong> para métricas tabulares.
+            </div>
+          </div>
+        </div>
+
+        <!-- Micro-componentes Pílula -->
+        <div class="bloco-token">
+          <h4>03 · Tags em Pílula &amp; Micro-interações</h4>
+          <div class="componentes-amostra">
+            <span class="tag-prioridade-pilula selecionada">● Q1 Fazer Agora</span>
+            <span class="tag-prioridade-pilula">◐ Q2 Agendar</span>
+            <span class="tag-prioridade-pilula">○ Q3 Delegar</span>
+            <span class="tempo-pilula">cubic-bezier(0.22, 1, 0.36, 1)</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./showcase.js"></script>
+</body>
+</html>
