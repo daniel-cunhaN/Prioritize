@@ -28,6 +28,7 @@ import { useTheme, typography, radius } from '../theme';
 import client from '../api/client';
 import AdicionarDesejoModal from '../components/AdicionarDesejoModal';
 import GerenciarContaModal from '../components/GerenciarContaModal';
+import ConfirmarExclusaoModal from '../components/ConfirmarExclusaoModal';
 import { encerrarSessao } from '../utils/validacao';
 import SearchBar from '../components/home/SearchBar';
 import SectionHeader from '../components/home/SectionHeader';
@@ -35,6 +36,7 @@ import ProductCard, { PRIORITY_CONFIG } from '../components/home/ProductCard';
 import EditarDesejoModal from '../components/home/EditarDesejoModal';
 import BottomNav, { BOTTOM_NAV_HEIGHT, HomeTab } from '../components/home/BottomNav';
 import DesktopHeader from '../components/home/DesktopHeader';
+import BotaoNovoDesejo from '../components/home/BotaoNovoDesejo';
 import FilterSortBar from '../components/home/FilterSortBar';
 import ModalOrdenacao, { OPCOES_ORDENACAO } from '../components/home/ModalOrdenacao';
 import KanbanBoard from '../components/home/KanbanBoard';
@@ -81,20 +83,6 @@ const obterIdsConcluidosIniciais = (): string[] => {
   return [];
 };
 
-/** Confirmação compatível com Mobile e Web */
-const confirmAction = (title: string, message: string, confirmText: string, onConfirm: () => void) => {
-  if (Platform.OS === 'web') {
-    if (typeof window !== 'undefined' && window.confirm(`${title}\n\n${message}`)) {
-      onConfirm();
-    }
-    return;
-  }
-  Alert.alert(title, message, [
-    { text: 'Cancelar', style: 'cancel' },
-    { text: confirmText, style: 'destructive', onPress: onConfirm },
-  ]);
-};
-
 export default function HomeScreen({ navigation }: any) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -118,6 +106,8 @@ export default function HomeScreen({ navigation }: any) {
   const [modalEditarVisivel, setModalEditarVisivel] = useState(false);
   const [modalOrdenacaoVisivel, setModalOrdenacaoVisivel] = useState(false);
   const [itemParaEditar, setItemParaEditar] = useState<WishlistItem | null>(null);
+  const [itemParaExcluir, setItemParaExcluir] = useState<{ id: string; titulo?: string | null } | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
   const [urlCompartilhadaModal, setUrlCompartilhadaModal] = useState('');
 
   // Filtros, ordenação, busca e aba ativa
@@ -313,28 +303,31 @@ export default function HomeScreen({ navigation }: any) {
     });
   };
 
-  // Ação de Exclusão de Desejo via API
-  const handleExcluirDesejo = async (id: string, titulo?: string | null) => {
-    confirmAction(
-      'Apagar Desejo',
-      `Deseja apagar "${titulo || 'este item'}" da sua lista?`,
-      'Apagar',
-      async () => {
-        try {
-          await client.delete(`/wishlist/${id}`);
-          setDesejos((prev) => prev.filter((item) => item.id !== id));
-          registrarEvento({
-            simbolo: '✕',
-            destaque: false,
-            titulo: `Removeu "${titulo || 'Item'}"`,
-            detalhe: 'Excluído permanentemente da lista',
-          });
-        } catch (erro) {
-          console.error('Erro ao excluir desejo:', erro);
-          Alert.alert('Erro', 'Não foi possível excluir o item.');
-        }
-      }
-    );
+  // Ação de Exclusão de Desejo via Modal Estilizado de Confirmação
+  const handleExcluirDesejo = (id: string, titulo?: string | null) => {
+    setItemParaExcluir({ id, titulo });
+  };
+
+  const handleConfirmarExclusao = async () => {
+    if (!itemParaExcluir) return;
+    const { id, titulo } = itemParaExcluir;
+    setExcluindo(true);
+    try {
+      await client.delete(`/wishlist/${id}`);
+      setDesejos((prev) => prev.filter((item) => item.id !== id));
+      registrarEvento({
+        simbolo: '✕',
+        destaque: false,
+        titulo: `Removeu "${titulo || 'Item'}"`,
+        detalhe: 'Excluído permanentemente da lista',
+      });
+      setItemParaExcluir(null);
+    } catch (erro) {
+      console.error('Erro ao excluir desejo:', erro);
+      Alert.alert('Erro', 'Não foi possível excluir o item.');
+    } finally {
+      setExcluindo(false);
+    }
   };
 
   // Conversão segura para o tipo WishlistItem
@@ -636,14 +629,10 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={[styles.emptySubtitle, { color: theme.mutedForeground }]}>
             Compartilhe ou cole o link de um produto para herdar imagem, título e preço automaticamente e classificá-lo em Baixa, Média ou Alta prioridade.
           </Text>
-          <TouchableOpacity
+          <BotaoNovoDesejo
             onPress={handleAbrirModal}
-            style={[styles.emptyBtn, { backgroundColor: theme.primary }]}
-            activeOpacity={0.85}
-          >
-            <Feather name="plus" size={18} color={theme.primaryForeground} />
-            <Text style={[styles.emptyBtnText, { color: theme.primaryForeground }]}>Novo Desejo</Text>
-          </TouchableOpacity>
+            tamanho="lg"
+          />
         </View>
       );
     }
@@ -986,6 +975,15 @@ export default function HomeScreen({ navigation }: any) {
         ordemAtual={ordem}
         onSelecionar={setOrdem}
         onFechar={() => setModalOrdenacaoVisivel(false)}
+      />
+
+      {/* Diálogo Monocromático Estilizado de Confirmação de Exclusão */}
+      <ConfirmarExclusaoModal
+        visivel={!!itemParaExcluir}
+        tituloProduto={itemParaExcluir?.titulo}
+        carregando={excluindo}
+        aoFechar={() => setItemParaExcluir(null)}
+        aoConfirmar={handleConfirmarExclusao}
       />
     </View>
   );

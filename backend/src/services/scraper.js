@@ -125,40 +125,73 @@ const SELETORES_PRECO_META = [
   { seletor: 'meta[property="product:price:amount"]', atributo: 'content' },
   { seletor: 'meta[property="og:price:amount"]', atributo: 'content' },
   { seletor: 'meta[property="price"]', atributo: 'content' },
-  { seletor: 'meta[name="twitter:data1"]', atributo: 'content' },
   { seletor: 'meta[itemprop="price"]', atributo: 'content' },
   { seletor: '[itemprop="price"]', atributo: 'content' },
 ];
 
 /**
- * Converte diferentes formatos de valor monetário (ex: "88.02", "88,02", "R$ 1.250,90")
- * em um número de ponto flutuante arredondado para 2 casas decimais.
+ * Converte diferentes formatos de valor monetário (ex: "88.02", "88,02", "R$ 1.250,90",
+ * "R$ 899,00 em até 10x de R$ 89,90", "10x de R$ 89,90") em um número de ponto flutuante
+ * arredondado para 2 casas decimais. Trata parcelamento de forma inteligente, evitando
+ * retornar o multiplicador da parcela (ex.: nunca retorna 10 para "10x de R$ 89,90").
+ *
+ * @param {string|number|null|undefined} valor
+ * @returns {number|null}
  */
 export function normalizarPreco(valor) {
   if (valor === null || valor === undefined) return null;
   if (typeof valor === 'number') {
     return Number.isFinite(valor) && valor > 0 ? Math.round(valor * 100) / 100 : null;
   }
-  const str = String(valor).trim();
+  let str = String(valor).trim();
   if (!str) return null;
 
-  // Extrai padrão de moeda R$ XX,XX ou valores com decimais
-  const padraoMoeda = str.match(/(?:R\$|\$)?\s*(\d{1,3}(?:\.\d{3})*,\d{2}|\d+(?:[.,]\d{1,2})?)/);
-  if (padraoMoeda) {
-    const raw = padraoMoeda[1]
-      .replace(/\.(?=\d{3})/g, '') // remove separador de milhar
-      .replace(',', '.');          // converte vírgula decimal
+  // Se a string contiver apenas texto de parcela sem valor monetário (ex.: "10x", "12x sem juros")
+  if (/^\s*\d{1,2}\s*x(?:\s+sem\s+juros)?\s*$/i.test(str)) {
+    return null;
+  }
+
+  // Caso 1: String com símbolo explícito de moeda (R$ ou $)
+  const matchesMoeda = [
+    ...str.matchAll(
+      /(?:R\$|\$)\s*(\d{1,3}(?:\.\d{3})*,\d{2}|\d{1,3}(?:,\d{3})*\.\d{2}|\d+(?:[.,]\d{1,2})?)/gi
+    ),
+  ];
+
+  if (matchesMoeda.length > 0) {
+    // Se houver múltiplos valores (ex.: "De R$ 1.200,00 por R$ 899,00" ou "R$ 899,00 ou 10x de R$ 89,90")
+    // Dá preferência ao preço promocional ("por R$ ...", "à vista R$ ...")
+    const matchPor = str.match(
+      /(?:por|à vista|a vista|agora|pix)\s*(?:R\$|\$)\s*(\d{1,3}(?:\.\d{3})*,\d{2}|\d+(?:[.,]\d{1,2})?)/i
+    );
+    const alvo = matchPor ? matchPor[1] : matchesMoeda[0][1];
+
+    const raw = alvo
+      .replace(/\.(?=\d{3})/g, '')
+      .replace(/,(?=\d{3})/g, '')
+      .replace(',', '.');
     const num = parseFloat(raw);
     if (Number.isFinite(num) && num > 0) return Math.round(num * 100) / 100;
   }
 
-  const limpo = str
-    .replace(/[^\d,.-]/g, '')
-    .replace(/\.(?=\d{3})/g, '')
-    .replace(',', '.');
+  // Caso 2: Se não possui símbolo explícito de moeda (ex.: "88.02", "1250.90", "10x de 89.90")
+  // Remove multiplicador de parcelas no início (ex.: "10x de", "12x ")
+  str = str.replace(/^\s*\d{1,2}\s*x\s*(?:de\s*)?/i, '').trim();
 
-  const num = parseFloat(limpo);
-  return Number.isFinite(num) && num > 0 ? Math.round(num * 100) / 100 : null;
+  // Busca número decimal formatado (ex.: "499.90" vindo de meta tag ou "1250,90")
+  const matchDecimal = str.match(
+    /(\d{1,3}(?:\.\d{3})*,\d{2}|\d{1,3}(?:,\d{3})*\.\d{2}|\d+\.\d{2}|\d+,\d{2}|\d+)/
+  );
+  if (matchDecimal) {
+    const raw = matchDecimal[1]
+      .replace(/\.(?=\d{3})/g, '')
+      .replace(/,(?=\d{3})/g, '')
+      .replace(',', '.');
+    const num = parseFloat(raw);
+    if (Number.isFinite(num) && num > 0) return Math.round(num * 100) / 100;
+  }
+
+  return null;
 }
 
 /**
@@ -331,6 +364,87 @@ function resolverUrlAbsoluta(caminho, urlOrigem) {
 }
 
 /**
+ * Extrai preço de Twitter Cards apenas quando twitter:label for explicitamente preço/valor,
+ * ou quando twitter:data contiver símbolo monetário explícito (R$ ou $).
+ * Evita que avaliações (ex: 4.8 de 5 estrelas) sejam consideradas como preço.
+ */
+function extrairPrecoTwitterCard($) {
+  for (const num of ['1', '2']) {
+    const label = ($(`meta[name="twitter:label${num}"]`).attr('content') || '').toLowerCase();
+    const data = $(`meta[name="twitter:data${num}"]`).attr('content');
+    if (!data) continue;
+
+    // Se o label for explicitamente relacionado a preço/valor
+    if (/pre[çc]o|valor|price|amount/i.test(label)) {
+      const p = normalizarPreco(data);
+      if (p !== null) return p;
+    }
+
+    // Se o conteúdo tiver indicação explícita de moeda (R$ ou $)
+    if (/(?:R\$|\$)/i.test(data)) {
+      const p = normalizarPreco(data);
+      if (p !== null) return p;
+    }
+  }
+  return null;
+}
+
+/**
+ * Extrai preço de elementos HTML do e-commerce, priorizando preços promocionais
+ * e a pagar, descartando preços riscados/anteriores (del, s, .a-text-price, .andes-money-amount--previous).
+ */
+function extrairPrecoHtml($) {
+  // 1. Amazon: Preço a pagar (priceToPay) ou preço principal desconsiderando o riscado
+  const amazonPriceToPay = $('.priceToPay .a-offscreen').first().text();
+  if (amazonPriceToPay) {
+    const p = normalizarPreco(amazonPriceToPay);
+    if (p !== null) return p;
+  }
+  const amazonCorePrice = $(
+    '#corePriceDisplay_desktop_feature_div .a-price:not(.a-text-price) .a-offscreen, #corePrice_desktop .a-price:not(.a-text-price) .a-offscreen'
+  )
+    .first()
+    .text();
+  if (amazonCorePrice) {
+    const p = normalizarPreco(amazonCorePrice);
+    if (p !== null) return p;
+  }
+
+  // 2. Mercado Livre: linha principal de preço à vista
+  const mlFracao = $('.ui-pdp-price__second-line .andes-money-amount__fraction').first().text();
+  if (mlFracao) {
+    const mlCentavos = $('.ui-pdp-price__second-line .andes-money-amount__cents').first().text();
+    const textoCompleto = mlCentavos ? `${mlFracao},${mlCentavos}` : mlFracao;
+    const p = normalizarPreco(textoCompleto);
+    if (p !== null) return p;
+  }
+
+  // 3. Schema.org / Microdados: itemprop="price" que não seja preço riscado
+  const itempropPreco = $('[itemprop="price"]')
+    .not('del *, s *, .a-text-price *, .andes-money-amount--previous *')
+    .first();
+  if (itempropPreco.length) {
+    const conteudo = itempropPreco.attr('content') || itempropPreco.text();
+    const p = normalizarPreco(conteudo);
+    if (p !== null) return p;
+  }
+
+  // 4. Seletores gerais de preço ativo descartando riscados
+  const seletorGeral = $(
+    '.a-price:not(.a-text-price) .a-offscreen, .special-price, .sales-price, .product-price'
+  )
+    .not('del *, s *, .a-text-price *')
+    .first()
+    .text();
+  if (seletorGeral) {
+    const p = normalizarPreco(seletorGeral);
+    if (p !== null) return p;
+  }
+
+  return null;
+}
+
+/**
  * Analisa o HTML e retorna os metadados "crus", sem fallback de título.
  * Usado internamente para decidir se uma nova tentativa é necessária.
  */
@@ -349,20 +463,22 @@ function analisarHtml(html, urlOrigem) {
     extrairImagemJsonLd($) ||
     primeiroValor($, SELETORES_IMAGEM_SECUNDARIOS);
 
-  // Precedência de preços: metas OG/Twitter/Product > JSON-LD Product > seletores HTML > Texto com moeda explícita (R$)
+  // Precedência de preços:
+  // 1. Meta tags explícitas de produto (product:price:amount, og:price:amount)
+  // 2. JSON-LD schema.org/Product (offers.price, offers.lowPrice)
+  // 3. Twitter Card validado (apenas se for preço real, descartando avaliações/estrelas)
+  // 4. Seletores HTML de preço a pagar (descartando preços riscados)
+  // 5. Texto livre com símbolo explícito de moeda (R$ ou $)
   const precoMeta = normalizarPreco(primeiroValor($, SELETORES_PRECO_META));
   const precoJsonLd = extrairPrecoJsonLd($);
-  const precoHtml = normalizarPreco(
-    $('[itemprop="price"]').first().text() ||
-    $('.a-price .a-offscreen').first().text() ||
-    null
-  );
+  const precoTwitter = extrairPrecoTwitterCard($);
+  const precoHtml = extrairPrecoHtml($);
   const precoTexto = extrairPrecoDeTexto(
     $('meta[property="og:description"]').attr('content') ||
     $('meta[name="description"]').attr('content') ||
     null
   );
-  const price = precoMeta ?? precoJsonLd ?? precoHtml ?? precoTexto ?? null;
+  const price = precoMeta ?? precoJsonLd ?? precoTwitter ?? precoHtml ?? precoTexto ?? null;
 
   return {
     titulo,

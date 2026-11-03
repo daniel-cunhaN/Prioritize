@@ -172,7 +172,11 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
    - Tentativas ordenadas combinando navegador desktop moderno (`Chrome`), crawlers de redes sociais (`Twitterbot/1.0`, `facebookexternalhit/1.1`) e crawlers de mensageiros (`WhatsApp/2.23.23.77 A`).
    - **Suporte Nativo a Shopee e Links Encurtados (`ehUrlShopee` e `obterPerfisParaUrl`)**: Para URLs pertencentes à Shopee (`shopee.com.br`, `shopee.com`, `shope.ee`, `s.shopee.com.br`), o scraper prioriza imediatamente o perfil do WhatsApp no topo da lista. Isso contorna o problema de SPAs vazios servidos para navegadores comuns e bloqueios HTTP 403 de bots genéricos, recebendo o HTML com SSR (Server-Side Rendering) completo com imagem de alta resolução na CDN (`down-br.img.susercontent.com`) e título do produto na 1ª tentativa.
 2. **Fontes Múltiplas e Precedência de Imagem**: OpenGraph (`og:image`, `og:image:secure_url`), Twitter Cards (`twitter:image`), JSON-LD `Product` e microformatos `itemprop="image"` e `link rel="image_src"`.
-3. **Extração Segura de Preço (`extrairPrecoDeTexto`)**: Precedência rigorosa de valores monetários a partir de meta tags específicas (`product:price:amount`, `og:price:amount`, JSON-LD `Product` com `offers`). Em textos descritivos, exige obrigatoriamente a presença explícita de símbolo de moeda (`R$` ou `$`), impedindo falso-positivo de especificações ou nomes de modelo (ex.: "VC-10", "iPhone 15") como se fossem o preço do produto.
+3. **Normalização Inteligente e Estável de Preços (`normalizarPreco`, `extrairPrecoTwitterCard` e `extrairPrecoHtml`)**:
+   - Elimina a oscilação de valores para o mesmo link ao impedir que multiplicadores de parcelas (ex.: `"10x de R$ 89,90"` ou `"12x R$ 150,00"`) sejam capturados como se fossem o preço do produto (antes retornava `10` ou `12`, agora extrai o valor monetário real `89.90` ou o total à vista `899.00`).
+   - Prioriza rigorosamente o preço a pagar e preços promocionais (`.priceToPay .a-offscreen`, `.ui-pdp-price__second-line .andes-money-amount__fraction`), descartando automaticamente preços antigos e riscados (`.a-text-price`, `.andes-money-amount--previous`, tags `del`/`s`).
+   - Filtra Twitter Cards (`extrairPrecoTwitterCard`), ignorando avaliações, estrelas ou campos de entrega em `twitter:data1` (ex.: "4.8 estrelas") e aceitando apenas valores categorizados explicitamente como preço.
+   - Em textos livres, exige a presença explícita de símbolo monetário (`R$` ou `$`), evitando que modelos como "VC-10" ou "iPhone 15" contaminem o valor.
 4. **Fallback Resiliente da Amazon por ASIN**: Extração do ASIN (`/dp/ASIN`) e consulta direta à CDN oficial da Amazon descartando GIFs vazios.
 5. **Fallback Tolerante a Falhas**: Geração de título amigável a partir do domínio caso o site esteja indisponível.
 
@@ -202,12 +206,32 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
 4. **Registro de Atividades (`RegistroAtividades.tsx` — aba `Log`)**:
    - Linha do tempo vertical minimalista com bolhas circulares (`+`, `✓`, `↺`, `✎`, `✕`) que mescla ações em tempo real da sessão (criação, conclusão, reabertura, edição e exclusão) com o histórico de itens cadastrados.
 
-### 6.4. Navegação Flutuante em Pílula (`BottomNav.tsx` e `DesktopHeader.tsx`)
+### 6.4. Navegação Flutuante em Pílula e Botão "Novo Desejo" com Design Spell (`BotaoNovoDesejo.tsx`)
 - **Mobile (`BottomNav.tsx`)**: Barra de navegação flutuante em formato pílula (`Floating Pill Navigation Bar`) com abas ativas em alto contraste (`Início`, `Foco`, `Log`, `Conta`) e botão circular `+` integrado para criação rápida.
-- **Desktop (`DesktopHeader.tsx`)**: Cabeçalho amplo com monograma `P.`, barra de pesquisa em pílula (`SearchBar.tsx`), seletor de abas segmentado e CTA `+ Novo Desejo`.
+- **Desktop (`DesktopHeader.tsx`)**: Cabeçalho amplo com monograma `P.`, barra de pesquisa em pílula (`SearchBar.tsx`), seletor de abas segmentado e botão primário com **Design Spell** ([`BotaoNovoDesejo.tsx`](frontend/src/components/home/BotaoNovoDesejo.tsx)).
+- **Micro-interações "Design Spell"**:
+  - **Aura & Glow Monocromático**: Efeito de elevação suave no hover via `boxShadow` dinâmica no Web (`0 12px 28px -4px rgba(0,0,0,0.45)`).
+  - **Micro-rotação Tátil**: Badge circular do ícone `+` com animação suave de rotação (90°) e leve escala elástica (1.1x) no hover/toque.
+  - **Magic Sparkle (✦)**: Micro-ícone de faísca monocromática luminosa integrado ao lado da tipografia `800`.
+  - **Atalho Pro-Level**: Badge `⌘N` minimalista no ambiente Desktop para acionamento produtivo.
+  - **Feedback Spring**: Resposta tátil com escala fluida `0.96` ao clique/pressão.
 
 ### 6.5. Compartilhamento Nativo ("Compartilhar com: Prioritize")
 - Captura links de produtos via Android/iOS Share Intent (`expo-share-intent`), Deep Links (`prioritize://share?url=...`) e query params Web (`?url=...`) por meio do hook `useCompartilhamento.ts`, abrindo automaticamente o Bottom Sheet `AdicionarDesejoModal.tsx` já preenchido com os metadados do produto.
+
+### 6.6. Modal Estilizado de Confirmação de Exclusão (`ConfirmarExclusaoModal.tsx`)
+- Substitui caixas de diálogo nativas (`window.confirm` e `Alert.alert`) por um diálogo monocromático elegante e responsivo:
+  - Header com badge circular de lixeira monocromática (`Feather name="trash-2"`).
+  - Pergunta em destaque de alto contraste: **"Deseja mesmo excluir esse produto?"**.
+  - Caixa de prévia do item a ser excluído contendo o nome do produto e aviso explícito de ação permanente.
+  - Botões pílula de ação monocromáticos: `Cancelar` (contorno suave) e `Excluir` (sólido primário de alto impacto com ícone).
+
+### 6.7. Exibição do Valor Extraído no Quick Creation Sheet (`AdicionarDesejoModal.tsx`)
+- Adicionada seção informativa em destaque **"VALOR EXTRAÍDO DO LINK"**:
+  - Exibe o valor monetário detectado automaticamente na página do produto através de tipografia tabular (`PriceTag`).
+  - Badge de status (`● Automático` quando detectado pelo scraper ou `○ Não detectado` quando a página não informa valor público).
+  - Botão de restauração rápida para retornar ao valor original caso o usuário tenha editado o campo.
+  - Tag inline no rótulo do campo de edição de valor (`Link: R$ XX,XX`), mantendo total transparência entre o valor extraído e a edição manual.
 
 ### 6.8. Gestão Robusta de Ciclo de Vida de Sessão e Eliminação de Alertas de Depreciação
 - **Tratamento de Sessão Expirada e Invalidação Graciosa (Backend Sênior)**:
@@ -228,7 +252,7 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
 
 ## 7. Como Executar os Testes
 
-O projeto conta com uma suíte completa de **91 testes automatizados** (50 no backend e 41 no frontend) desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
+O projeto conta com uma suíte completa de **104 testes automatizados** (53 no backend e 51 no frontend) desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
 
 ### Execução Unificada (Backend + Frontend)
 Na raiz do projeto:
@@ -236,15 +260,15 @@ Na raiz do projeto:
 npm test
 ```
 
-### Testes do Backend (50 testes)
-Testes unitários e de integração de autenticação (rejeição de credenciais inválidas e tokens de usuários inexistentes), banco de dados, rotas de wishlist (filtros, busca, ordenação e preço), extração de metadados resiliente a lojas anti-bot e Shopee (SSR via crawler WhatsApp), normalização segura de valores e segurança:
+### Testes do Backend (53 testes)
+Testes unitários e de integração de autenticação (rejeição de credenciais inválidas e tokens de usuários inexistentes), banco de dados, rotas de wishlist (filtros, busca, ordenação e preço), extração de metadados resiliente a lojas anti-bot e Shopee (SSR via crawler WhatsApp), normalização inteligente de valores (eliminação de oscilação por parcelamento e preços riscados) e segurança:
 ```bash
 cd backend
 npm test
 ```
 
-### Testes do Frontend (41 testes unitários)
-Valida extração de links compartilhados, compatibilidade com React Native Web (eliminação de `<button>` aninhados, suporte a `boxShadow`, `useNativeDriver` seguro e `pointerEvents`), filtros e ordenação, agrupamento Kanban, formatação monetária e os novos fluxos de produtividade:
+### Testes do Frontend (51 testes unitários)
+Valida extração de links compartilhados, compatibilidade com React Native Web (eliminação de `<button>` aninhados, suporte a `boxShadow`, `useNativeDriver` seguro e `pointerEvents`), modal estilizado de confirmação de exclusão (`ConfirmarExclusaoModal.tsx`), botão "Novo Desejo" com Design Spell (`BotaoNovoDesejo.tsx`), exibição do valor extraído no Quick Creation Sheet (`AdicionarDesejoModal.tsx`), filtros e ordenação, agrupamento Kanban, formatação monetária e os novos fluxos de produtividade:
 ```bash
 cd frontend
 npm test

@@ -2,7 +2,7 @@
  * DesktopHeader.tsx — Cabeçalho Minimalista Monocromático para Web / Desktop
  *
  * Unifica marca tipográfica em alto contraste, barra de busca em pílula,
- * seletor de navegação flutuante e botão primário de criação rápida.
+ * seletor de navegação flutuante e botão primário de criação rápida com Design Spell.
  */
 
 import React from 'react';
@@ -10,6 +10,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme, typography, radius } from '../../theme';
 import { NAV_ITEMS, HomeTab } from './BottomNav';
+import BotaoNovoDesejo from './BotaoNovoDesejo';
 
 interface Props {
   active: HomeTab;
@@ -41,7 +42,7 @@ export default function DesktopHeader({ active, userEmail, onSelect, onAddPress,
       {/* Barra de busca centralizada */}
       <View style={styles.search}>{children}</View>
 
-      {/* Abas em formato pílula + Botão Primário */}
+      {/* Abas em formato pílula + Botão Primário com Design Spell */}
       <View style={styles.navContainer}>
         <View
           style={[
@@ -86,22 +87,11 @@ export default function DesktopHeader({ active, userEmail, onSelect, onAddPress,
           })}
         </View>
 
-        <Pressable
-          nativeID="header-add-wish"
+        {/* Botão Novo Desejo com Design Spell (aura tátil, rotação e sparkle) */}
+        <BotaoNovoDesejo
           onPress={onAddPress}
-          accessibilityRole="button"
-          accessibilityLabel="Novo desejo"
-          style={({ hovered, pressed }: any) => [
-            styles.cta,
-            {
-              backgroundColor: theme.primary,
-              transform: [{ scale: pressed ? 0.97 : hovered ? 1.02 : 1 }],
-            },
-          ]}
-        >
-          <Feather name="plus" size={17} color={theme.primaryForeground} />
-          <Text style={[styles.ctaText, { color: theme.primaryForeground }]}>Novo Desejo</Text>
-        </Pressable>
+          exibirAtalho
+        />
       </View>
     </View>
   );
@@ -167,19 +157,5 @@ const styles = StyleSheet.create({
     fontFamily: typography.fonts.sans,
     fontSize: 13,
     fontWeight: '700',
-  },
-  cta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 18,
-    height: 44,
-    borderRadius: radius.full,
-  },
-  ctaText: {
-    fontFamily: typography.fonts.sans,
-    fontWeight: '700',
-    fontSize: 13,
-    letterSpacing: -0.2,
   },
 });

@@ -98,6 +98,8 @@ export default function AdicionarDesejoModal({
   const [preco, setPreco] = useState('');
   const [prioridade, setPrioridade] = useState<NivelPrioridade>(3);
 
+  const [precoOriginalExtraido, setPrecoOriginalExtraido] = useState<number | null>(null);
+  const [metadadosJaBuscados, setMetadadosJaBuscados] = useState(false);
   const [carregandoMetadados, setCarregandoMetadados] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [urlFocada, setUrlFocada] = useState(false);
@@ -124,6 +126,8 @@ export default function AdicionarDesejoModal({
     setImagemUrl(null);
     setPreco('');
     setPrecoDetectado(false);
+    setPrecoOriginalExtraido(null);
+    setMetadadosJaBuscados(false);
     setPrioridade(3);
     setMensagemErro(null);
   };
@@ -153,8 +157,13 @@ export default function AdicionarDesejoModal({
       if (precoExtraido !== undefined && precoExtraido !== null) {
         setPreco(formatarPrecoParaInput(precoExtraido));
         setPrecoDetectado(true);
+        setPrecoOriginalExtraido(precoExtraido);
+      } else {
+        setPrecoOriginalExtraido(null);
       }
+      setMetadadosJaBuscados(true);
     } catch (erro: any) {
+      setMetadadosJaBuscados(true);
       if (erro?.response?.status === 401) {
         setMensagemErro('Sua sessão expirou. Por favor, faça login novamente para consultar produtos.');
       } else {
@@ -447,7 +456,93 @@ export default function AdicionarDesejoModal({
               )}
             </View>
 
-            {/* 4. Título Editável + Valor em Reais */}
+            {/* 4. Seção Informativa: VALOR EXTRAÍDO DO LINK */}
+            {metadadosJaBuscados && (
+              <View
+                style={[
+                  styles.cardValorExtraido,
+                  {
+                    backgroundColor: theme.card,
+                    borderColor: theme.border,
+                  },
+                ]}
+              >
+                <View style={styles.linhaCabecalhoValorExtraido}>
+                  <View style={styles.rotuloComIcone}>
+                    <Feather name="tag" size={13} color={theme.foreground} />
+                    <Text style={[styles.eyebrowValor, { color: theme.foreground }]}>
+                      VALOR EXTRAÍDO DO LINK
+                    </Text>
+                  </View>
+
+                  {precoOriginalExtraido !== null ? (
+                    <View
+                      style={[
+                        styles.badgeAutomatico,
+                        { backgroundColor: theme.primary },
+                      ]}
+                    >
+                      <Text style={[styles.textoBadgeAutomatico, { color: theme.primaryForeground }]}>
+                        ● Automático
+                      </Text>
+                    </View>
+                  ) : (
+                    <View
+                      style={[
+                        styles.badgeManual,
+                        { backgroundColor: theme.secondary, borderColor: theme.border },
+                      ]}
+                    >
+                      <Text style={[styles.textoBadgeManual, { color: theme.mutedForeground }]}>
+                        ○ Não detectado
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {precoOriginalExtraido !== null ? (
+                  <View style={styles.corpoValorExtraido}>
+                    <View style={styles.linhaValorPrincipal}>
+                      <PriceTag
+                        value={precoOriginalExtraido}
+                        color={theme.foreground}
+                        size="md"
+                      />
+                      {converterInputParaNumero(preco) !== precoOriginalExtraido && (
+                        <TouchableOpacity
+                          onPress={() => {
+                            setPreco(formatarPrecoParaInput(precoOriginalExtraido));
+                            setPrecoDetectado(true);
+                          }}
+                          style={[
+                            styles.botaoRestaurarPreco,
+                            { backgroundColor: theme.secondary, borderColor: theme.border },
+                          ]}
+                          accessibilityLabel="Restaurar valor extraído do link"
+                          activeOpacity={0.8}
+                        >
+                          <Feather name="rotate-ccw" size={11} color={theme.foreground} />
+                          <Text style={[styles.textoRestaurar, { color: theme.foreground }]}>
+                            Restaurar original
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    <Text style={[styles.explicacaoValor, { color: theme.mutedForeground }]}>
+                      Valor extraído do link do produto com sucesso. Você pode editá-lo no campo abaixo se desejar.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.corpoValorNaoDetectado}>
+                    <Text style={[styles.explicacaoValor, { color: theme.mutedForeground }]}>
+                      Valor não informado ou não detectado na página do produto. Digite o valor manualmente no campo abaixo se desejar acompanhá-lo.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* 5. Título Editável */}
             <View style={styles.grupoCampo}>
               <Text style={[styles.rotuloCampo, { color: theme.foreground }]}>
                 TÍTULO DO PRODUTO
@@ -474,10 +569,25 @@ export default function AdicionarDesejoModal({
               />
             </View>
 
+            {/* 6. Edição do Valor em Reais */}
             <View style={styles.grupoCampo}>
-              <Text style={[styles.rotuloCampo, { color: theme.foreground }]}>
-                VALOR ESTIMADO (OPCIONAL)
-              </Text>
+              <View style={styles.linhaRotuloComBadge}>
+                <Text style={[styles.rotuloCampo, { color: theme.foreground, marginBottom: 0 }]}>
+                  VALOR ESTIMADO (OPCIONAL)
+                </Text>
+                {precoOriginalExtraido !== null && (
+                  <View
+                    style={[
+                      styles.miniBadgeExtraido,
+                      { backgroundColor: theme.secondary, borderColor: theme.border },
+                    ]}
+                  >
+                    <Text style={[styles.textoMiniBadge, { color: theme.mutedForeground }]}>
+                      Link: R$ {formatarPrecoParaInput(precoOriginalExtraido)}
+                    </Text>
+                  </View>
+                )}
+              </View>
               <View style={styles.inputPrecoContainer}>
                 <View
                   style={[
@@ -516,7 +626,7 @@ export default function AdicionarDesejoModal({
               </View>
               {precoDetectado && (
                 <Text style={[styles.ajudaPreco, { color: theme.mutedForeground }]}>
-                  Valor extraído automaticamente do link.
+                  Valor preenchido automaticamente a partir da página do produto.
                 </Text>
               )}
             </View>
@@ -734,6 +844,97 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: radius.full,
     borderWidth: 1,
+  },
+  cardValorExtraido: {
+    padding: 12,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    marginBottom: spacing.md,
+    gap: 8,
+  },
+  linhaCabecalhoValorExtraido: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  rotuloComIcone: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  eyebrowValor: {
+    fontFamily: typography.fonts.sans,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  badgeAutomatico: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+  },
+  textoBadgeAutomatico: {
+    fontFamily: typography.fonts.sans,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  badgeManual: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  textoBadgeManual: {
+    fontFamily: typography.fonts.sans,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  corpoValorExtraido: {
+    gap: 4,
+  },
+  linhaValorPrincipal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  botaoRestaurarPreco: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  textoRestaurar: {
+    fontFamily: typography.fonts.sans,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  corpoValorNaoDetectado: {
+    paddingVertical: 2,
+  },
+  explicacaoValor: {
+    fontFamily: typography.fonts.sans,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  linhaRotuloComBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  miniBadgeExtraido: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  textoMiniBadge: {
+    fontFamily: typography.fonts.sans,
+    fontSize: 10,
+    fontWeight: '600',
   },
   inputPrecoContainer: {
     flexDirection: 'row',

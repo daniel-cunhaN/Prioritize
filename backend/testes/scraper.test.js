@@ -9,6 +9,7 @@ import {
   extrairMetadadosDeHtml,
   extrairMetadadosUrl,
   extrairPrecoDeTexto,
+  normalizarPreco,
 } from '../src/services/scraper.js';
 
 describe('Serviço de Scraping de Metadados (Cheerio)', () => {
@@ -158,5 +159,49 @@ describe('Serviço de Scraping de Metadados (Cheerio)', () => {
     const metadados = extrairMetadadosDeHtml(htmlMock, 'https://shopee.com.br/principia-vc10');
 
     assert.strictEqual(metadados.price, null);
+  });
+
+  test('deve tratar parcelamento corretamente em normalizarPreco e nunca retornar o multiplicador da parcela', () => {
+    // Casos em que havia bug de retornar o número de parcelas (10, 12, 6) em vez do valor monetário
+    assert.strictEqual(normalizarPreco('10x de R$ 89,90'), 89.9);
+    assert.strictEqual(normalizarPreco('12x R$ 150,00 sem juros'), 150.0);
+    assert.strictEqual(normalizarPreco('6x de R$ 45,00'), 45.0);
+    assert.strictEqual(normalizarPreco('R$ 899,00 em até 10x de R$ 89,90'), 899.0);
+    assert.strictEqual(normalizarPreco('De R$ 1.200,00 por R$ 899,00'), 899.0);
+    assert.strictEqual(normalizarPreco('10x sem juros'), null);
+    assert.strictEqual(normalizarPreco('10x'), null);
+  });
+
+  test('não deve considerar twitter:data1 como preco quando o label for avaliacao ou estrelas', () => {
+    const htmlComAvaliacao = `
+      <html>
+        <head>
+          <title>Produto Estrelado</title>
+          <meta name="twitter:label1" content="Classificação" />
+          <meta name="twitter:data1" content="4.8 de 5 estrelas" />
+          <meta property="product:price:amount" content="299.90" />
+        </head>
+      </html>
+    `;
+
+    const metadados = extrairMetadadosDeHtml(htmlComAvaliacao, 'https://loja.com/item');
+    assert.strictEqual(metadados.price, 299.9);
+  });
+
+  test('deve priorizar preco promocional e preco a pagar sobre preco riscado no HTML', () => {
+    const htmlAmazonDesconto = `
+      <html>
+        <head>
+          <title>Kindle Paperwhite</title>
+        </head>
+        <body>
+          <span class="a-price a-text-price"><span class="a-offscreen">R$ 799,00</span></span>
+          <span class="a-price priceToPay"><span class="a-offscreen">R$ 599,00</span></span>
+        </body>
+      </html>
+    `;
+
+    const metadados = extrairMetadadosDeHtml(htmlAmazonDesconto, 'https://amazon.com.br/dp/B000');
+    assert.strictEqual(metadados.price, 599.0);
   });
 });
