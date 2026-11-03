@@ -4,7 +4,9 @@
  * Validações:
  * 1) Existência do componente BotaoNovoDesejo.tsx com micro-interações de Design Spell
  * 2) Renderização do texto "Novo Desejo" com ícone estilizado e detalhes táteis
- * 3) Integração do componente em DesktopHeader.tsx e HomeScreen.tsx
+ * 3) Ausência do ícone inválido "sparkles" do Feather para evitar warning no console Web
+ * 4) Proporção e formatação alinhada com altura padrão e espaçamentos equilibrados
+ * 5) Integração do componente em DesktopHeader.tsx e HomeScreen.tsx
  */
 
 import { describe, it } from 'node:test';
@@ -23,7 +25,7 @@ describe('Botão "Novo Desejo" com Design Spell (TDD)', () => {
     assert.ok(fs.existsSync(botaoPath), 'BotaoNovoDesejo.tsx deve existir');
   });
 
-  it('BotaoNovoDesejo.tsx deve conter o texto "Novo Desejo" e elementos táteis de Design Spell', () => {
+  it('BotaoNovoDesejo.tsx deve conter o texto "Novo Desejo" e micro-interações táteis', () => {
     const botaoPath = path.join(srcDir, 'components/home/BotaoNovoDesejo.tsx');
     const conteudo = fs.readFileSync(botaoPath, 'utf8');
 
@@ -32,8 +34,28 @@ describe('Botão "Novo Desejo" com Design Spell (TDD)', () => {
       'Deve renderizar o texto "Novo Desejo"'
     );
     assert.ok(
-      conteudo.includes('sparkle') || conteudo.includes('✦') || conteudo.includes('sparkles'),
-      'Deve incorporar detalhe mágico de micro-interação (sparkle/brilho)'
+      conteudo.includes('plus'),
+      'Deve renderizar o ícone de criação "plus"'
+    );
+  });
+
+  it('BotaoNovoDesejo.tsx não deve referenciar "sparkles" como ícone do Feather', () => {
+    const botaoPath = path.join(srcDir, 'components/home/BotaoNovoDesejo.tsx');
+    const conteudo = fs.readFileSync(botaoPath, 'utf8');
+
+    assert.ok(
+      !conteudo.includes('name="sparkles"'),
+      'Não deve conter Feather name="sparkles" para não disparar warning no Web'
+    );
+  });
+
+  it('BotaoNovoDesejo.tsx deve ter formatação consistente com altura de 44px no tamanho médio', () => {
+    const botaoPath = path.join(srcDir, 'components/home/BotaoNovoDesejo.tsx');
+    const conteudo = fs.readFileSync(botaoPath, 'utf8');
+
+    assert.ok(
+      conteudo.includes('44'),
+      'Deve ter altura de 44px alinhada com os outros controles de navegação'
     );
   });
 

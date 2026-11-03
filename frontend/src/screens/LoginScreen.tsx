@@ -3,7 +3,6 @@
  *
  * Características de UI/UX e Segurança:
  * - Estética minimalista monocromática com monograma P., tipografia bold e botões pílula
- * - Botão de login social (Google) e divisor limpo
  * - Campos de input com ícones vetoriais Feather (mail, lock, eye / eye-off)
  * - Caixa de alerta (AlertBox) integrada ao tema monocromático
  * - Validação estrita do lado do cliente e sanitização anti-XSS
@@ -235,14 +234,6 @@ export default function LoginScreen({ navigation }: any) {
     }
   };
 
-  /* ── Login Social com Google ── */
-  const handleLoginGoogle = () => {
-    setAlerta({
-      tipo: 'info',
-      mensagem: 'A integração com Google está em fase de ativação.',
-    });
-  };
-
   /* ── Estilos dinâmicos orientados ao Design System Monocromático ── */
   const estilosDinamicos = {
     container: { backgroundColor: tema.background },
@@ -264,12 +255,6 @@ export default function LoginScreen({ navigation }: any) {
     textoBotaoPrimario: { color: tema.primaryForeground },
     textoLink: { color: tema.mutedForeground },
     destaqueLink: { color: tema.primary },
-    divisor: { backgroundColor: tema.border },
-    botaoSocial: {
-      backgroundColor: tema.background,
-      borderColor: tema.border,
-    },
-    textoBotaoSocial: { color: tema.foreground },
     textoErro: { color: tema.destructive },
     corIconeInput: (focado: boolean) => (focado ? tema.foreground : tema.mutedForeground),
   };
@@ -321,29 +306,6 @@ export default function LoginScreen({ navigation }: any) {
                 onFechar={() => setAlerta(null)}
               />
             )}
-
-            {/* ── Botão de Login Social em Pílula (Google) ── */}
-            <TouchableOpacity
-              style={[estilos.botaoSocial, estilosDinamicos.botaoSocial]}
-              onPress={handleLoginGoogle}
-              activeOpacity={0.75}
-              accessibilityRole="button"
-              accessibilityLabel="Entrar com o Google"
-            >
-              <Text style={[estilos.iconeSocial, { color: tema.foreground }]}>G</Text>
-              <Text style={[estilos.textoBotaoSocial, estilosDinamicos.textoBotaoSocial]}>
-                Continuar com Google
-              </Text>
-            </TouchableOpacity>
-
-            {/* ── Divisor Visual "ou" ── */}
-            <View style={estilos.containerDivisor}>
-              <View style={[estilos.linhaDivisor, estilosDinamicos.divisor]} />
-              <Text style={[estilos.textoDivisor, estilosDinamicos.subtitulo]}>
-                ou com e-mail
-              </Text>
-              <View style={[estilos.linhaDivisor, estilosDinamicos.divisor]} />
-            </View>
 
             {/* ── Campo E-mail ── */}
             <View style={estilos.grupoInput}>
@@ -573,39 +535,6 @@ const estilos = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xs,
     marginBottom: spacing.xl,
-  },
-  botaoSocial: {
-    height: 48,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  iconeSocial: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.extrabold,
-  },
-  textoBotaoSocial: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
-    fontFamily: typography.fonts.sans,
-  },
-  containerDivisor: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  linhaDivisor: {
-    flex: 1,
-    height: 1,
-  },
-  textoDivisor: {
-    fontSize: typography.sizes.xs,
-    fontFamily: typography.fonts.sans,
-    paddingHorizontal: spacing.md,
   },
   grupoInput: {
     marginBottom: spacing.lg,

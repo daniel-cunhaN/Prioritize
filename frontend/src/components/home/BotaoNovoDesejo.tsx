@@ -3,10 +3,11 @@
  *
  * Implementado sob a diretriz "Design Spells":
  * - Feedback tátil de escala fluida e retorno elástico (spring effect).
- * - Aura/glow monocromático difuso em estado hovered no Web.
- * - Ícone "+" em badge circular com rotação e escala sutil.
- * - Detalhe mágico com micro-ícone sparkle (✦) e atalho elegante de produtividade.
- * - Zero warnings de hidratação DOM no React Native Web.
+ * - Halo difuso monocromático em estado hovered no Web (boxShadow de alto contraste).
+ * - Ícone "+" em badge circular com micro-rotação de 90° e escala suave.
+ * - Tipografia limpa, equilibrada e alinhada à altura padrão da barra (44px).
+ * - Badge de atalho (⌘N) em formato de tecla "kbd" minimalista.
+ * - Totalmente livre de ícones inválidos (sem warnings no console Web) e com zero erros de hidratação.
  */
 
 import React, { useState } from 'react';
@@ -55,37 +56,41 @@ export default function BotaoNovoDesejo({
         {
           backgroundColor: theme.primary,
           transform: [
-            { scale: pressed ? 0.96 : hovered ? 1.03 : 1 },
+            { scale: pressed ? 0.96 : hovered ? 1.02 : 1 },
           ],
         },
         Platform.OS === 'web' && ({
           cursor: 'pointer',
           outlineStyle: 'none',
+          userSelect: 'none',
           transition: 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, background-color 0.2s ease',
           boxShadow: hovered
-            ? '0 12px 28px -4px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.18)'
-            : '0 4px 14px -2px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.08)',
+            ? '0 10px 24px -4px rgba(0, 0, 0, 0.40), 0 0 0 1px rgba(255, 255, 255, 0.16)'
+            : '0 2px 8px -2px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.08)',
         } as any),
         style,
       ]}
     >
-      {/* Badge Circular do Ícone com Micro-rotação tátil */}
+      {/* Badge Circular do Ícone "+" com Micro-rotação fluida */}
       <View
         style={[
           styles.iconeBadge,
           ehGrande ? styles.iconeBadgeGrande : styles.iconeBadgeMedio,
           {
-            backgroundColor: 'rgba(255, 255, 255, 0.15)',
-            transform: [{ rotate: hovered ? '90deg' : '0deg' }, { scale: hovered ? 1.1 : 1 }],
+            backgroundColor: 'rgba(255, 255, 255, 0.16)',
+            transform: [
+              { rotate: hovered ? '90deg' : '0deg' },
+              { scale: hovered ? 1.08 : 1 },
+            ],
           },
           Platform.OS === 'web' && ({
-            transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            transition: 'transform 0.26s cubic-bezier(0.34, 1.56, 0.64, 1)',
           } as any),
         ]}
       >
         <Feather
           name="plus"
-          size={ehGrande ? 17 : 14}
+          size={ehGrande ? 17 : 15}
           color={theme.primaryForeground}
         />
       </View>
@@ -101,22 +106,15 @@ export default function BotaoNovoDesejo({
         Novo Desejo
       </Text>
 
-      {/* Detalhe Mágico: Sparkle Sutil (Design Spell) */}
-      <View style={styles.sparkleBadge}>
-        <Feather
-          name="sparkles"
-          size={ehGrande ? 12 : 11}
-          color={theme.primaryForeground}
-          style={{ opacity: hovered ? 1 : 0.75 }}
-        />
-      </View>
-
-      {/* Badge de Atalho Pro-Level (⌘N) quando habilitado */}
+      {/* Badge de Atalho de Teclado (⌘N) elegante no Desktop */}
       {exibirAtalho && Platform.OS === 'web' && (
         <View
           style={[
             styles.atalhoBadge,
-            { backgroundColor: 'rgba(255, 255, 255, 0.18)' },
+            {
+              backgroundColor: 'rgba(255, 255, 255, 0.18)',
+              borderColor: 'rgba(255, 255, 255, 0.12)',
+            },
           ]}
         >
           <Text style={[styles.textoAtalho, { color: theme.primaryForeground }]}>
@@ -132,20 +130,22 @@ const styles = StyleSheet.create({
   botaoBase: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: radius.full,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
   },
+  // Altura de 44px para sincronia com os outros controles e abas da navegação
   botaoMedio: {
-    height: 42,
-    paddingLeft: 8,
+    height: 44,
+    paddingLeft: 12,
     paddingRight: 16,
     gap: 8,
   },
   botaoGrande: {
     height: 48,
-    paddingLeft: 10,
-    paddingRight: 20,
+    paddingLeft: 16,
+    paddingRight: 22,
     gap: 10,
   },
   iconeBadge: {
@@ -154,17 +154,17 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   iconeBadgeMedio: {
-    width: 26,
-    height: 26,
+    width: 24,
+    height: 24,
   },
   iconeBadgeGrande: {
-    width: 30,
-    height: 30,
+    width: 28,
+    height: 28,
   },
   textoBotao: {
     fontFamily: typography.fonts.sans,
-    fontWeight: '800',
-    letterSpacing: -0.3,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
   textoMedio: {
     fontSize: 13,
@@ -172,21 +172,17 @@ const styles = StyleSheet.create({
   textoGrande: {
     fontSize: 14,
   },
-  sparkleBadge: {
-    marginLeft: -2,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   atalhoBadge: {
+    borderWidth: 1,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 6,
-    marginLeft: 4,
+    borderRadius: 4,
+    marginLeft: 2,
   },
   textoAtalho: {
     fontFamily: typography.fonts.mono,
     fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
   },
 });

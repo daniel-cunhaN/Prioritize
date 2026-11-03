@@ -1,5 +1,8 @@
 /**
  * GerenciarContaModal.tsx — Modal Minimalista Monocromático de Conta e Sessão
+ *
+ * Integra diálogo estilizado de confirmação de logout (ConfirmarLogoutModal)
+ * eliminando alertas nativos do navegador por uma experiência de alto contraste.
  */
 
 import React, { useState } from 'react';
@@ -11,11 +14,11 @@ import {
   TouchableOpacity,
   Pressable,
   ActivityIndicator,
-  Alert,
   Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme, spacing, radius, shadows, typography } from '../theme';
+import ConfirmarLogoutModal from './ConfirmarLogoutModal';
 
 interface GerenciarContaModalProps {
   visivel: boolean;
@@ -35,38 +38,29 @@ export default function GerenciarContaModal({
 }: GerenciarContaModalProps) {
   const theme = useTheme();
   const [processando, setProcessando] = useState(false);
+  const [modalLogoutVisivel, setModalLogoutVisivel] = useState(false);
 
   const inicialUsuario =
     emailUsuario && emailUsuario.trim().length > 0
       ? emailUsuario.trim().charAt(0).toUpperCase()
       : 'U';
 
-  // Solicita confirmação e encerra a sessão atual com segurança
-  const handleConfirmarDeslogar = async () => {
-    const executarSaida = async () => {
-      setProcessando(true);
-      try {
-        await aoDeslogar();
-      } catch (erro) {
-        console.error('Erro ao deslogar usuário:', erro);
-      } finally {
-        setProcessando(false);
-      }
-    };
+  // Abre o diálogo monocromático estilizado de confirmação de saída
+  const handleAbrirConfirmacaoLogout = () => {
+    setModalLogoutVisivel(true);
+  };
 
-    if (Platform.OS === 'web') {
-      if (window.confirm('Tem certeza que deseja deslogar e sair da sua conta?')) {
-        await executarSaida();
-      }
-    } else {
-      Alert.alert(
-        'Sair da Conta',
-        'Tem certeza que deseja encerrar a sua sessão neste dispositivo?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Deslogar', style: 'destructive', onPress: executarSaida },
-        ]
-      );
+  // Encerra a sessão atual com segurança após confirmação no modal
+  const handleExecutarLogout = async () => {
+    setProcessando(true);
+    try {
+      await aoDeslogar();
+      setModalLogoutVisivel(false);
+      aoFechar();
+    } catch (erro) {
+      console.error('Erro ao deslogar usuário:', erro);
+    } finally {
+      setProcessando(false);
     }
   };
 
@@ -76,166 +70,177 @@ export default function GerenciarContaModal({
   };
 
   return (
-    <Modal visible={visivel} transparent animationType="fade" onRequestClose={aoFechar}>
-      {/* Backdrop semi-transparente com clique para fechar */}
-      <Pressable style={styles.backdrop} onPress={aoFechar}>
-        <Pressable
-          style={[
-            styles.modalCard,
-            {
-              backgroundColor: theme.card || theme.background,
-              borderColor: theme.border,
-            },
-            shadows.lg,
-          ]}
-          onPress={(e) => {
-            // Evita que o clique no corpo do modal feche acidentalmente o modal
-            e?.stopPropagation?.();
-          }}
-          accessibilityRole="summary"
-          accessibilityLabel="Gerenciamento de Conta do Usuário"
-        >
-          {/* Cabeçalho */}
-          <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
-            <Text style={[styles.modalTitulo, { color: theme.foreground }]} accessibilityRole="header">
-              Minha Conta
-            </Text>
+    <>
+      <Modal visible={visivel} transparent animationType="fade" onRequestClose={aoFechar}>
+        {/* Backdrop semi-transparente com clique para fechar */}
+        <Pressable style={styles.backdrop} onPress={aoFechar}>
+          <Pressable
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: theme.card || theme.background,
+                borderColor: theme.border,
+              },
+              shadows.lg,
+            ]}
+            onPress={(e) => {
+              // Evita que o clique no corpo do modal feche acidentalmente o modal
+              e?.stopPropagation?.();
+            }}
+            accessibilityRole="summary"
+            accessibilityLabel="Gerenciamento de Conta do Usuário"
+          >
+            {/* Cabeçalho */}
+            <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.modalTitulo, { color: theme.foreground }]} accessibilityRole="header">
+                Minha Conta
+              </Text>
 
-                <TouchableOpacity
-                  onPress={aoFechar}
-                  hitSlop={10}
-                  style={[styles.botaoFechar, { backgroundColor: theme.secondary }]}
-                  accessibilityLabel="Fechar janela de gerenciamento de conta"
-                >
-                  <Feather name="x" size={16} color={theme.foreground} />
-                </TouchableOpacity>
+              <TouchableOpacity
+                onPress={aoFechar}
+                hitSlop={10}
+                style={[styles.botaoFechar, { backgroundColor: theme.secondary }]}
+                accessibilityLabel="Fechar janela de gerenciamento de conta"
+              >
+                <Feather name="x" size={16} color={theme.foreground} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Cartão do Usuário */}
+            <View
+              style={[
+                styles.perfilCard,
+                { backgroundColor: theme.card, borderColor: theme.border },
+              ]}
+            >
+              <View style={[styles.avatarGrande, { backgroundColor: theme.primary }]}>
+                <Text style={[styles.avatarGrandeTexto, { color: theme.primaryForeground }]}>
+                  {inicialUsuario}
+                </Text>
               </View>
 
-              {/* Cartão do Usuário */}
-              <View
-                style={[
-                  styles.perfilCard,
-                  { backgroundColor: theme.card, borderColor: theme.border },
-                ]}
-              >
-                <View style={[styles.avatarGrande, { backgroundColor: theme.primary }]}>
-                  <Text style={[styles.avatarGrandeTexto, { color: theme.primaryForeground }]}>
-                    {inicialUsuario}
+              <View style={styles.perfilInfo}>
+                <Text
+                  style={[styles.perfilEmail, { color: theme.foreground }]}
+                  numberOfLines={1}
+                >
+                  {emailUsuario || 'Usuário Conectado'}
+                </Text>
+
+                <View style={styles.badgeSessao}>
+                  <View style={[styles.badgePontoAtivo, { backgroundColor: theme.primary }]} />
+                  <Text style={[styles.badgeSessaoTexto, { color: theme.mutedForeground }]}>
+                    Sessão autenticada
                   </Text>
                 </View>
+              </View>
+            </View>
 
-                <View style={styles.perfilInfo}>
-                  <Text
-                    style={[styles.perfilEmail, { color: theme.foreground }]}
-                    numberOfLines={1}
-                  >
-                    {emailUsuario || 'Usuário Conectado'}
-                  </Text>
-
-                  <View style={styles.badgeSessao}>
-                    <View style={[styles.badgePontoAtivo, { backgroundColor: theme.primary }]} />
-                    <Text style={[styles.badgeSessaoTexto, { color: theme.mutedForeground }]}>
-                      Sessão autenticada
+            {processando ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={theme.primary} />
+                <Text style={[styles.loadingTexto, { color: theme.mutedForeground }]}>
+                  Encerrando sessão...
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.acoesContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.opcaoBotao,
+                    {
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                    },
+                  ]}
+                  onPress={handleCriarNovaConta}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cadastrar nova conta"
+                >
+                  <View style={[styles.opcaoIconeContainer, { backgroundColor: theme.secondary }]}>
+                    <Feather name="user-plus" size={16} color={theme.foreground} />
+                  </View>
+                  <View style={styles.opcaoTextoContainer}>
+                    <Text style={[styles.opcaoTitulo, { color: theme.foreground }]}>
+                      Criar outra conta
+                    </Text>
+                    <Text style={[styles.opcaoDescricao, { color: theme.mutedForeground }]}>
+                      Registrar novo perfil de acesso
                     </Text>
                   </View>
-                </View>
-              </View>
+                  <Feather name="chevron-right" size={18} color={theme.mutedForeground} />
+                </TouchableOpacity>
 
-              {processando ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color={theme.primary} />
-                  <Text style={[styles.loadingTexto, { color: theme.mutedForeground }]}>
-                    Encerrando sessão...
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.acoesContainer}>
-                  <TouchableOpacity
+                <TouchableOpacity
+                  style={[
+                    styles.opcaoBotao,
+                    {
+                      backgroundColor: theme.primary,
+                      borderColor: theme.primary,
+                    },
+                  ]}
+                  onPress={handleAbrirConfirmacaoLogout}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel="Deslogar da aplicação"
+                >
+                  <View
                     style={[
-                      styles.opcaoBotao,
-                      {
-                        backgroundColor: theme.card,
-                        borderColor: theme.border,
-                      },
+                      styles.opcaoIconeContainer,
+                      { backgroundColor: 'rgba(255,255,255,0.14)' },
                     ]}
-                    onPress={handleCriarNovaConta}
-                    activeOpacity={0.8}
-                    accessibilityRole="button"
-                    accessibilityLabel="Cadastrar nova conta"
                   >
-                    <View style={[styles.opcaoIconeContainer, { backgroundColor: theme.secondary }]}>
-                      <Feather name="user-plus" size={16} color={theme.foreground} />
-                    </View>
-                    <View style={styles.opcaoTextoContainer}>
-                      <Text style={[styles.opcaoTitulo, { color: theme.foreground }]}>
-                        Criar outra conta
-                      </Text>
-                      <Text style={[styles.opcaoDescricao, { color: theme.mutedForeground }]}>
-                        Registrar novo perfil de acesso
-                      </Text>
-                    </View>
-                    <Feather name="chevron-right" size={18} color={theme.mutedForeground} />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.opcaoBotao,
-                      {
-                        backgroundColor: theme.primary,
-                        borderColor: theme.primary,
-                      },
-                    ]}
-                    onPress={handleConfirmarDeslogar}
-                    activeOpacity={0.85}
-                    accessibilityRole="button"
-                    accessibilityLabel="Deslogar da aplicação"
-                  >
-                    <View
+                    <Feather name="log-out" size={16} color={theme.primaryForeground} />
+                  </View>
+                  <View style={styles.opcaoTextoContainer}>
+                    <Text style={[styles.opcaoTitulo, { color: theme.primaryForeground }]}>
+                      Deslogar
+                    </Text>
+                    <Text
                       style={[
-                        styles.opcaoIconeContainer,
-                        { backgroundColor: 'rgba(255,255,255,0.14)' },
+                        styles.opcaoDescricao,
+                        { color: theme.primaryForeground, opacity: 0.75 },
                       ]}
                     >
-                      <Feather name="log-out" size={16} color={theme.primaryForeground} />
-                    </View>
-                    <View style={styles.opcaoTextoContainer}>
-                      <Text style={[styles.opcaoTitulo, { color: theme.primaryForeground }]}>
-                        Deslogar
-                      </Text>
-                      <Text
-                        style={[
-                          styles.opcaoDescricao,
-                          { color: theme.primaryForeground, opacity: 0.75 },
-                        ]}
-                      >
-                        Sair desta conta com segurança
-                      </Text>
-                    </View>
-                    <Feather name="chevron-right" size={18} color={theme.primaryForeground} />
-                  </TouchableOpacity>
-                </View>
-              )}
+                      Sair desta conta com segurança
+                    </Text>
+                  </View>
+                  <Feather name="chevron-right" size={18} color={theme.primaryForeground} />
+                </TouchableOpacity>
+              </View>
+            )}
+          </Pressable>
         </Pressable>
-      </Pressable>
-    </Modal>
+      </Modal>
+
+      {/* Modal Monocromático Estilizado de Confirmação de Saída */}
+      <ConfirmarLogoutModal
+        visivel={modalLogoutVisivel}
+        emailUsuario={emailUsuario}
+        carregando={processando}
+        aoFechar={() => setModalLogoutVisivel(false)}
+        aoConfirmar={handleExecutarLogout}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(9, 9, 11, 0.48)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.xl,
+    padding: spacing.md,
   },
   modalCard: {
     width: '100%',
-    maxWidth: 420,
+    maxWidth: 440,
     borderRadius: radius.xl,
     borderWidth: 1,
-    padding: spacing.xl,
-    gap: spacing.lg,
+    padding: spacing.lg,
+    overflow: 'hidden',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -243,19 +248,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
+    marginBottom: spacing.lg,
   },
   modalTitulo: {
-    fontSize: 20,
-    fontWeight: '800',
     fontFamily: typography.fonts.sans,
-    letterSpacing: -0.4,
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
   botaoFechar: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
+    borderRadius: radius.full,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   perfilCard: {
     flexDirection: 'row',
@@ -263,29 +269,29 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: radius.lg,
     borderWidth: 1,
+    marginBottom: spacing.lg,
     gap: spacing.md,
   },
   avatarGrande: {
     width: 48,
     height: 48,
     borderRadius: radius.full,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarGrandeTexto: {
+    fontFamily: typography.fonts.sans,
     fontSize: 20,
     fontWeight: '800',
-    fontFamily: typography.fonts.sans,
   },
   perfilInfo: {
     flex: 1,
-    justifyContent: 'center',
-    gap: 4,
   },
   perfilEmail: {
-    fontSize: 15,
-    fontWeight: '700',
-    fontFamily: typography.fonts.sans,
+    fontFamily: typography.fonts.mono,
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
   },
   badgeSessao: {
     flexDirection: 'row',
@@ -295,52 +301,51 @@ const styles = StyleSheet.create({
   badgePontoAtivo: {
     width: 7,
     height: 7,
-    borderRadius: radius.full,
+    borderRadius: 4,
   },
   badgeSessaoTexto: {
-    fontSize: 11,
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.sans,
+    fontSize: 12,
   },
   loadingContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
     paddingVertical: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.sm,
   },
   loadingTexto: {
-    fontSize: typography.sizes.sm,
     fontFamily: typography.fonts.sans,
+    fontSize: 13,
   },
   acoesContainer: {
-    gap: 10,
+    gap: spacing.sm,
   },
   opcaoBotao: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
+    padding: spacing.md,
     borderRadius: radius.lg,
     borderWidth: 1,
-    gap: 12,
+    gap: spacing.md,
   },
   opcaoIconeContainer: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
+    borderRadius: radius.md,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   opcaoTextoContainer: {
     flex: 1,
-    gap: 2,
   },
   opcaoTitulo: {
+    fontFamily: typography.fonts.sans,
     fontSize: 14,
     fontWeight: '700',
-    fontFamily: typography.fonts.sans,
+    marginBottom: 2,
   },
   opcaoDescricao: {
-    fontSize: 12,
     fontFamily: typography.fonts.sans,
+    fontSize: 12,
   },
 });

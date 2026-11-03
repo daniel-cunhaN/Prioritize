@@ -209,11 +209,12 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
 ### 6.4. Navegação Flutuante em Pílula e Botão "Novo Desejo" com Design Spell (`BotaoNovoDesejo.tsx`)
 - **Mobile (`BottomNav.tsx`)**: Barra de navegação flutuante em formato pílula (`Floating Pill Navigation Bar`) com abas ativas em alto contraste (`Início`, `Foco`, `Log`, `Conta`) e botão circular `+` integrado para criação rápida.
 - **Desktop (`DesktopHeader.tsx`)**: Cabeçalho amplo com monograma `P.`, barra de pesquisa em pílula (`SearchBar.tsx`), seletor de abas segmentado e botão primário com **Design Spell** ([`BotaoNovoDesejo.tsx`](frontend/src/components/home/BotaoNovoDesejo.tsx)).
-- **Micro-interações "Design Spell"**:
-  - **Aura & Glow Monocromático**: Efeito de elevação suave no hover via `boxShadow` dinâmica no Web (`0 12px 28px -4px rgba(0,0,0,0.45)`).
-  - **Micro-rotação Tátil**: Badge circular do ícone `+` com animação suave de rotação (90°) e leve escala elástica (1.1x) no hover/toque.
-  - **Magic Sparkle (✦)**: Micro-ícone de faísca monocromática luminosa integrado ao lado da tipografia `800`.
-  - **Atalho Pro-Level**: Badge `⌘N` minimalista no ambiente Desktop para acionamento produtivo.
+- **Micro-interações e Refinamento de Layout ("Design Spell")**:
+  - **Alinhamento & Proporções**: Altura padronizada de `44px` no tamanho médio (sincronizada perfeitamente com a altura da barra de navegação), padding horizontal equilibrado e cantos arredondados em pílula integral (`radius.full`).
+  - **Aura & Glow Monocromático**: Efeito de elevação sutil no hover via `boxShadow` dinâmica no Web (`0 10px 24px -4px rgba(0,0,0,0.40)`).
+  - **Micro-rotação Tátil**: Badge circular do ícone `+` com animação suave de rotação (90°) e leve escala elástica no hover/toque.
+  - **Eliminação de Warnings**: Remoção de ícone inexistente da família Feather (evitando warnings como `"sparkles" is not a valid icon name for family "feather"` no console do navegador).
+  - **Atalho Pro-Level**: Badge `⌘N` minimalista em formato de tecla "kbd" estilizada no ambiente Desktop para acionamento produtivo.
   - **Feedback Spring**: Resposta tátil com escala fluida `0.96` ao clique/pressão.
 
 ### 6.5. Compartilhamento Nativo ("Compartilhar com: Prioritize")
@@ -248,11 +249,23 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
   - `Image: style.resizeMode is deprecated`: Removida a propriedade `resizeMode: 'contain'` dos estilos internos e declarada como propriedade nativa do componente `<Image resizeMode="contain" />` em `LoginScreen.tsx` e `RegisterScreen.tsx`.
   - `TouchableWithoutFeedback is deprecated`: Substituído pelo componente moderno `Pressable` com `stopPropagation()` em `GerenciarContaModal.tsx`.
 
+### 6.9. Modal Estilizado de Confirmação de Logout (`ConfirmarLogoutModal.tsx`)
+- Substitui alertas genéricos e o `window.confirm` cru do navegador por um diálogo monocromático de alta fidelidade:
+  - Header com badge circular de saída (`Feather name="log-out"`).
+  - Eyebrow em caixa alta: `ENCERRAR SESSÃO`.
+  - Pergunta de confirmação destacada: **"Tem certeza que deseja deslogar e sair da sua conta?"**.
+  - Identificação visual e segura do e-mail da conta conectada que será desconectada.
+  - Botões pílula de ação: `Cancelar` (secundário com borda suave) e `Sair da conta` (primário em alto contraste com spinner de carregamento).
+
+### 6.10. Remoção de Login Social (Google) e Foco em Autenticação Direta
+- Removidos completamente os botões "Continuar com o Google" e "Cadastrar com Google", assim como os divisores intermediários ("ou com e-mail"), das telas `LoginScreen.tsx` e `RegisterScreen.tsx`.
+- Fluxo de autenticação limpo, direto e 100% monocromático focado em e-mail e senha.
+
 ---
 
 ## 7. Como Executar os Testes
 
-O projeto conta com uma suíte completa de **104 testes automatizados** (53 no backend e 51 no frontend) desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
+O projeto conta com uma suíte completa de **111 testes automatizados** (53 no backend e 58 no frontend) desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
 
 ### Execução Unificada (Backend + Frontend)
 Na raiz do projeto:
@@ -267,8 +280,8 @@ cd backend
 npm test
 ```
 
-### Testes do Frontend (51 testes unitários)
-Valida extração de links compartilhados, compatibilidade com React Native Web (eliminação de `<button>` aninhados, suporte a `boxShadow`, `useNativeDriver` seguro e `pointerEvents`), modal estilizado de confirmação de exclusão (`ConfirmarExclusaoModal.tsx`), botão "Novo Desejo" com Design Spell (`BotaoNovoDesejo.tsx`), exibição do valor extraído no Quick Creation Sheet (`AdicionarDesejoModal.tsx`), filtros e ordenação, agrupamento Kanban, formatação monetária e os novos fluxos de produtividade:
+### Testes do Frontend (58 testes unitários)
+Valida extração de links compartilhados, compatibilidade com React Native Web (eliminação de `<button>` aninhados, suporte a `boxShadow`, `useNativeDriver` seguro, `pointerEvents` e ausência de ícones inválidos da família Feather), modal estilizado de confirmação de exclusão (`ConfirmarExclusaoModal.tsx`), modal estilizado de confirmação de logout (`ConfirmarLogoutModal.tsx`), remoção completa do Google do aplicativo, botão "Novo Desejo" com Design Spell e proporções 44px (`BotaoNovoDesejo.tsx`), exibição do valor extraído no Quick Creation Sheet (`AdicionarDesejoModal.tsx`), filtros e ordenação, agrupamento Kanban, formatação monetária e os fluxos de produtividade:
 ```bash
 cd frontend
 npm test
