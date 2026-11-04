@@ -11,22 +11,30 @@ router.use(exigirAutenticacao);
 
 /**
  * POST /api/v1/wishlist/preview
- * Recebe a URL de um produto e extrai automaticamente titulo, imagem e preco via Cheerio.
+ * Recebe a URL de um produto (ou mensagem compartilhada de app) e extrai automaticamente
+ * título, imagem e preço via Cheerio e fallbacks inteligentes.
  */
 router.post('/preview', async (req, res) => {
-  const { url } = req.body || {};
+  const { url, texto, rawText, preco, price } = req.body || {};
 
-  // Validacao de URL informada
-  if (!url || !url.trim()) {
+  // Validação de URL informada
+  if (!url || typeof url !== 'string' || !url.trim()) {
     return res.status(400).json({
       codigo: 'URL_INVALIDA',
       mensagem: 'A URL fornecida nao pode estar vazia.',
     });
   }
 
+  const textoCompartilhado = (texto || rawText || url).trim();
+  const precoSugerido = preco !== undefined ? preco : price;
+
   try {
-    // Realiza scraping de titulo, imagem e preco
-    const metadados = await extrairMetadadosUrl(url.trim());
+    // Realiza scraping de título, imagem e preço com suporte a textos de apps e fallbacks
+    const metadados = await extrairMetadadosUrl(url.trim(), {
+      textoCompartilhado,
+      precoSugerido,
+    });
+
     return res.status(200).json({
       ...metadados,
       preco: metadados.price,

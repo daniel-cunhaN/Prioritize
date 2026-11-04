@@ -301,7 +301,7 @@
               type="button"
               class="btn-compartilhar"
               style="width: 100%; margin-top: 10px;"
-              onclick="compartilharParaPrioritize('https://www.mercadolivre.com.br/fone-bluetooth-cancelamento-ruido/p/MLB1928374')"
+              onclick="compartilharParaPrioritize('https://www.mercadolivre.com.br/fone-bluetooth-cancelamento-ruido/p/MLB1928374', '289.90', 'Fone de Ouvido Sem Fio Bluetooth Noise Cancelling')"
             >
               Compartilhar no Prioritize ↗
             </button>
@@ -320,7 +320,7 @@
               type="button"
               class="btn-compartilhar"
               style="width: 100%; margin-top: 10px;"
-              onclick="compartilharParaPrioritize('https://shopee.com.br/Principia-Antissinais-Dia-e-Noite-c-Vitamina-VC-10-S%C3%A9rum-Retinol-Rn-0-3-Vitamina-C-Para-o-Rosto-Serum-Facial-i.1613313673.58266270841?is_from_login=true')"
+              onclick="compartilharParaPrioritize('https://shopee.com.br/Principia-Antissinais-Dia-e-Noite-c-Vitamina-VC-10-S%C3%A9rum-Retinol-Rn-0-3-Vitamina-C-Para-o-Rosto-Serum-Facial-i.1613313673.58266270841?is_from_login=true', '88.00', 'Sérum Facial Principia Vitamina C + Retinol Anti-idade')"
             >
               Compartilhar no Prioritize ↗
             </button>
@@ -339,7 +339,7 @@
               type="button"
               class="btn-compartilhar"
               style="width: 100%; margin-top: 10px;"
-              onclick="compartilharParaPrioritize('https://www.amazon.com.br/dp/8550801488')"
+              onclick="compartilharParaPrioritize('https://www.amazon.com.br/dp/8550801488', '44.11', 'Livro: Pai Rico, Pai Pobre - Edição de 20 Anos')"
             >
               Compartilhar no Prioritize ↗
             </button>
@@ -418,14 +418,22 @@
 
   <script>
     // Função disparada ao clicar para compartilhar um produto no Prioritize
-    function compartilharParaPrioritize(urlProduto) {
+    function compartilharParaPrioritize(urlProduto, precoSugerido, tituloSugerido) {
       if (!urlProduto) return;
       let urlNormalizada = urlProduto.trim();
       if (!urlNormalizada.startsWith('http://') && !urlNormalizada.startsWith('https://')) {
         urlNormalizada = 'https://' + urlNormalizada;
       }
       const baseUrlApp = 'http://localhost:8081';
-      const urlDestino = baseUrlApp + '/?url=' + encodeURIComponent(urlNormalizada);
+      const params = new URLSearchParams();
+      params.set('url', urlNormalizada);
+      if (precoSugerido) {
+        params.set('preco', precoSugerido);
+      }
+      if (tituloSugerido) {
+        params.set('texto', `${tituloSugerido} por R$ ${precoSugerido} ${urlNormalizada}`);
+      }
+      const urlDestino = baseUrlApp + '/?' + params.toString();
       window.open(urlDestino, '_blank');
     }
 

@@ -82,11 +82,12 @@ export function useCompartilhamento() {
     };
   }, [processarTextoCompartilhado]);
 
-  // 3. Captura parâmetros na Web (?url=... ou ?text=...)
+  // 3. Captura parâmetros na Web (?url=... ou ?text=... e opcionalmente &preco=...)
   useEffect(() => {
     if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.search) {
       const params = new URLSearchParams(window.location.search);
       const urlWebBruta = params.get('url') || params.get('text');
+      const precoWebBruto = params.get('preco') || params.get('price');
       if (urlWebBruta) {
         let urlDecodificada = urlWebBruta;
         try {
@@ -97,6 +98,12 @@ export function useCompartilhamento() {
           }
         } catch {
           urlDecodificada = urlWebBruta;
+        }
+
+        // Se houver preço informado na query string da vitrine/simulador e a URL não o tiver
+        if (precoWebBruto && !urlDecodificada.includes('preco=') && !urlDecodificada.includes('price=')) {
+          const separador = urlDecodificada.includes('?') ? '&' : '?';
+          urlDecodificada = `${urlDecodificada}${separador}preco=${encodeURIComponent(precoWebBruto)}`;
         }
 
         processarTextoCompartilhado(urlDecodificada);

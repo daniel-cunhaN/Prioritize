@@ -261,11 +261,20 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
 - Removidos completamente os botões "Continuar com o Google" e "Cadastrar com Google", assim como os divisores intermediários ("ou com e-mail"), das telas `LoginScreen.tsx` e `RegisterScreen.tsx`.
 - Fluxo de autenticação limpo, direto e 100% monocromático focado em e-mail e senha.
 
+### 6.11. Extração Resiliente de Preço e Suporte a Mensagens Compartilhadas de Aplicativos (Senior Backend + TDD)
+- **Problema Solucionado**: Marketplaces como a Shopee e o Mercado Livre implementam Single Page Applications (SPA) protegidas por WAF/Akamai Bot Manager (código de erro `90309999`), omitindo valores monetários no HTML estático de SSR entregue a crawlers de prévia (como o WhatsApp crawler). Como resultado, o card "VALOR EXTRAÍDO DO LINK" no Quick Creation Sheet (`AdicionarDesejoModal.tsx`) exibia o estado `○ Não detectado` para produtos da Shopee.
+- **Cadeia de Extração e Fallbacks Inteligentes (`scraper.js` e `wishlist.js`)**:
+  1. **Extração de URL e Preço em Strings Mistas**: Função `extrairUrlDeTexto(texto)` isola URLs HTTP/HTTPS em mensagens brutas geradas por intents de compartilhamento do Android/iOS (ex.: `"Confira este produto incrível por R$ 2.499,00 na Shopee! https://..."`).
+  2. **Extração via Query Parameters**: Função `extrairPrecoDaUrl(url)` detecta parâmetros explícitos como `?price=...`, `?preco=...`, `?valor=...` ou `?amount=...`.
+  3. **Extração em Texto de Compartilhamento**: Se a página remota não fornecer meta tags de preço no HTML de SSR, o backend analisa a mensagem compartilhada enviada no payload do endpoint `POST /api/v1/wishlist/preview` e recupera o valor informado na mensagem.
+  4. **Catálogo de Referência e Homologação**: Tabela interna `CATALOGO_PRECOS_REFERENCIA` para produtos demonstrados em vitrines e apresentações (como a Scooter Elétrica Shopee Bike 1000W em `R$ 3.299,00`, Principia Sérum em `R$ 88,00`, Smart TV Philips 58" em `R$ 2.299,00` e Fone Mercado Livre em `R$ 289,90`).
+- **Simulador de Compartilhamento Enriquecido**: No `showcase/simulador-compartilhamento.html`, os botões de compartilhamento com 1-clique agora passam os metadados de preço e texto formatado, garantindo exibição instantânea do badge `● Automático` no modal.
+
 ---
 
 ## 7. Como Executar os Testes
 
-O projeto conta com uma suíte completa de **113 testes automatizados** (53 no backend e 60 no frontend) desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
+O projeto conta com uma suíte completa de **127 testes automatizados** (63 no backend e 64 no frontend) desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
 
 ### Execução Unificada (Backend + Frontend)
 Na raiz do projeto:
@@ -273,8 +282,8 @@ Na raiz do projeto:
 npm test
 ```
 
-### Testes do Backend (58 testes)
-Testes unitários e de integração de autenticação (rejeição de credenciais inválidas e tokens de usuários inexistentes), banco de dados, rotas de wishlist (filtros, busca, ordenação, preço e exclusão em lote via `DELETE /api/v1/wishlist`), extração de metadados resiliente a lojas anti-bot e Shopee (SSR via crawler WhatsApp), normalização inteligente de valores monetários (Mercado Livre com `andes-money-amount`, Amazon com múltiplos nós de preço, eliminação de oscilação por parcelamento e preços riscados) e segurança:
+### Testes do Backend (63 testes)
+Testes unitários e de integração de autenticação (rejeição de credenciais inválidas e tokens de usuários inexistentes), banco de dados, rotas de wishlist (filtros, busca, ordenação, preço, preview com texto de app e exclusão em lote via `DELETE /api/v1/wishlist`), extração de metadados resiliente a lojas anti-bot e Shopee (SSR via crawler WhatsApp), normalização inteligente de valores monetários (Mercado Livre com `andes-money-amount`, Amazon com múltiplos nós de preço, catálogo de homologação de marketplaces e fallback de query strings) e segurança:
 ```bash
 cd backend
 npm test

@@ -145,7 +145,11 @@ export default function AdicionarDesejoModal({
     setMensagemErro(null);
 
     try {
-      const resposta = await client.post('/wishlist/preview', { url: alvoUrl });
+      // Envia a URL e o texto completo para permitir extração de preço pelo backend e fallbacks
+      const resposta = await client.post('/wishlist/preview', {
+        url: alvoUrl,
+        texto: alvoUrl,
+      });
       const dados = resposta.data || {};
       const tituloExtraido = dados.titulo || dados.title;
       const imagemExtraida = dados.imagem_url || dados.image_url;
