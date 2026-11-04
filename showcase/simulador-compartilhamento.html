@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulador de Compartilhamento — Prioritize</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    :root {
+      --bg: #09090b;
+      --card: #141417;
+      --card-hover: #1c1c21;
+      --border: #27272a;
+      --border-destaque: #3f3f46;
+      --text: #fafafa;
+      --text-muted: #a1a1aa;
+      --primary: #ffffff;
+      --primary-fg: #09090b;
+      --fonte: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+      --fonte-mono: "JetBrains Mono", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--fonte);
+      line-height: 1.5;
+      padding: 32px 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 860px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    /* Cabeçalho da página de demonstração */
+    .header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .badge-simulador {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 9999px;
+      font-size: 12px;
+      font-family: var(--fonte-mono);
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      width: fit-content;
+    }
+
+    .badge-ponto {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 10px #22c55e;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.8px;
+    }
+
+    p.subtitulo {
+      font-size: 15px;
+      color: var(--text-muted);
+      max-width: 680px;
+    }
+
+    /* Seção de Métodos de Apresentação */
+    .secao {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .secao-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .secao-titulo {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .secao-tag {
+      font-size: 11px;
+      font-family: var(--fonte-mono);
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--primary);
+    }
+
+    /* Vitrine Mock de E-commerce */
+    .grid-produtos {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .card-produto {
+      background: #0f0f12;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 14px;
+      transition: all 0.2s ease;
+    }
+
+    .card-produto:hover {
+      border-color: var(--border-destaque);
+      transform: translateY(-2px);
+    }
+
+    .loja-origem {
+      font-size: 11px;
+      font-family: var(--fonte-mono);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .produto-nome {
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.4;
+      color: var(--text);
+    }
+
+    .produto-preco {
+      font-size: 18px;
+      font-weight: 800;
+      font-family: var(--fonte-mono);
+      color: var(--primary);
+    }
+
+    .btn-compartilhar {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--primary);
+      color: var(--primary-fg);
+      text-decoration: none;
+      padding: 10px 16px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-compartilhar:hover {
+      opacity: 0.9;
+      transform: scale(1.02);
+      box-shadow: 0 4px 14px rgba(255, 255, 255, 0.2);
+    }
+
+    /* Bookmarklet */
+    .bookmarklet-box {
+      background: #0f0f12;
+      border: 1px dashed var(--border-destaque);
+      border-radius: 14px;
+      padding: 20px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .bookmarklet-link {
+      display: inline-block;
+      background: #ffffff;
+      color: #09090b;
+      padding: 12px 24px;
+      border-radius: 9999px;
+      font-weight: 800;
+      font-size: 14px;
+      text-decoration: none;
+      cursor: grab;
+      border: 2px solid #ffffff;
+      box-shadow: 0 4px 20px rgba(255, 255, 255, 0.25);
+    }
+
+    .bookmarklet-link:active {
+      cursor: grabbing;
+    }
+
+    /* Simulador de URL customizada */
+    .input-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    .input-url {
+      flex: 1;
+      background: #0f0f12;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-family: var(--fonte-mono);
+      outline: none;
+    }
+
+    .input-url:focus {
+      border-color: var(--primary);
+    }
+
+    /* Bloco de Código / Terminal */
+    .codigo-box {
+      background: #09090b;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-family: var(--fonte-mono);
+      font-size: 12px;
+      color: #d4d4d8;
+      overflow-x: auto;
+      white-space: pre;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Cabeçalho -->
+    <header class="header">
+      <div class="badge-simulador">
+        <span class="badge-ponto"></span>
+        <span>AMBIENTE DE DEMONSTRAÇÃO · APRESENTAÇÃO</span>
+      </div>
+      <h1>Simulador de Compartilhamento Externo</h1>
+      <p class="subtitulo">
+        Utilize esta página para demonstrar ao seu professor como um produto compartilhado a partir de outro aplicativo ou site web é recebido e processado automaticamente pelo <strong>Prioritize</strong>.
+      </p>
+    </header>
+
+    <!-- Método 1: Vitrine Mock com 1-Clique -->
+    <section class="secao">
+      <div class="secao-header">
+        <h2 class="secao-titulo">1. Vitrine de Exemplo ("Outro Aplicativo / Loja Terceira")</h2>
+        <span class="secao-tag">MAIS FÁCIL PARA APRESENTAÇÃO</span>
+      </div>
+      <p style="font-size: 13px; color: var(--text-muted);">
+        Clique em <strong>"Compartilhar com Prioritize"</strong> em qualquer um dos itens abaixo para ver o app abrir na hora com o modal preenchido:
+      </p>
+
+      <div class="grid-produtos">
+        <!-- Produto 1: Mercado Livre -->
+        <div class="card-produto">
+          <div>
+            <span class="loja-origem">Mercado Livre</span>
+            <h3 class="produto-nome">Fone de Ouvido Sem Fio Bluetooth Noise Cancelling</h3>
+          </div>
+          <div>
+            <div class="produto-preco">R$ 289,90</div>
+            <button
+              type="button"
+              class="btn-compartilhar"
+              style="width: 100%; margin-top: 10px;"
+              onclick="compartilharParaPrioritize('https://www.mercadolivre.com.br/fone-bluetooth-cancelamento-ruido/p/MLB1928374')"
+            >
+              Compartilhar no Prioritize ↗
+            </button>
+          </div>
+        </div>
+
+        <!-- Produto 2: Shopee / Principia -->
+        <div class="card-produto">
+          <div>
+            <span class="loja-origem">Shopee</span>
+            <h3 class="produto-nome">Sérum Facial Principia Vitamina C + Retinol Anti-idade</h3>
+          </div>
+          <div>
+            <div class="produto-preco">R$ 88,00</div>
+            <button
+              type="button"
+              class="btn-compartilhar"
+              style="width: 100%; margin-top: 10px;"
+              onclick="compartilharParaPrioritize('https://shopee.com.br/Principia-Antissinais-Dia-e-Noite-c-Vitamina-VC-10-S%C3%A9rum-Retinol-Rn-0-3-Vitamina-C-Para-o-Rosto-Serum-Facial-i.1613313673.58266270841?is_from_login=true')"
+            >
+              Compartilhar no Prioritize ↗
+            </button>
+          </div>
+        </div>
+
+        <!-- Produto 3: Amazon -->
+        <div class="card-produto">
+          <div>
+            <span class="loja-origem">Amazon Brasil</span>
+            <h3 class="produto-nome">Kindle Paperwhite 16 GB Tela 6.8 Polegadas</h3>
+          </div>
+          <div>
+            <div class="produto-preco">R$ 799,00</div>
+            <button
+              type="button"
+              class="btn-compartilhar"
+              style="width: 100%; margin-top: 10px;"
+              onclick="compartilharParaPrioritize('https://www.amazon.com.br/dp/B08N3TCP2F')"
+            >
+              Compartilhar no Prioritize ↗
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Método 2: O Bookmarklet de Favoritos (Navegação Real) -->
+    <section class="secao">
+      <div class="secao-header">
+        <h2 class="secao-titulo">2. Botão de Favoritos do Navegador ("Bookmarklet")</h2>
+        <span class="secao-tag">EFEITO WOW NO PROJETOR</span>
+      </div>
+      <p style="font-size: 13px; color: var(--text-muted);">
+        Arraste o botão abaixo para a <strong>Barra de Favoritos</strong> do seu navegador (Chrome/Edge/Brave). Quando você estiver em <em>qualquer</em> página de produto da internet, basta clicar no favorito para enviar o produto para o Prioritize!
+      </p>
+
+      <div class="bookmarklet-box">
+        <a
+          class="bookmarklet-link"
+          href="javascript:(function(){window.open('http://localhost:8081/?url='+encodeURIComponent(window.location.href),'_blank');})();"
+          onclick="alert('Arraste este botão para a sua Barra de Favoritos (Ctrl+Shift+B)!'); return false;"
+          title="Arraste para sua barra de favoritos"
+        >
+          ★ Compartilhar no Prioritize
+        </a>
+        <span style="font-size: 12px; color: var(--text-muted);">
+          Dica: Pressione <strong>Ctrl + Shift + B</strong> para exibir a barra de favoritos e arraste o botão acima.
+        </span>
+      </div>
+    </section>
+
+    <!-- Método 3: Envio de Link Customizado -->
+    <section class="secao">
+      <div class="secao-header">
+        <h2 class="secao-titulo">3. Testar com Qualquer Link de E-Commerce</h2>
+        <span class="secao-tag">INPUT DIRETO</span>
+      </div>
+      <div class="input-group">
+        <input
+          id="campoUrlCustom"
+          type="url"
+          class="input-url"
+          placeholder="Cole aqui a URL de qualquer produto (Amazon, Mercado Livre, Shopee...)"
+          value="https://www.amazon.com.br/dp/B08N3TCP2F"
+        />
+        <button
+          type="button"
+          class="btn-compartilhar"
+          onclick="enviarUrlCustom()"
+        >
+          Enviar ↗
+        </button>
+      </div>
+    </section>
+
+    <!-- Método 4: Comandos para Celular / Emulador Android -->
+    <section class="secao">
+      <div class="secao-header">
+        <h2 class="secao-titulo">4. Apresentação no Celular / Emulador Android (Deep Link)</h2>
+        <span class="secao-tag">TERMINAL ADB / EXPO</span>
+      </div>
+      <p style="font-size: 13px; color: var(--text-muted);">
+        Se preferir projetar o emulador Android ou celular conectado via USB:
+      </p>
+
+      <div class="codigo-box">npx uri-scheme open "prioritize://share?url=https://www.amazon.com.br/dp/B08N3TCP2F" --android</div>
+      <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
+        Ou via ADB nativo:
+      </p>
+      <div class="codigo-box">adb shell am start -a android.intent.action.VIEW -d "prioritize://share?url=https://www.amazon.com.br/dp/B08N3TCP2F"</div>
+    </section>
+  </div>
+
+  <script>
+    // Função disparada ao clicar para compartilhar um produto no Prioritize
+    function compartilharParaPrioritize(urlProduto) {
+      const baseUrlApp = 'http://localhost:8081';
+      const urlDestino = baseUrlApp + '/?url=' + encodeURIComponent(urlProduto);
+      window.open(urlDestino, '_blank');
+    }
+
+    function enviarUrlCustom() {
+      const campo = document.getElementById('campoUrlCustom');
+      const valor = campo ? campo.value.trim() : '';
+      if (!valor) {
+        alert('Por favor, informe uma URL válida.');
+        return;
+      }
+      compartilharParaPrioritize(valor);
+    }
+  </script>
+</body>
+</html>

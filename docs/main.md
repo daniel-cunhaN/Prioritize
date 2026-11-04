@@ -265,7 +265,7 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
 
 ## 7. Como Executar os Testes
 
-O projeto conta com uma suíte completa de **111 testes automatizados** (53 no backend e 58 no frontend) desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
+O projeto conta com uma suíte completa de **113 testes automatizados** (53 no backend e 60 no frontend) desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
 
 ### Execução Unificada (Backend + Frontend)
 Na raiz do projeto:
@@ -280,8 +280,8 @@ cd backend
 npm test
 ```
 
-### Testes do Frontend (58 testes unitários)
-Valida extração de links compartilhados, compatibilidade com React Native Web (eliminação de `<button>` aninhados, suporte a `boxShadow`, `useNativeDriver` seguro, `pointerEvents` e ausência de ícones inválidos da família Feather), modal estilizado de confirmação de exclusão (`ConfirmarExclusaoModal.tsx`), modal estilizado de confirmação de logout (`ConfirmarLogoutModal.tsx`), remoção completa do Google do aplicativo, botão "Novo Desejo" com Design Spell e proporções 44px (`BotaoNovoDesejo.tsx`), exibição do valor extraído no Quick Creation Sheet (`AdicionarDesejoModal.tsx`), filtros e ordenação, agrupamento Kanban, formatação monetária e os fluxos de produtividade:
+### Testes do Frontend (60 testes unitários)
+Valida extração de links compartilhados, compatibilidade com React Native Web (eliminação de `<button>` aninhados, suporte a `boxShadow`, `useNativeDriver` seguro, `pointerEvents` e ausência de ícones inválidos da família Feather), modal estilizado de confirmação de exclusão (`ConfirmarExclusaoModal.tsx`), modal estilizado de confirmação de logout (`ConfirmarLogoutModal.tsx`), remoção completa do Google do aplicativo, simulador de compartilhamento externo (`simulador-compartilhamento.html`), botão "Novo Desejo" com Design Spell e proporções 44px (`BotaoNovoDesejo.tsx`), exibição do valor extraído no Quick Creation Sheet (`AdicionarDesejoModal.tsx`), filtros e ordenação, agrupamento Kanban, formatação monetária e os fluxos de produtividade:
 ```bash
 cd frontend
 npm test
@@ -289,6 +289,12 @@ npm test
 
 ---
 
-## 8. Showcase Interativo de UI/UX (`showcase/`)
+## 8. Showcase Interativo de UI/UX e Simulador de Compartilhamento (`showcase/`)
 
-O diretório `showcase/` contém a prancha interativa de portfólio (estilo Behance e Dribbble) servida estaticamente pelo backend Express em `http://127.0.0.1:8000/showcase`, exibindo viewports Desktop Web e iOS lado a lado sincronizados em tempo real.
+1. **Prancha Geral de Portfólio (`showcase/index.html`)**:
+   - Servida estaticamente pelo backend Express em `http://127.0.0.1:8000/showcase`.
+   - Exibe viewports Desktop Web e iOS lado a lado sincronizados em tempo real (estilo Behance e Dribbble Featured).
+
+2. **Simulador de Compartilhamento Externo para Apresentação Acadêmica (`showcase/simulador-compartilhamento.html`)**:
+   - Disponível em `http://127.0.0.1:8000/showcase/simulador-compartilhamento.html`.
+   - Permite demonstrar ao vivo para avaliadores e professores o recebimento de produtos vindos de outros aplicativos via vitrine mock com 1 clique (Mercado Livre, Shopee, Amazon), bookmarklet de favoritos do navegador e deep links nativos.
