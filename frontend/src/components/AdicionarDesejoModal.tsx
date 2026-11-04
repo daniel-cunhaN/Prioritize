@@ -146,15 +146,19 @@ export default function AdicionarDesejoModal({
 
     try {
       const resposta = await client.post('/wishlist/preview', { url: alvoUrl });
-      const {
-        titulo: tituloExtraido,
-        imagem_url: imagemExtraida,
-        price: precoExtraido,
-      } = resposta.data;
+      const dados = resposta.data || {};
+      const tituloExtraido = dados.titulo || dados.title;
+      const imagemExtraida = dados.imagem_url || dados.image_url;
+      // Extrai preço com fallback tanto para price quanto preco
+      const precoExtraidoBruto = dados.price !== undefined && dados.price !== null ? dados.price : dados.preco;
+      const precoExtraido =
+        precoExtraidoBruto !== undefined && precoExtraidoBruto !== null && !isNaN(Number(precoExtraidoBruto))
+          ? Number(precoExtraidoBruto)
+          : null;
 
       if (tituloExtraido) setTitulo(tituloExtraido);
       if (imagemExtraida) setImagemUrl(imagemExtraida);
-      if (precoExtraido !== undefined && precoExtraido !== null) {
+      if (precoExtraido !== null) {
         setPreco(formatarPrecoParaInput(precoExtraido));
         setPrecoDetectado(true);
         setPrecoOriginalExtraido(precoExtraido);

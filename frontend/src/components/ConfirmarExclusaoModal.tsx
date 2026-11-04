@@ -22,6 +22,8 @@ import { useTheme, spacing, radius, shadows, typography } from '../theme';
 interface PropsConfirmarExclusaoModal {
   visivel: boolean;
   tituloProduto?: string | null;
+  quantidadeItens?: number;
+  titulosItens?: string[];
   carregando?: boolean;
   aoFechar: () => void;
   aoConfirmar: () => void;
@@ -30,11 +32,23 @@ interface PropsConfirmarExclusaoModal {
 export default function ConfirmarExclusaoModal({
   visivel,
   tituloProduto,
+  quantidadeItens,
+  titulosItens,
   carregando = false,
   aoFechar,
   aoConfirmar,
 }: PropsConfirmarExclusaoModal) {
   const theme = useTheme();
+
+  const ehEmLote = typeof quantidadeItens === 'number' && quantidadeItens > 1;
+  const textoTitulo = ehEmLote
+    ? `Deseja mesmo excluir esses ${quantidadeItens} produtos?`
+    : 'Deseja mesmo excluir esse produto?';
+  const textoEyebrow = ehEmLote ? 'EXCLUIR EM LOTE' : 'EXCLUIR DESEJO';
+  const textoBotao = ehEmLote ? `Excluir (${quantidadeItens})` : 'Excluir';
+  const textoAviso = ehEmLote
+    ? `Esta ação removerá os ${quantidadeItens} produtos permanentemente da sua lista e não poderá ser desfeita.`
+    : 'Esta ação removerá o produto permanentemente da sua lista e não poderá ser desfeita.';
 
   return (
     <Modal
@@ -74,10 +88,10 @@ export default function ConfirmarExclusaoModal({
 
           {/* Rótulo e Título da Ação */}
           <Text style={[styles.eyebrow, { color: theme.mutedForeground }]}>
-            EXCLUIR DESEJO
+            {textoEyebrow}
           </Text>
           <Text style={[styles.titulo, { color: theme.foreground }]}>
-            Deseja mesmo excluir esse produto?
+            {textoTitulo}
           </Text>
 
           {/* Prévia do Item que será removido */}
@@ -90,18 +104,27 @@ export default function ConfirmarExclusaoModal({
               },
             ]}
           >
-            <Feather name="tag" size={14} color={theme.mutedForeground} style={{ marginTop: 2 }} />
+            <Feather
+              name={ehEmLote ? 'check-square' : 'tag'}
+              size={14}
+              color={theme.mutedForeground}
+              style={{ marginTop: 2 }}
+            />
             <Text
               style={[styles.textoItem, { color: theme.foreground }]}
-              numberOfLines={2}
+              numberOfLines={ehEmLote ? 3 : 2}
               ellipsizeMode="tail"
             >
-              {tituloProduto || 'Este item da sua lista'}
+              {ehEmLote
+                ? titulosItens && titulosItens.length > 0
+                  ? `${quantidadeItens} itens: ${titulosItens.slice(0, 3).join(', ')}${titulosItens.length > 3 ? '...' : ''}`
+                  : `${quantidadeItens} produtos selecionados`
+                : tituloProduto || 'Este item da sua lista'}
             </Text>
           </View>
 
           <Text style={[styles.descricaoAviso, { color: theme.mutedForeground }]}>
-            Esta ação removerá o produto permanentemente da sua lista e não poderá ser desfeita.
+            {textoAviso}
           </Text>
 
           {/* Botões de Ação em Formato Pílula */}
@@ -143,7 +166,7 @@ export default function ConfirmarExclusaoModal({
                 <View style={styles.linhaConteudoBotao}>
                   <Feather name="trash-2" size={15} color={theme.primaryForeground} />
                   <Text style={[styles.textoExcluir, { color: theme.primaryForeground }]}>
-                    Excluir
+                    {textoBotao}
                   </Text>
                 </View>
               )}

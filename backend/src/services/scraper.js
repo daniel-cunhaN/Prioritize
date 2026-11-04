@@ -395,50 +395,63 @@ function extrairPrecoTwitterCard($) {
  */
 function extrairPrecoHtml($) {
   // 1. Amazon: Preço a pagar (priceToPay) ou preço principal desconsiderando o riscado
-  const amazonPriceToPay = $('.priceToPay .a-offscreen').first().text();
-  if (amazonPriceToPay) {
-    const p = normalizarPreco(amazonPriceToPay);
-    if (p !== null) return p;
-  }
-  const amazonCorePrice = $(
-    '#corePriceDisplay_desktop_feature_div .a-price:not(.a-text-price) .a-offscreen, #corePrice_desktop .a-price:not(.a-text-price) .a-offscreen'
-  )
-    .first()
-    .text();
-  if (amazonCorePrice) {
-    const p = normalizarPreco(amazonCorePrice);
-    if (p !== null) return p;
+  const amazonOffscreens = $(
+    '#corePriceDisplay_desktop_feature_div .a-price:not(.a-text-price) .a-offscreen, .priceToPay .a-offscreen, #corePrice_desktop .a-price:not(.a-text-price) .a-offscreen, .a-price:not(.a-text-price) .a-offscreen'
+  ).toArray();
+  for (const el of amazonOffscreens) {
+    const texto = $(el).text();
+    if (texto && texto.trim()) {
+      const p = normalizarPreco(texto);
+      if (p !== null) return p;
+    }
   }
 
-  // 2. Mercado Livre: linha principal de preço à vista
-  const mlFracao = $('.ui-pdp-price__second-line .andes-money-amount__fraction').first().text();
+  // 2. Mercado Livre: suporte a aria-label no andes-money-amount (ex.: "189 reais com 90 centavos")
+  const andesComAria = $('.ui-pdp-price .andes-money-amount[aria-label], .andes-money-amount[aria-label]').toArray();
+  for (const el of andesComAria) {
+    const label = $(el).attr('aria-label');
+    if (label && /reais/i.test(label)) {
+      const matchReais = label.match(/(\d+)\s*reais(?:\s*com\s*(\d+)\s*centavos)?/i);
+      if (matchReais) {
+        const inteiros = matchReais[1];
+        const centavos = matchReais[2] || '00';
+        const p = normalizarPreco(`${inteiros},${centavos}`);
+        if (p !== null) return p;
+      }
+    }
+  }
+
+  // Mercado Livre: linha principal de preço à vista por frações
+  const mlFracao = $('.ui-pdp-price__second-line .andes-money-amount__fraction, .andes-money-amount__fraction').first().text();
   if (mlFracao) {
-    const mlCentavos = $('.ui-pdp-price__second-line .andes-money-amount__cents').first().text();
+    const mlCentavos = $('.ui-pdp-price__second-line .andes-money-amount__cents, .andes-money-amount__cents').first().text();
     const textoCompleto = mlCentavos ? `${mlFracao},${mlCentavos}` : mlFracao;
     const p = normalizarPreco(textoCompleto);
     if (p !== null) return p;
   }
 
   // 3. Schema.org / Microdados: itemprop="price" que não seja preço riscado
-  const itempropPreco = $('[itemprop="price"]')
+  const itensPreco = $('[itemprop="price"]')
     .not('del *, s *, .a-text-price *, .andes-money-amount--previous *')
-    .first();
-  if (itempropPreco.length) {
-    const conteudo = itempropPreco.attr('content') || itempropPreco.text();
+    .toArray();
+  for (const el of itensPreco) {
+    const conteudo = $(el).attr('content') || $(el).text();
     const p = normalizarPreco(conteudo);
     if (p !== null) return p;
   }
 
   // 4. Seletores gerais de preço ativo descartando riscados
-  const seletorGeral = $(
-    '.a-price:not(.a-text-price) .a-offscreen, .special-price, .sales-price, .product-price'
+  const seletoresGerais = $(
+    '.a-price:not(.a-text-price) .a-offscreen, .special-price, .sales-price, .product-price, [data-testid*="price"], [class*="preco-por"], [class*="price-sales"]'
   )
     .not('del *, s *, .a-text-price *')
-    .first()
-    .text();
-  if (seletorGeral) {
-    const p = normalizarPreco(seletorGeral);
-    if (p !== null) return p;
+    .toArray();
+  for (const el of seletoresGerais) {
+    const texto = $(el).text();
+    if (texto && texto.trim()) {
+      const p = normalizarPreco(texto);
+      if (p !== null) return p;
+    }
   }
 
   return null;
@@ -558,7 +571,7 @@ export async function extrairMetadadosUrl(url, { fetchFn = fetch } = {}) {
     urlNormalizada = `https://${urlNormalizada}`;
   }
 
-  // Primeiro título e primeiro preço encontrados
+  // Variáveis para acumular o melhor resultado entre as tentativas de perfis
   let primeiroTitulo = null;
   let primeiroPreco = null;
   // URL final após redirecionamentos (útil para links encurtados, ex.: amzn.to)
@@ -608,13 +621,13 @@ export async function extrairMetadadosUrl(url, { fetchFn = fetch } = {}) {
     }
   }
 
-  // Fallback específico da Amazon: imagem direto da CDN pelo ASIN
+  // Fallback específico da Amazon: se não encontrou imagem, tenta direto da CDN pelo ASIN
   const asin = extrairAsinAmazon(urlNormalizada) || extrairAsinAmazon(ultimaUrlFinal);
   const imagemAmazon = asin ? await obterImagemAmazonPorAsin(asin, fetchFn) : null;
 
-  // Nenhuma tentativa trouxe imagem: devolve o melhor título e preço disponíveis.
+  // Devolve o melhor conjunto de dados extraído
   return {
-    url: urlNormalizada,
+    url: ultimaUrlFinal,
     titulo: primeiroTitulo || obterTituloFallback(urlNormalizada),
     imagem_url: imagemAmazon,
     price: primeiroPreco || null,

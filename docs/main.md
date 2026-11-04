@@ -273,15 +273,15 @@ Na raiz do projeto:
 npm test
 ```
 
-### Testes do Backend (53 testes)
-Testes unitários e de integração de autenticação (rejeição de credenciais inválidas e tokens de usuários inexistentes), banco de dados, rotas de wishlist (filtros, busca, ordenação e preço), extração de metadados resiliente a lojas anti-bot e Shopee (SSR via crawler WhatsApp), normalização inteligente de valores (eliminação de oscilação por parcelamento e preços riscados) e segurança:
+### Testes do Backend (58 testes)
+Testes unitários e de integração de autenticação (rejeição de credenciais inválidas e tokens de usuários inexistentes), banco de dados, rotas de wishlist (filtros, busca, ordenação, preço e exclusão em lote via `DELETE /api/v1/wishlist`), extração de metadados resiliente a lojas anti-bot e Shopee (SSR via crawler WhatsApp), normalização inteligente de valores monetários (Mercado Livre com `andes-money-amount`, Amazon com múltiplos nós de preço, eliminação de oscilação por parcelamento e preços riscados) e segurança:
 ```bash
 cd backend
 npm test
 ```
 
-### Testes do Frontend (60 testes unitários)
-Valida extração de links compartilhados, compatibilidade com React Native Web (eliminação de `<button>` aninhados, suporte a `boxShadow`, `useNativeDriver` seguro, `pointerEvents` e ausência de ícones inválidos da família Feather), modal estilizado de confirmação de exclusão (`ConfirmarExclusaoModal.tsx`), modal estilizado de confirmação de logout (`ConfirmarLogoutModal.tsx`), remoção completa do Google do aplicativo, simulador de compartilhamento externo (`simulador-compartilhamento.html`), botão "Novo Desejo" com Design Spell e proporções 44px (`BotaoNovoDesejo.tsx`), exibição do valor extraído no Quick Creation Sheet (`AdicionarDesejoModal.tsx`), filtros e ordenação, agrupamento Kanban, formatação monetária e os fluxos de produtividade:
+### Testes do Frontend (64 testes unitários)
+Valida extração de links compartilhados, tratamento robusto de URLs com query parameters em `compartilhamento.ts`, compatibilidade com React Native Web (eliminação de `<button>` aninhados, suporte a `boxShadow`, `useNativeDriver` seguro, `pointerEvents` e ausência de ícones inválidos da família Feather), modal estilizado de confirmação de exclusão individual e em lote (`ConfirmarExclusaoModal.tsx`), modo de seleção múltipla com barra de ações flutuante (`BarraAcoesLote.tsx`), modal estilizado de confirmação de logout (`ConfirmarLogoutModal.tsx`), remoção completa do Google do aplicativo, simulador de compartilhamento externo (`simulador-compartilhamento.html`), botão "Novo Desejo" com Design Spell e proporções 44px (`BotaoNovoDesejo.tsx`), exibição do valor extraído no Quick Creation Sheet (`AdicionarDesejoModal.tsx`), filtros e ordenação, agrupamento Kanban, formatação monetária e os fluxos de produtividade:
 ```bash
 cd frontend
 npm test
@@ -298,3 +298,15 @@ npm test
 2. **Simulador de Compartilhamento Externo para Apresentação Acadêmica (`showcase/simulador-compartilhamento.html`)**:
    - Disponível em `http://127.0.0.1:8000/showcase/simulador-compartilhamento.html`.
    - Permite demonstrar ao vivo para avaliadores e professores o recebimento de produtos vindos de outros aplicativos via vitrine mock com 1 clique (Mercado Livre, Shopee, Amazon), bookmarklet de favoritos do navegador e deep links nativos.
+   - Suporte a envio de links customizados com normalização automática de protocolo `https://`, preservação de parâmetros e produto padrão da Amazon atualizado para item ativo.
+
+---
+
+## 9. Seleção Múltipla e Exclusão em Lote (Bulk Delete)
+
+O aplicativo conta com uma experiência completa de gerenciamento em massa de desejos:
+- **Ativação Intuitiva**: Ativada via botão "Selecionar" na barra de filtros (`FilterSortBar.tsx`) ou via toque longo (`onLongPress`) em qualquer cartão de produto.
+- **Barra de Ações Flutuante (`BarraAcoesLote.tsx`)**: Exibida em estilo pílula com contagem dinâmica de itens selecionados, botão para selecionar/desmarcar todos os produtos filtrados, botão de cancelamento e botão destrutivo de exclusão com contagem.
+- **Indicadores Monocromáticos**: Checkboxes monocromáticos integrados na visualização em Grade (`ProductCard.tsx`), Lista (`ProductListItem.tsx`) e Matriz Kanban (`KanbanBoard.tsx`).
+- **Endpoint Backend Atômico**: Rota `DELETE /api/v1/wishlist` com payload `{ ids: string[] }` garantindo exclusão segura por usuário autenticado no SQLite.
+- **Diálogo de Confirmação Adaptativo (`ConfirmarExclusaoModal.tsx`)**: Ajusta dinamicamente título, contagem e resumo dos produtos selecionados antes da exclusão permanente.

@@ -74,25 +74,27 @@ export function extrairUrlValida(conteudo?: string | null): string | null {
       return null;
     }
 
-    // Se a URL contiver parâmetro de busca "url" ou "text", extrai o produto alvo embutido
-    const parametroEmbutido = urlValidada.searchParams.get('url') || urlValidada.searchParams.get('text');
-    if (parametroEmbutido) {
-      return extrairUrlValida(decodeURIComponent(parametroEmbutido));
-    }
-
-    // Verifica se a URL aponta para a própria origem da aplicação Web (window.location.origin)
-    if (typeof window !== 'undefined' && window.location?.origin) {
-      if (urlValidada.origin === window.location.origin) {
-        return null;
-      }
-    }
-
-    // Ignora a raiz do servidor local de desenvolvimento (Metro / Expo dev server na porta 8081, 19006, etc.)
+    // Identifica se a URL é do próprio app web (localhost, dev server ou mesma origem da aplicação)
     const hostnamesLocais = ['localhost', '127.0.0.1', '10.0.2.2'];
-    if (hostnamesLocais.includes(urlValidada.hostname)) {
-      if (['8081', '19000', '19006', '8082'].includes(urlValidada.port) || urlValidada.pathname === '/') {
-        return null;
+    const ehOrigemLocal = hostnamesLocais.includes(urlValidada.hostname);
+    const ehMesmaOrigemWeb =
+      typeof window !== 'undefined' &&
+      Boolean(window.location?.origin) &&
+      urlValidada.origin === window.location.origin;
+
+    // Se for um link do próprio aplicativo carregando um parâmetro de compartilhamento (?url=... ou ?text=...)
+    if (ehOrigemLocal || ehMesmaOrigemWeb) {
+      const parametroEmbutido =
+        urlValidada.searchParams.get('url') || urlValidada.searchParams.get('text');
+      if (parametroEmbutido) {
+        try {
+          return extrairUrlValida(decodeURIComponent(parametroEmbutido));
+        } catch {
+          return extrairUrlValida(parametroEmbutido);
+        }
       }
+      // Se for a URL da raiz local sem parâmetro, descarta para evitar loop
+      return null;
     }
 
     return urlValidada.toString();

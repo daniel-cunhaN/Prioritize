@@ -40,6 +40,9 @@ interface Props {
   onLimparFiltros: () => void;
   modoVisualizacao: ModoVisualizacao;
   onAlterarModoVisualizacao: (modo: ModoVisualizacao) => void;
+  modoSelecao?: boolean;
+  onAlternarModoSelecao?: () => void;
+  totalSelecionados?: number;
   isDesktop?: boolean;
   horizontalPadding?: number;
 }
@@ -63,6 +66,9 @@ export default function FilterSortBar({
   onLimparFiltros,
   modoVisualizacao,
   onAlterarModoVisualizacao,
+  modoSelecao = false,
+  onAlternarModoSelecao,
+  totalSelecionados = 0,
   isDesktop = false,
   horizontalPadding = 16,
 }: Props) {
@@ -75,6 +81,45 @@ export default function FilterSortBar({
       {/* Linha Superior: Ordenação + Limpar + Seletor Segmentado em Pílula */}
       <View style={styles.linhaControles}>
         <View style={styles.grupoEsquerda}>
+          {onAlternarModoSelecao && (
+            <TouchableOpacity
+              onPress={onAlternarModoSelecao}
+              activeOpacity={0.75}
+              style={[
+                styles.botaoOrdenar,
+                {
+                  backgroundColor: modoSelecao ? theme.primary : theme.background,
+                  borderColor: modoSelecao ? theme.primary : theme.border,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={
+                modoSelecao ? 'Sair do modo de seleção' : 'Selecionar múltiplos desejos'
+              }
+            >
+              <Feather
+                name={modoSelecao ? 'check-square' : 'square'}
+                size={14}
+                color={modoSelecao ? theme.primaryForeground : theme.foreground}
+              />
+              <Text
+                style={[
+                  styles.textoBotaoOrdenar,
+                  {
+                    color: modoSelecao ? theme.primaryForeground : theme.foreground,
+                    fontWeight: '700',
+                  },
+                ]}
+              >
+                {modoSelecao
+                  ? totalSelecionados > 0
+                    ? `${totalSelecionados} sel.`
+                    : 'Selecionando'
+                  : 'Selecionar'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             onPress={onAbrirModalOrdenacao}
             activeOpacity={0.75}

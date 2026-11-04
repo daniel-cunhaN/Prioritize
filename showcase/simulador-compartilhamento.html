@@ -331,15 +331,15 @@
         <div class="card-produto">
           <div>
             <span class="loja-origem">Amazon Brasil</span>
-            <h3 class="produto-nome">Kindle Paperwhite 16 GB Tela 6.8 Polegadas</h3>
+            <h3 class="produto-nome">Livro: Pai Rico, Pai Pobre - Edição de 20 Anos</h3>
           </div>
           <div>
-            <div class="produto-preco">R$ 799,00</div>
+            <div class="produto-preco">R$ 44,11</div>
             <button
               type="button"
               class="btn-compartilhar"
               style="width: 100%; margin-top: 10px;"
-              onclick="compartilharParaPrioritize('https://www.amazon.com.br/dp/B08N3TCP2F')"
+              onclick="compartilharParaPrioritize('https://www.amazon.com.br/dp/8550801488')"
             >
               Compartilhar no Prioritize ↗
             </button>
@@ -385,7 +385,8 @@
           type="url"
           class="input-url"
           placeholder="Cole aqui a URL de qualquer produto (Amazon, Mercado Livre, Shopee...)"
-          value="https://www.amazon.com.br/dp/B08N3TCP2F"
+          value="https://www.amazon.com.br/dp/8550801488"
+          onkeydown="if(event.key==='Enter') enviarUrlCustom()"
         />
         <button
           type="button"
@@ -407,19 +408,24 @@
         Se preferir projetar o emulador Android ou celular conectado via USB:
       </p>
 
-      <div class="codigo-box">npx uri-scheme open "prioritize://share?url=https://www.amazon.com.br/dp/B08N3TCP2F" --android</div>
+      <div class="codigo-box">npx uri-scheme open "prioritize://share?url=https://www.amazon.com.br/dp/8550801488" --android</div>
       <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
         Ou via ADB nativo:
       </p>
-      <div class="codigo-box">adb shell am start -a android.intent.action.VIEW -d "prioritize://share?url=https://www.amazon.com.br/dp/B08N3TCP2F"</div>
+      <div class="codigo-box">adb shell am start -a android.intent.action.VIEW -d "prioritize://share?url=https://www.amazon.com.br/dp/8550801488"</div>
     </section>
   </div>
 
   <script>
     // Função disparada ao clicar para compartilhar um produto no Prioritize
     function compartilharParaPrioritize(urlProduto) {
+      if (!urlProduto) return;
+      let urlNormalizada = urlProduto.trim();
+      if (!urlNormalizada.startsWith('http://') && !urlNormalizada.startsWith('https://')) {
+        urlNormalizada = 'https://' + urlNormalizada;
+      }
       const baseUrlApp = 'http://localhost:8081';
-      const urlDestino = baseUrlApp + '/?url=' + encodeURIComponent(urlProduto);
+      const urlDestino = baseUrlApp + '/?url=' + encodeURIComponent(urlNormalizada);
       window.open(urlDestino, '_blank');
     }
 

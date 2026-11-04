@@ -19,6 +19,9 @@ interface Props {
   onEdit?: (item: WishlistItem) => void;
   onDelete?: (id: string, title?: string | null) => void;
   isDesktop: boolean;
+  modoSelecao?: boolean;
+  idsSelecionados?: string[];
+  onToggleSelecionar?: (id: string) => void;
 }
 
 const COLUNAS_KANBAN: { prioridade: number; label: string; subtitulo: string; icon: string; destaque: boolean }[] = [
@@ -34,6 +37,9 @@ export default function KanbanBoard({
   onEdit,
   onDelete,
   isDesktop,
+  modoSelecao = false,
+  idsSelecionados = [],
+  onToggleSelecionar,
 }: Props) {
   const theme = useTheme();
   const [colunaAtivaMobile, setColunaAtivaMobile] = useState<number>(3);
@@ -130,6 +136,11 @@ export default function KanbanBoard({
                 onToggleCheck={onToggleCheck ? () => onToggleCheck(item) : undefined}
                 onEdit={onEdit ? () => onEdit(item) : undefined}
                 onDelete={onDelete ? () => onDelete(item.id, item.title) : undefined}
+                modoSelecao={modoSelecao}
+                selecionado={idsSelecionados.includes(item.id)}
+                onToggleSelecionar={
+                  onToggleSelecionar ? () => onToggleSelecionar(item.id) : undefined
+                }
               />
             ))
           )}

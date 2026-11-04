@@ -11,7 +11,7 @@ router.use(exigirAutenticacao);
 
 /**
  * POST /api/v1/wishlist/preview
- * Recebe a URL de um produto e extrai automaticamente titulo e imagem via Cheerio.
+ * Recebe a URL de um produto e extrai automaticamente titulo, imagem e preco via Cheerio.
  */
 router.post('/preview', async (req, res) => {
   const { url } = req.body || {};
@@ -25,9 +25,12 @@ router.post('/preview', async (req, res) => {
   }
 
   try {
-    // Realiza scraping de titulo e imagem
+    // Realiza scraping de titulo, imagem e preco
     const metadados = await extrairMetadadosUrl(url.trim());
-    return res.status(200).json(metadados);
+    return res.status(200).json({
+      ...metadados,
+      preco: metadados.price,
+    });
   } catch (erro) {
     console.error('Erro ao extrair metadados para preview:', erro.message);
     return res.status(422).json({
@@ -232,8 +235,33 @@ router.put('/:item_id', (req, res) => {
 });
 
 /**
+ * DELETE /api/v1/wishlist
+ * Exclui múltiplos itens em lote da lista de desejos do usuário autenticado.
+ */
+router.delete('/', (req, res) => {
+  const { ids } = req.body || {};
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({
+      codigo: 'IDS_INVALIDOS',
+      mensagem: 'Envie um array com os IDs dos itens a serem excluídos.',
+    });
+  }
+
+  const db = obterBanco();
+  const placeholders = ids.map(() => '?').join(',');
+  const stmt = db.prepare(`DELETE FROM wishlist_items WHERE id IN (${placeholders}) AND user_id = ?`);
+  const resultado = stmt.run(...ids, req.usuario.id);
+
+  return res.status(200).json({
+    excluidos: resultado.changes,
+    totalSolicitado: ids.length,
+  });
+});
+
+/**
  * DELETE /api/v1/wishlist/:item_id
- * Exclui um item da lista de desejos.
+ * Exclui um item individual da lista de desejos.
  */
 router.delete('/:item_id', (req, res) => {
   const { item_id } = req.params;

@@ -38,6 +38,7 @@ import BottomNav, { BOTTOM_NAV_HEIGHT, HomeTab } from '../components/home/Bottom
 import DesktopHeader from '../components/home/DesktopHeader';
 import BotaoNovoDesejo from '../components/home/BotaoNovoDesejo';
 import FilterSortBar from '../components/home/FilterSortBar';
+import BarraAcoesLote from '../components/home/BarraAcoesLote';
 import ModalOrdenacao, { OPCOES_ORDENACAO } from '../components/home/ModalOrdenacao';
 import KanbanBoard from '../components/home/KanbanBoard';
 import ProductListItem from '../components/home/ProductListItem';
@@ -108,6 +109,9 @@ export default function HomeScreen({ navigation }: any) {
   const [itemParaEditar, setItemParaEditar] = useState<WishlistItem | null>(null);
   const [itemParaExcluir, setItemParaExcluir] = useState<{ id: string; titulo?: string | null } | null>(null);
   const [excluindo, setExcluindo] = useState(false);
+  const [modoSelecao, setModoSelecao] = useState(false);
+  const [idsSelecionados, setIdsSelecionados] = useState<string[]>([]);
+  const [modalExcluirLoteVisivel, setModalExcluirLoteVisivel] = useState(false);
   const [urlCompartilhadaModal, setUrlCompartilhadaModal] = useState('');
 
   // Filtros, ordenação, busca e aba ativa
@@ -442,6 +446,84 @@ export default function HomeScreen({ navigation }: any) {
     setQuery('');
   }, []);
 
+  // Alterna o modo de seleção em lote
+  const handleAlternarModoSelecao = useCallback(() => {
+    setModoSelecao((prev) => {
+      const proximo = !prev;
+      if (!proximo) {
+        setIdsSelecionados([]);
+      }
+      return proximo;
+    });
+  }, []);
+
+  // Alterna a seleção de um item individual
+  const handleToggleSelecionado = useCallback((id: string) => {
+    setIdsSelecionados((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((item) => item !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
+    setModoSelecao(true);
+  }, []);
+
+  // Seleciona ou desmarca todos os itens visíveis
+  const handleSelecionarTodos = useCallback(() => {
+    setIdsSelecionados((prev) => {
+      const todosJaSelecionados =
+        filteredItems.length > 0 &&
+        filteredItems.every((item) => prev.includes(item.id));
+      if (todosJaSelecionados) {
+        return [];
+      } else {
+        return filteredItems.map((item) => item.id);
+      }
+    });
+  }, [filteredItems]);
+
+  // Cancela o modo de seleção e limpa os itens marcados
+  const handleCancelarSelecao = useCallback(() => {
+    setModoSelecao(false);
+    setIdsSelecionados([]);
+  }, []);
+
+  // Dispara o diálogo de confirmação para exclusão em lote
+  const handleExcluirEmLote = useCallback(() => {
+    if (idsSelecionados.length === 0) return;
+    setModalExcluirLoteVisivel(true);
+  }, [idsSelecionados.length]);
+
+  // Executa a requisição DELETE /api/v1/wishlist com os IDs selecionados
+  const handleConfirmarExclusaoEmLote = async () => {
+    if (idsSelecionados.length === 0) return;
+    setExcluindo(true);
+    const totalParaExcluir = idsSelecionados.length;
+    try {
+      await client.delete('/wishlist/', {
+        data: { ids: idsSelecionados },
+      });
+
+      setDesejos((prev) => prev.filter((item) => !idsSelecionados.includes(item.id)));
+      registrarEvento({
+        simbolo: '✕',
+        destaque: true,
+        titulo: `Excluiu ${totalParaExcluir} produtos em lote`,
+        detalhe: 'Removidos permanentemente da lista',
+      });
+
+      setIdsSelecionados([]);
+      setModoSelecao(false);
+      setModalExcluirLoteVisivel(false);
+    } catch (erro) {
+      console.error('Erro ao excluir produtos em lote:', erro);
+      Alert.alert('Erro', 'Não foi possível excluir os produtos selecionados.');
+    } finally {
+      setExcluindo(false);
+    }
+  };
+
   // Altera o modo de visualização e persiste a escolha no navegador (Web)
   const handleAlterarModoVisualizacao = useCallback((novoModo: ModoVisualizacao) => {
     setModoVisualizacao(novoModo);
@@ -568,6 +650,9 @@ export default function HomeScreen({ navigation }: any) {
           onToggleCheck={() => handleAlternarConclusao(item)}
           onEdit={() => handleAbrirEditar(item)}
           onDelete={() => handleExcluirDesejo(item.id, item.title)}
+          modoSelecao={modoSelecao}
+          selecionado={idsSelecionados.includes(item.id)}
+          onToggleSelecionar={() => handleToggleSelecionado(item.id)}
         />
       ))}
     </View>
@@ -595,6 +680,9 @@ export default function HomeScreen({ navigation }: any) {
             onToggleCheck={() => handleAlternarConclusao(item)}
             onEdit={() => handleAbrirEditar(item)}
             onDelete={() => handleExcluirDesejo(item.id, item.title)}
+            modoSelecao={modoSelecao}
+            selecionado={idsSelecionados.includes(item.id)}
+            onToggleSelecionar={() => handleToggleSelecionado(item.id)}
           />
         ))}
       </ScrollView>
@@ -611,6 +699,9 @@ export default function HomeScreen({ navigation }: any) {
           onToggleCheck={() => handleAlternarConclusao(item)}
           onEdit={() => handleAbrirEditar(item)}
           onDelete={() => handleExcluirDesejo(item.id, item.title)}
+          modoSelecao={modoSelecao}
+          selecionado={idsSelecionados.includes(item.id)}
+          onToggleSelecionar={() => handleToggleSelecionado(item.id)}
         />
       ))}
     </View>
@@ -676,6 +767,9 @@ export default function HomeScreen({ navigation }: any) {
             onEdit={handleAbrirEditar}
             onDelete={handleExcluirDesejo}
             isDesktop={r.isDesktop}
+            modoSelecao={modoSelecao}
+            idsSelecionados={idsSelecionados}
+            onToggleSelecionar={handleToggleSelecionado}
           />
         </View>
       );
@@ -825,8 +919,27 @@ export default function HomeScreen({ navigation }: any) {
             onLimparFiltros={handleLimparFiltros}
             modoVisualizacao={modoVisualizacao}
             onAlterarModoVisualizacao={handleAlterarModoVisualizacao}
+            modoSelecao={modoSelecao}
+            onAlternarModoSelecao={handleAlternarModoSelecao}
+            totalSelecionados={idsSelecionados.length}
             isDesktop={r.isDesktop}
             horizontalPadding={r.horizontalPadding}
+          />
+        )}
+
+        {/* Barra Flutuante de Ações em Lote quando o modo de seleção estiver ativo */}
+        {modoSelecao && (
+          <BarraAcoesLote
+            totalSelecionados={idsSelecionados.length}
+            totalItens={filteredItems.length}
+            todosSelecionados={
+              filteredItems.length > 0 &&
+              filteredItems.every((item) => idsSelecionados.includes(item.id))
+            }
+            aoAlternarSelecionarTodos={handleSelecionarTodos}
+            aoCancelar={handleCancelarSelecao}
+            aoConfirmarExcluirEmLote={handleExcluirEmLote}
+            carregando={excluindo}
           />
         )}
 
@@ -977,13 +1090,25 @@ export default function HomeScreen({ navigation }: any) {
         onFechar={() => setModalOrdenacaoVisivel(false)}
       />
 
-      {/* Diálogo Monocromático Estilizado de Confirmação de Exclusão */}
+      {/* Diálogo Monocromático Estilizado de Confirmação de Exclusão Individual */}
       <ConfirmarExclusaoModal
         visivel={!!itemParaExcluir}
         tituloProduto={itemParaExcluir?.titulo}
         carregando={excluindo}
         aoFechar={() => setItemParaExcluir(null)}
         aoConfirmar={handleConfirmarExclusao}
+      />
+
+      {/* Diálogo Monocromático Estilizado de Confirmação de Exclusão em Lote */}
+      <ConfirmarExclusaoModal
+        visivel={modalExcluirLoteVisivel}
+        quantidadeItens={idsSelecionados.length}
+        titulosItens={desejos
+          .filter((d) => idsSelecionados.includes(d.id))
+          .map((d) => d.title)}
+        carregando={excluindo}
+        aoFechar={() => setModalExcluirLoteVisivel(false)}
+        aoConfirmar={handleConfirmarExclusaoEmLote}
       />
     </View>
   );

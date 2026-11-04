@@ -18,6 +18,9 @@ interface Props {
   onEdit?: () => void;
   onDelete?: () => void;
   showPriorityBadge?: boolean;
+  modoSelecao?: boolean;
+  selecionado?: boolean;
+  onToggleSelecionar?: () => void;
 }
 
 /** Configuração monocromática das prioridades (3 = Alta, 2 = Média, 1 = Baixa) */
@@ -96,6 +99,9 @@ function ProductCard({
   onEdit,
   onDelete,
   showPriorityBadge = true,
+  modoSelecao = false,
+  selecionado = false,
+  onToggleSelecionar,
 }: Props) {
   const theme = useTheme();
   const [imageError, setImageError] = useState(false);
@@ -111,17 +117,34 @@ function ProductCard({
     Linking.openURL(target).catch((err) => console.warn('Não foi possível abrir o link:', err));
   };
 
+  const handleCardPress = () => {
+    if (modoSelecao) {
+      onToggleSelecionar?.();
+    } else {
+      openLink();
+    }
+  };
+
+  const handleLongPress = () => {
+    if (onToggleSelecionar) {
+      onToggleSelecionar();
+    } else if (onDelete) {
+      onDelete();
+    }
+  };
+
   return (
     <Pressable
-      onPress={openLink}
-      onLongPress={onDelete}
+      onPress={handleCardPress}
+      onLongPress={handleLongPress}
       accessibilityLabel={`Produto: ${item.title || 'Sem título'}`}
       style={({ pressed, hovered }: any) => [
         styles.card,
         {
           width,
           backgroundColor: theme.background,
-          borderColor: hovered ? theme.primary : theme.border,
+          borderColor: selecionado ? theme.primary : hovered ? theme.primary : theme.border,
+          borderWidth: selecionado ? 2 : 1,
           transform: [{ scale: pressed ? 0.985 : 1 }, { translateY: hovered ? -3 : 0 }],
           ...(Platform.OS === 'web'
             ? { boxShadow: hovered ? '0px 6px 16px rgba(9, 9, 11, 0.1)' : '0px 2px 6px rgba(9, 9, 11, 0.03)' }
@@ -165,32 +188,64 @@ function ProductCard({
               </View>
             )}
 
-            {/* Tag Pílula de Prioridade */}
-            {showPriorityBadge && (
+            {/* Tag Pílula de Prioridade ou Checkbox no Modo de Seleção */}
+            {modoSelecao ? (
               <View
                 style={[
                   styles.priorityBadge,
                   {
-                    backgroundColor: priorityConf.inverted ? theme.primary : theme.background,
-                    borderColor: priorityConf.inverted ? theme.primary : theme.border,
+                    backgroundColor: selecionado ? theme.primary : theme.background,
+                    borderColor: selecionado ? theme.primary : theme.border,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
                   },
                 ]}
               >
+                <Feather
+                  name={selecionado ? 'check' : 'square'}
+                  size={12}
+                  color={selecionado ? theme.primaryForeground : theme.foreground}
+                />
                 <Text
                   style={[
                     styles.priorityBadgeText,
                     {
-                      color: priorityConf.inverted ? theme.primaryForeground : theme.foreground,
+                      color: selecionado ? theme.primaryForeground : theme.foreground,
+                      fontWeight: '800',
                     },
                   ]}
                 >
-                  {priorityConf.icon} {priorityConf.label}
+                  {selecionado ? 'Selecionado' : 'Selecionar'}
                 </Text>
               </View>
+            ) : (
+              showPriorityBadge && (
+                <View
+                  style={[
+                    styles.priorityBadge,
+                    {
+                      backgroundColor: priorityConf.inverted ? theme.primary : theme.background,
+                      borderColor: priorityConf.inverted ? theme.primary : theme.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.priorityBadgeText,
+                      {
+                        color: priorityConf.inverted ? theme.primaryForeground : theme.foreground,
+                      },
+                    ]}
+                  >
+                    {priorityConf.icon} {priorityConf.label}
+                  </Text>
+                </View>
+              )
             )}
 
-            {/* Ações flutuantes do card (Concluir, Editar e Excluir) */}
-            {(onToggleCheck || onEdit || onDelete) && (
+            {/* Ações flutuantes do card (Concluir, Editar e Excluir) ocultadas em modo seleção */}
+            {!modoSelecao && (onToggleCheck || onEdit || onDelete) && (
               <View
                 style={[
                   styles.actionsContainer,

@@ -86,9 +86,20 @@ export function useCompartilhamento() {
   useEffect(() => {
     if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.search) {
       const params = new URLSearchParams(window.location.search);
-      const urlWeb = params.get('url') || params.get('text');
-      if (urlWeb) {
-        processarTextoCompartilhado(decodeURIComponent(urlWeb));
+      const urlWebBruta = params.get('url') || params.get('text');
+      if (urlWebBruta) {
+        let urlDecodificada = urlWebBruta;
+        try {
+          // urlWebBruta do URLSearchParams já remove uma camada de codificação.
+          // Decodifica apenas se ainda restarem caracteres codificados com %
+          if (urlDecodificada.includes('%')) {
+            urlDecodificada = decodeURIComponent(urlDecodificada);
+          }
+        } catch {
+          urlDecodificada = urlWebBruta;
+        }
+
+        processarTextoCompartilhado(urlDecodificada);
 
         // Limpa a query string da barra de endereços para não reabrir em recarregamentos (F5 / reload)
         try {

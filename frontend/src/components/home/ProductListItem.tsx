@@ -25,6 +25,9 @@ interface Props {
   onToggleCheck?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  modoSelecao?: boolean;
+  selecionado?: boolean;
+  onToggleSelecionar?: () => void;
 }
 
 const getDomain = (url: string) =>
@@ -71,7 +74,16 @@ const parseOrGeneratePrice = (item: WishlistItem): number => {
   return SAMPLE_PRICES[Math.abs(hash) % SAMPLE_PRICES.length];
 };
 
-function ProductListItem({ item, concluido = false, onToggleCheck, onEdit, onDelete }: Props) {
+function ProductListItem({
+  item,
+  concluido = false,
+  onToggleCheck,
+  onEdit,
+  onDelete,
+  modoSelecao = false,
+  selecionado = false,
+  onToggleSelecionar,
+}: Props) {
   const theme = useTheme();
   const [imageError, setImageError] = useState(false);
   const fade = useRef(new Animated.Value(0)).current;
@@ -90,16 +102,41 @@ function ProductListItem({ item, concluido = false, onToggleCheck, onEdit, onDel
     );
   };
 
+  const handleItemPress = () => {
+    if (modoSelecao) {
+      onToggleSelecionar?.();
+    } else {
+      openLink();
+    }
+  };
+
+  const handleItemLongPress = () => {
+    if (onToggleSelecionar) {
+      onToggleSelecionar();
+    } else if (onDelete) {
+      onDelete();
+    }
+  };
+
   return (
     <Pressable
-      onPress={openLink}
-      onLongPress={onDelete}
+      onPress={handleItemPress}
+      onLongPress={handleItemLongPress}
       accessibilityLabel={`Produto: ${item.title || 'Sem título'}`}
       style={({ pressed, hovered }: any) => [
         styles.card,
         {
-          backgroundColor: concluido ? theme.card : theme.background,
-          borderColor: hovered ? theme.primary : theme.border,
+          backgroundColor: selecionado
+            ? theme.secondary
+            : concluido
+            ? theme.card
+            : theme.background,
+          borderColor: selecionado
+            ? theme.primary
+            : hovered
+            ? theme.primary
+            : theme.border,
+          borderWidth: selecionado ? 2 : 1,
           transform: [{ scale: pressed ? 0.992 : 1 }, { translateY: hovered ? -1 : 0 }],
         },
         Platform.OS === 'web' &&
@@ -109,26 +146,47 @@ function ProductListItem({ item, concluido = false, onToggleCheck, onEdit, onDel
           } as any),
       ]}
     >
-      {/* Checkbox limpo opcional */}
-      {onToggleCheck && (
+      {/* Checkbox de Seleção em Lote ou Conclusão */}
+      {modoSelecao ? (
         <TouchableOpacity
           onPress={(e) => {
             e.stopPropagation();
-            onToggleCheck();
+            onToggleSelecionar?.();
           }}
           hitSlop={8}
           accessibilityRole="checkbox"
-          accessibilityState={{ checked: concluido }}
+          accessibilityState={{ checked: selecionado }}
           style={[
             styles.checkbox,
             {
-              backgroundColor: concluido ? theme.primary : theme.background,
-              borderColor: theme.primary,
+              backgroundColor: selecionado ? theme.primary : theme.background,
+              borderColor: selecionado ? theme.primary : theme.border,
             },
           ]}
         >
-          {concluido && <Feather name="check" size={13} color={theme.primaryForeground} />}
+          {selecionado && <Feather name="check" size={13} color={theme.primaryForeground} />}
         </TouchableOpacity>
+      ) : (
+        onToggleCheck && (
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation();
+              onToggleCheck();
+            }}
+            hitSlop={8}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: concluido }}
+            style={[
+              styles.checkbox,
+              {
+                backgroundColor: concluido ? theme.primary : theme.background,
+                borderColor: theme.primary,
+              },
+            ]}
+          >
+            {concluido && <Feather name="check" size={13} color={theme.primaryForeground} />}
+          </TouchableOpacity>
+        )
       )}
 
       {/* Miniatura quadrada sutil */}
@@ -225,50 +283,69 @@ function ProductListItem({ item, concluido = false, onToggleCheck, onEdit, onDel
           size="sm"
         />
 
-        <View style={styles.buttonGroup}>
-          <TouchableOpacity
-            onPress={(e) => {
-              e.stopPropagation();
-              openLink();
-            }}
-            hitSlop={8}
-            style={[styles.actionButton, { backgroundColor: theme.secondary }]}
-            accessibilityRole="button"
-            accessibilityLabel="Abrir link do produto"
+        {!modoSelecao ? (
+          <View style={styles.buttonGroup}>
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                openLink();
+              }}
+              hitSlop={8}
+              style={[styles.actionButton, { backgroundColor: theme.secondary }]}
+              accessibilityRole="button"
+              accessibilityLabel="Abrir link do produto"
+            >
+              <Feather name="arrow-up-right" size={14} color={theme.foreground} />
+            </TouchableOpacity>
+
+            {onEdit && (
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onEdit();
+                }}
+                hitSlop={8}
+                style={[styles.actionButton, { backgroundColor: theme.secondary }]}
+                accessibilityRole="button"
+                accessibilityLabel="Editar item"
+              >
+                <Feather name="edit-2" size={13} color={theme.foreground} />
+              </TouchableOpacity>
+            )}
+
+            {onDelete && (
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                hitSlop={8}
+                style={[styles.actionButton, { backgroundColor: theme.secondary }]}
+                accessibilityRole="button"
+                accessibilityLabel="Excluir item"
+              >
+                <Feather name="trash-2" size={13} color={theme.foreground} />
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          <View
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: selecionado ? theme.primary : theme.secondary,
+                borderColor: selecionado ? theme.primary : theme.border,
+                borderWidth: 1,
+              },
+            ]}
           >
-            <Feather name="arrow-up-right" size={14} color={theme.foreground} />
-          </TouchableOpacity>
-
-          {onEdit && (
-            <TouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
-              hitSlop={8}
-              style={[styles.actionButton, { backgroundColor: theme.secondary }]}
-              accessibilityRole="button"
-              accessibilityLabel="Editar item"
-            >
-              <Feather name="edit-2" size={13} color={theme.foreground} />
-            </TouchableOpacity>
-          )}
-
-          {onDelete && (
-            <TouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              hitSlop={8}
-              style={[styles.actionButton, { backgroundColor: theme.secondary }]}
-              accessibilityRole="button"
-              accessibilityLabel="Excluir item"
-            >
-              <Feather name="trash-2" size={13} color={theme.foreground} />
-            </TouchableOpacity>
-          )}
-        </View>
+            <Feather
+              name={selecionado ? 'check' : 'plus'}
+              size={13}
+              color={selecionado ? theme.primaryForeground : theme.mutedForeground}
+            />
+          </View>
+        )}
       </View>
     </Pressable>
   );
