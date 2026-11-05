@@ -282,8 +282,8 @@ Na raiz do projeto:
 npm test
 ```
 
-### Testes do Backend (63 testes)
-Testes unitários e de integração de autenticação (rejeição de credenciais inválidas e tokens de usuários inexistentes), banco de dados, rotas de wishlist (filtros, busca, ordenação, preço, preview com texto de app e exclusão em lote via `DELETE /api/v1/wishlist`), extração de metadados resiliente a lojas anti-bot e Shopee (SSR via crawler WhatsApp), normalização inteligente de valores monetários (Mercado Livre com `andes-money-amount`, Amazon com múltiplos nós de preço, catálogo de homologação de marketplaces e fallback de query strings) e segurança:
+### Testes do Backend (68 testes)
+Testes unitários e de integração de autenticação (rejeição de credenciais inválidas e tokens de usuários inexistentes), banco de dados, rotas de wishlist (filtros, busca, ordenação, preço, preview com texto de app e exclusão em lote via `DELETE /api/v1/wishlist`), extração de metadados resiliente a lojas anti-bot e Shopee/Amazon (SSR via crawler WhatsApp), filtragem de páginas institucionais de bloqueio (`bot-interceptor-muralla`), extração de títulos via slug de URL, leitura de scripts JSON de hidratação (`__NEXT_DATA__`, `__PRELOADED_STATE__`), fallback dinâmico de preço via pesquisa web e segurança:
 ```bash
 cd backend
 npm test
@@ -319,3 +319,21 @@ O aplicativo conta com uma experiência completa de gerenciamento em massa de de
 - **Indicadores Monocromáticos**: Checkboxes monocromáticos integrados na visualização em Grade (`ProductCard.tsx`), Lista (`ProductListItem.tsx`) e Matriz Kanban (`KanbanBoard.tsx`).
 - **Endpoint Backend Atômico**: Rota `DELETE /api/v1/wishlist` com payload `{ ids: string[] }` garantindo exclusão segura por usuário autenticado no SQLite.
 - **Diálogo de Confirmação Adaptativo (`ConfirmarExclusaoModal.tsx`)**: Ajusta dinamicamente título, contagem e resumo dos produtos selecionados antes da exclusão permanente.
+
+---
+
+## 10. Extração Universal de Preços em E-Commerces (`backend/src/services/scraper.js`)
+
+O módulo de scraping foi aprimorado via TDD (`backend/testes/extracao_preco_universal_lojas.test.js`) para resolver a extração de preços e metadados em links arbitrários da **Shopee**, **Mercado Livre** e **Amazon**:
+
+1. **Priorização Anti-WAF para Amazon e Shopee (`obterPerfisParaUrl`, `ehUrlAmazon`, `ehUrlShopee`)**:
+   - Links da Amazon (`amazon.com.br`, `amazon.com`, `a.co`, `amzn.to`) e da Shopee (`shopee.com.br`, `shope.ee`) priorizam o perfil `PERFIL_WHATSAPP` (`WhatsApp/2.23.23.77 A`), recebendo o HTML SSR completo na 1ª tentativa e evitando o bloqueio de WAF/Captcha aplicado a navegadores sem JavaScript.
+2. **Seletores Avançados da Amazon (`extrairPrecoHtml`)**:
+   - Quando `.a-offscreen` vem vazio no SSR da Amazon, o scraper reconstrói o preço combinando `.a-price-whole` e `.a-price-fraction` (descartando preços riscados `.a-text-price`), além de ler inputs ocultos (`#twister-plus-price-data-price`, `#attach-base-product-price`, `#priceValue`) e imagens de `#landingImage` (`data-old-hires` / `src`).
+3. **Filtragem de Bloqueio Anti-Bot e Extração de Slug no Mercado Livre (`ehImagemGenericaBloqueio`, `ehTituloGenericoBloqueio`, `extrairTituloDeSlugUrl`)**:
+   - Descarta logos e títulos institucionais genéricos servidos pela página de desafio `bot-interceptor-muralla` (`pt_logo_large_plus`, `"Mercado Livre"`, `"Segurança — Mercado Livre"`), permitindo prosseguir para os próximos perfis de crawler e extrair o título limpo diretamente do slug da URL (`/nome-do-produto/p/MLB...` ou `/MLB-123-nome-do-produto-_JM`).
+4. **Leitura de Scripts JSON de Estado (`extrairPrecoDeScriptEmbutido`)**:
+   - Extrai preços de objetos JSON de hidratação como `__NEXT_DATA__` da Shopee (incluindo conversão automática de subunidades multiplicadas por `100.000`) e `__PRELOADED_STATE__` do Mercado Livre (`"price":{"amount":...}`).
+5. **Fallback Dinâmico via Pesquisa Web (`buscarPrecoPorPesquisaWeb`)**:
+   - Quando o SSR da loja omite completamente o preço de um produto arbitrário (comum na Shopee e em páginas protegidas do Mercado Livre), o serviço consulta automaticamente o motor de busca (`br.search.yahoo.com/search`) com os termos substantivos do título + `"preço"`, filtrando ruídos de frete grátis (`"acima de R$ 19"`), cupons (`"cupom de R$ 10"`) e parcelas (`"10x de R$ ..."`), e retorna o preço real de mercado em Reais (`R$`).
+

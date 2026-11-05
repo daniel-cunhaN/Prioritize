@@ -167,6 +167,8 @@ export default function AdicionarDesejoModal({
         setPrecoDetectado(true);
         setPrecoOriginalExtraido(precoExtraido);
       } else {
+        setPreco('');
+        setPrecoDetectado(false);
         setPrecoOriginalExtraido(null);
       }
       setMetadadosJaBuscados(true);
