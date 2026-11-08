@@ -282,15 +282,15 @@ Na raiz do projeto:
 npm test
 ```
 
-### Testes do Backend (68 testes)
-Testes unitários e de integração de autenticação (rejeição de credenciais inválidas e tokens de usuários inexistentes), banco de dados, rotas de wishlist (filtros, busca, ordenação, preço, preview com texto de app e exclusão em lote via `DELETE /api/v1/wishlist`), extração de metadados resiliente a lojas anti-bot e Shopee/Amazon (SSR via crawler WhatsApp), filtragem de páginas institucionais de bloqueio (`bot-interceptor-muralla`), extração de títulos via slug de URL, leitura de scripts JSON de hidratação (`__NEXT_DATA__`, `__PRELOADED_STATE__`), fallback dinâmico de preço via pesquisa web e segurança:
+### Testes do Backend (73 testes)
+Testes unitários e de integração de autenticação (rejeição de credenciais inválidas e tokens de usuários inexistentes), banco de dados, rotas de wishlist (filtros, busca, ordenação, preço, preview com texto de app e exclusão em lote via `DELETE /api/v1/wishlist`), extração de metadados resiliente a lojas anti-bot e Shopee/Amazon (SSR via crawler WhatsApp), filtragem de páginas institucionais de bloqueio (`bot-interceptor-muralla`), extração de títulos via slug de URL, leitura de scripts JSON de hidratação (`__NEXT_DATA__`, `__PRELOADED_STATE__`), normalização exata de milhares sem centavos (`R$ 3.299` -> `3299`), prioridade estrita de buybox, busca comparativa determinística com filtragem de acessórios, cache canônico anti-oscilação e segurança:
 ```bash
 cd backend
 npm test
 ```
 
-### Testes do Frontend (64 testes unitários)
-Valida extração de links compartilhados, tratamento robusto de URLs com query parameters em `compartilhamento.ts`, compatibilidade com React Native Web (eliminação de `<button>` aninhados, suporte a `boxShadow`, `useNativeDriver` seguro, `pointerEvents` e ausência de ícones inválidos da família Feather), modal estilizado de confirmação de exclusão individual e em lote (`ConfirmarExclusaoModal.tsx`), modo de seleção múltipla com barra de ações flutuante (`BarraAcoesLote.tsx`), modal estilizado de confirmação de logout (`ConfirmarLogoutModal.tsx`), remoção completa do Google do aplicativo, simulador de compartilhamento externo (`simulador-compartilhamento.html`), botão "Novo Desejo" com Design Spell e proporções 44px (`BotaoNovoDesejo.tsx`), exibição do valor extraído no Quick Creation Sheet (`AdicionarDesejoModal.tsx`), filtros e ordenação, agrupamento Kanban, formatação monetária e os fluxos de produtividade:
+### Testes do Frontend (65 testes unitários)
+Valida extração de links compartilhados, tratamento robusto de URLs com query parameters em `compartilhamento.ts`, compatibilidade com React Native Web (eliminação de `<button>` aninhados, suporte a `boxShadow`, `useNativeDriver` seguro, `pointerEvents` e ausência de ícones inválidos da família Feather), modal estilizado de confirmação de exclusão individual e em lote (`ConfirmarExclusaoModal.tsx`), modo de seleção múltipla com barra de ações flutuante (`BarraAcoesLote.tsx`), modal estilizado de confirmação de logout (`ConfirmarLogoutModal.tsx`), remoção completa do Google do aplicativo, simulador de compartilhamento externo (`simulador-compartilhamento.html`), botão "Novo Desejo" com Design Spell e proporções 44px (`BotaoNovoDesejo.tsx`), exibição do valor extraído e proteção contra condições de corrida (`requisicaoExtracaoRef`) no Quick Creation Sheet (`AdicionarDesejoModal.tsx`), filtros e ordenação, agrupamento Kanban, formatação monetária e os fluxos de produtividade:
 ```bash
 cd frontend
 npm test
@@ -334,6 +334,9 @@ O módulo de scraping foi aprimorado via TDD (`backend/testes/extracao_preco_uni
    - Descarta logos e títulos institucionais genéricos servidos pela página de desafio `bot-interceptor-muralla` (`pt_logo_large_plus`, `"Mercado Livre"`, `"Segurança — Mercado Livre"`), permitindo prosseguir para os próximos perfis de crawler e extrair o título limpo diretamente do slug da URL (`/nome-do-produto/p/MLB...` ou `/MLB-123-nome-do-produto-_JM`).
 4. **Leitura de Scripts JSON de Estado (`extrairPrecoDeScriptEmbutido`)**:
    - Extrai preços de objetos JSON de hidratação como `__NEXT_DATA__` da Shopee (incluindo conversão automática de subunidades multiplicadas por `100.000`) e `__PRELOADED_STATE__` do Mercado Livre (`"price":{"amount":...}`).
-5. **Fallback Dinâmico via Pesquisa Web (`buscarPrecoPorPesquisaWeb`)**:
-   - Quando o SSR da loja omite completamente o preço de um produto arbitrário (comum na Shopee e em páginas protegidas do Mercado Livre), o serviço consulta automaticamente o motor de busca (`br.search.yahoo.com/search`) com os termos substantivos do título + `"preço"`, filtrando ruídos de frete grátis (`"acima de R$ 19"`), cupons (`"cupom de R$ 10"`) e parcelas (`"10x de R$ ..."`), e retorna o preço real de mercado em Reais (`R$`).
+5. **Fallback Determinístico de Preço (`buscarPrecoPorPesquisaWeb`, `selecionarMelhorPrecoDeCards`, `obterChaveCanonicaUrl`)**:
+   - Quando o SSR da loja omite completamente o preço de um produto arbitrário (comum na Shopee e em páginas protegidas do Mercado Livre), o serviço consulta primeiramente o catálogo estruturado de produtos do Buscapé (`[data-testid="product-card"]`), descartando acessórios avulsos (`bateria`, `carregador`, `maleta`, `capa`) e pontuando os cartões pela correspondência de categoria, especificação numérica e marca, independentemente da ordem no DOM.
+   - Normalização monetária aprimorada em `normalizarPreco` (`converterStringNumericaParaFloat`) para tratar valores na casa dos milhares sem centavos (`"R$ 3.299"` -> `3299.00`, `"1.250"` -> `1250.00`).
+   - Prioridade estrita de containers de Buybox na Amazon e no Mercado Livre em `extrairPrecoHtml`, evitando capturar `.a-offscreen` de carrosséis patrocinados rotativos, ofertas de itens usados (`#aod-ingress-link`) ou subtítulos de parcelamento (`.ui-pdp-price__subtitles`).
+   - Cache canônico em memória (`CACHE_METADADOS_PRODUTO`) indexado por `obterChaveCanonicaUrl` (`amazon:ASIN`, `shopee:shopId.itemId`, `ml:MLB...`) aliado ao controle de concorrência (`requisicaoExtracaoRef`) em `AdicionarDesejoModal.tsx`, garantindo que clicar em **"Extrair"** repetidas vezes para um mesmo link retorne sempre exatamente o mesmo valor.
 

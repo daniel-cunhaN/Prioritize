@@ -1,20 +1,22 @@
 /**
- * scraper.js — Serviço de Extração de Metadados OpenGraph, HTML e Pesquisa de Preço
+ * scraper.js — Serviço de Extração de Metadados OpenGraph, HTML e Pesquisa Determinística de Preço
  * Responsável por requisitar a página web do produto e extrair automaticamente
  * informações de título, imagem e preço com alta tolerância a falhas e bloqueios anti-bot.
  *
- * Estratégias para contornar lojas com proteção anti-bot (Shopee, Mercado Livre, Amazon):
+ * Estratégias para precisão e determinismo em lojas com proteção anti-bot (Shopee, Mercado Livre, Amazon):
  * 1. Múltiplas tentativas com User-Agents otimizados por domínio:
  *    - Shopee e Amazon priorizam o crawler do WhatsApp (SSR completo sem bloqueio de WAF/Captcha).
  *    - Demais lojas tentam navegador e crawlers de prévia (Twitterbot, Facebook, WhatsApp).
- * 2. Filtragem de páginas de bloqueio (ex.: bot-interceptor-muralla do Mercado Livre),
- *    descartando logos e títulos institucionais genéricos para não interromper as tentativas.
- * 3. Extração de título pelo slug da URL quando o HTML retorna bloqueado por desafio/captcha.
- * 4. Seletores avançados de preço no HTML (Amazon .a-price-whole + .a-price-fraction, inputs
- *    ocultos #twister-plus-price-data-price, Mercado Livre .poly-price__current e JSON embutido
- *    em scripts de estado como __NEXT_DATA__ e __PRELOADED_STATE__).
- * 5. Fallback dinâmico via pesquisa web (Yahoo Search BR) para recuperar o preço de mercado
- *    real de qualquer produto de e-commerce quando o SSR da loja oculta o valor.
+ * 2. Prioridade estrita de seletores de Buybox (Amazon e Mercado Livre), avaliando cada
+ *    container principal individualmente antes de qualquer elemento secundário e descartando
+ *    carrosséis patrocinados, itens usados e valores de parcelas.
+ * 3. Normalização monetária precisa para valores na casa dos milhares com ou sem centavos
+ *    (ex.: "R$ 3.299" -> 3299.00, "1.250" -> 1250.00).
+ * 4. Busca comparativa determinística (Buscapé + fallback) com filtragem de acessórios
+ *    (baterias avulsas, maletas, capas) e pontuação por aderência de palavras-chave,
+ *    independente da ordem de renderização dos anúncios no DOM.
+ * 5. Cache canônico por identificador de produto (ASIN, MLB, Shopee Item ID ou URL limpa)
+ *    para garantir que múltiplas extrações do mesmo link retornem sempre o mesmo valor.
  */
 
 import * as cheerio from 'cheerio';
@@ -23,11 +25,22 @@ import * as cheerio from 'cheerio';
 const TIMEOUT_TENTATIVA_MS = 6000;
 
 // Tempo máximo para a consulta de fallback de preço via pesquisa web (ms)
-const TIMEOUT_PESQUISA_WEB_MS = 4500;
+const TIMEOUT_PESQUISA_WEB_MS = 5000;
 
 // Tamanho mínimo (bytes) para considerar válida a imagem da CDN da Amazon.
 // ASINs inexistentes retornam um pixel GIF transparente de 43 bytes.
 const TAMANHO_MINIMO_IMAGEM_AMAZON = 1000;
+
+// Cache em memória de metadados por chave canônica de produto para estabilidade entre extrações
+const CACHE_METADADOS_PRODUTO = new Map();
+
+/**
+ * Limpa o cache em memória de metadados e preços extraídos.
+ * Útil para isolamento entre testes automatizados.
+ */
+export function limparCacheMetadados() {
+  CACHE_METADADOS_PRODUTO.clear();
+}
 
 // ─── Perfis de requisição com cabeçalhos específicos ──────────────────────────
 
@@ -147,6 +160,77 @@ export function ehUrlMarketplaceConhecido(url) {
     );
   } catch {
     return false;
+  }
+}
+
+/**
+ * Gera uma chave canônica única para o produto a partir da URL, ignorando parâmetros
+ * voláteis de rastreamento (sp_atk, xptdk, utm_*, ref, etc.) para estabilizar o resultado.
+ *
+ * @param {string} url
+ * @returns {string}
+ */
+export function obterChaveCanonicaUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  try {
+    const urlExtraida = extrairUrlDeTexto(url) || url.trim();
+    const urlFormatada =
+      urlExtraida.startsWith('http://') || urlExtraida.startsWith('https://')
+        ? urlExtraida
+        : `https://${urlExtraida}`;
+
+    // 1. Amazon: chave pelo ASIN de 10 caracteres
+    const asin = extrairAsinAmazon(urlFormatada);
+    if (asin) return `amazon:${asin}`;
+
+    const obj = new URL(urlFormatada);
+    const caminho = decodeURIComponent(obj.pathname);
+
+    // 2. Shopee: chave pelo par shopId.itemId ou image_ids
+    if (ehUrlShopee(urlFormatada)) {
+      const matchIds =
+        caminho.match(/-i\.(\d+)\.(\d+)/i) || caminho.match(/\/product\/(\d+)\/(\d+)/i);
+      if (matchIds) return `shopee:${matchIds[1]}.${matchIds[2]}`;
+      const imgId = obj.searchParams.get('image_ids');
+      if (imgId) return `shopee:img:${imgId}`;
+    }
+
+    // 3. Mercado Livre: chave pelo identificador MLB
+    if (ehUrlMercadoLivre(urlFormatada)) {
+      const matchMlb = (caminho + obj.search).match(/(MLB-?\d{6,15})/i);
+      if (matchMlb) return `ml:${matchMlb[1].replace('-', '').toUpperCase()}`;
+    }
+
+    // 4. URL geral: remove parâmetros efêmeros de tracking/afiliados
+    const paramsLimpos = new URLSearchParams(obj.search);
+    const chavesRastreamento = [
+      'sp_atk',
+      'xptdk',
+      'is_from_login',
+      'incoming_source',
+      'extraParams',
+      'utm_source',
+      'utm_medium',
+      'utm_campaign',
+      'utm_term',
+      'utm_content',
+      'ref',
+      'matt_tool',
+      'matt_word',
+      'tracking_id',
+      'fbclid',
+      'gclid',
+    ];
+    for (const chave of chavesRastreamento) {
+      paramsLimpos.delete(chave);
+    }
+
+    const hostLimpo = obj.hostname.replace(/^www\./i, '').toLowerCase();
+    const pathLimpo = caminho.replace(/\/+$/, '');
+    const queryStr = paramsLimpos.toString();
+    return `${hostLimpo}${pathLimpo}${queryStr ? `?${queryStr}` : ''}`;
+  } catch {
+    return String(url).trim();
   }
 }
 
@@ -292,7 +376,6 @@ export function extrairTituloDeSlugUrl(url) {
 
     const tituloFormatado = palavras
       .map((palavra) => {
-        // Mantém siglas inteiras em maiúsculo (ex.: RGB, TWS, ABNT2, CNH, USB)
         if (/^[A-Z0-9]{2,6}$/.test(palavra)) return palavra;
         return palavra.charAt(0).toUpperCase() + palavra.slice(1).toLowerCase();
       })
@@ -327,10 +410,38 @@ function limparRuidosMonetariosDeTexto(texto) {
 }
 
 /**
+ * Converte uma string numérica já isolada (ex.: "3.299", "1.250,90", "1,250.90", "189.9")
+ * em float de 2 casas decimais, diferenciando corretamente separador de milhar e decimal.
+ *
+ * @param {string} alvo
+ * @returns {number|null}
+ */
+function converterStringNumericaParaFloat(alvo) {
+  if (!alvo) return null;
+  const limpo = alvo.trim();
+
+  let normalizado;
+  // Formato brasileiro com separador de milhar por ponto (ex.: "3.299", "1.250,90", "12.500,5")
+  if (/^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(limpo)) {
+    normalizado = limpo.replace(/\./g, '').replace(',', '.');
+  }
+  // Formato internacional com separador de milhar por vírgula (ex.: "1,250.90", "3,299.00")
+  else if (/^\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?$/.test(limpo)) {
+    normalizado = limpo.replace(/,/g, '');
+  }
+  // Formato simples decimal com vírgula ou ponto (ex.: "499.90", "88,02", "189.9", "85,4")
+  else {
+    normalizado = limpo.replace(',', '.');
+  }
+
+  const num = parseFloat(normalizado);
+  return Number.isFinite(num) && num > 0 ? Math.round(num * 100) / 100 : null;
+}
+
+/**
  * Converte diferentes formatos de valor monetário (ex: "88.02", "88,02", "R$ 1.250,90",
- * "R$ 899,00 em até 10x de R$ 89,90", "10x de R$ 89,90") em um número de ponto flutuante
- * arredondado para 2 casas decimais. Trata parcelamento de forma inteligente, evitando
- * retornar o multiplicador da parcela (ex.: nunca retorna 10 para "10x de R$ 89,90").
+ * "R$ 3.299", "1.250", "R$ 899,00 em até 10x de R$ 89,90", "10x de R$ 89,90") em um
+ * número de ponto flutuante arredondado para 2 casas decimais.
  *
  * @param {string|number|null|undefined} valor
  * @returns {number|null}
@@ -348,44 +459,31 @@ export function normalizarPreco(valor) {
     return null;
   }
 
+  // Padrão que captura milhares com ou sem centavos ANTES de decimais curtos, com negative lookahead (?!\d)
+  const regexMoeda =
+    /(?:R\$|\$)\s*(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?!\d)/gi;
+
   // Caso 1: String com símbolo explícito de moeda (R$ ou $)
-  const matchesMoeda = [
-    ...str.matchAll(
-      /(?:R\$|\$)\s*(\d{1,3}(?:\.\d{3})*,\d{2}|\d{1,3}(?:,\d{3})*\.\d{2}|\d+(?:[.,]\d{1,2})?)/gi
-    ),
-  ];
+  const matchesMoeda = [...str.matchAll(regexMoeda)];
 
   if (matchesMoeda.length > 0) {
-    // Se houver múltiplos valores (ex.: "De R$ 1.200,00 por R$ 899,00" ou "R$ 899,00 ou 10x de R$ 89,90")
-    // Dá preferência ao preço promocional ("por R$ ...", "à vista R$ ...")
+    // Se houver múltiplos valores (ex.: "De R$ 1.200,00 por R$ 899,00"), prioriza o valor promocional
     const matchPor = str.match(
-      /(?:por|à vista|a vista|agora|pix)\s*(?:R\$|\$)\s*(\d{1,3}(?:\.\d{3})*,\d{2}|\d+(?:[.,]\d{1,2})?)/i
+      /(?:por|à vista|a vista|agora|pix)\s*(?:R\$|\$)\s*(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?!\d)/i
     );
     const alvo = matchPor ? matchPor[1] : matchesMoeda[0][1];
-
-    const raw = alvo
-      .replace(/\.(?=\d{3})/g, '')
-      .replace(/,(?=\d{3})/g, '')
-      .replace(',', '.');
-    const num = parseFloat(raw);
-    if (Number.isFinite(num) && num > 0) return Math.round(num * 100) / 100;
+    const convertido = converterStringNumericaParaFloat(alvo);
+    if (convertido !== null) return convertido;
   }
 
-  // Caso 2: Se não possui símbolo explícito de moeda (ex.: "88.02", "1250.90", "10x de 89.90")
-  // Remove multiplicador de parcelas no início (ex.: "10x de", "12x ")
+  // Caso 2: Sem símbolo explícito de moeda (ex.: "88.02", "1.250", "3.499", "189.9")
   str = str.replace(/^\s*\d{1,2}\s*x\s*(?:de\s*)?/i, '').trim();
 
-  // Busca número decimal formatado (ex.: "499.90" vindo de meta tag ou "1250,90")
   const matchDecimal = str.match(
-    /(\d{1,3}(?:\.\d{3})*,\d{2}|\d{1,3}(?:,\d{3})*\.\d{2}|\d+\.\d{2}|\d+,\d{2}|\d+)/
+    /(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+[.,]\d{1,2}|\d+)(?!\d)/
   );
   if (matchDecimal) {
-    const raw = matchDecimal[1]
-      .replace(/\.(?=\d{3})/g, '')
-      .replace(/,(?=\d{3})/g, '')
-      .replace(',', '.');
-    const num = parseFloat(raw);
-    if (Number.isFinite(num) && num > 0) return Math.round(num * 100) / 100;
+    return converterStringNumericaParaFloat(matchDecimal[1]);
   }
 
   return null;
@@ -403,10 +501,10 @@ export function extrairPrecoDeTexto(texto) {
   if (!texto || typeof texto !== 'string') return null;
   const textoSemRuido = limparRuidosMonetariosDeTexto(texto);
   const match = textoSemRuido.match(
-    /(?:R\$|\$)\s*(\d{1,3}(?:\.\d{3})*,\d{2}|\d+(?:[.,]\d{1,2})?)/i
+    /(?:R\$|\$)\s*(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?!\d)/i
   );
   if (!match) return null;
-  return normalizarPreco(match[1]);
+  return normalizarPreco(`R$ ${match[1]}`);
 }
 
 /**
@@ -662,13 +760,11 @@ function extrairPrecoTwitterCard($) {
     const data = $(`meta[name="twitter:data${num}"]`).attr('content');
     if (!data) continue;
 
-    // Se o label for explicitamente relacionado a preço/valor
     if (/pre[çc]o|valor|price|amount/i.test(label)) {
       const p = normalizarPreco(data);
       if (p !== null) return p;
     }
 
-    // Se o conteúdo tiver indicação explícita de moeda (R$ ou $)
     if (/(?:R\$|\$)/i.test(data)) {
       const p = normalizarPreco(data);
       if (p !== null) return p;
@@ -721,41 +817,64 @@ function extrairPrecoDeScriptEmbutido($) {
 }
 
 /**
- * Extrai preço de elementos HTML do e-commerce, priorizando preços promocionais
- * e a pagar, descartando preços riscados/anteriores (del, s, .a-text-price, .andes-money-amount--previous).
+ * Extrai o preço de um elemento de preço da Amazon (.a-price), tentando primeiro
+ * .a-offscreen e em seguida a composição .a-price-whole + .a-price-fraction no mesmo nó.
+ */
+function extrairPrecoDeNoAmazon($, el) {
+  const textoOffscreen = $(el).find('.a-offscreen').first().text().trim();
+  if (textoOffscreen) {
+    const p = normalizarPreco(textoOffscreen);
+    if (p !== null) return p;
+  }
+
+  const inteiro = $(el)
+    .find('.a-price-whole')
+    .first()
+    .text()
+    .replace(/[.,\s]+$/, '')
+    .trim();
+  if (inteiro) {
+    const centavos = $(el).find('.a-price-fraction').first().text().trim() || '00';
+    const p = normalizarPreco(`${inteiro},${centavos}`);
+    if (p !== null) return p;
+  }
+
+  return null;
+}
+
+/**
+ * Extrai preço de elementos HTML do e-commerce avaliando os containers principais (Buybox)
+ * em ordem estrita de prioridade (e NUNCA em ordem de documento DOM global), descartando
+ * carrosséis patrocinados, ofertas de usados, preços riscados e valores de parcelas.
  */
 function extrairPrecoHtml($) {
-  // 1A. Amazon: Preço a pagar via .a-offscreen (desconsiderando o riscado .a-text-price)
-  const amazonOffscreens = $(
-    '#corePriceDisplay_desktop_feature_div .a-price:not(.a-text-price) .a-offscreen, .priceToPay .a-offscreen, #corePrice_desktop .a-price:not(.a-text-price) .a-offscreen, .a-price:not(.a-text-price) .a-offscreen'
-  ).toArray();
-  for (const el of amazonOffscreens) {
-    const texto = $(el).text();
-    if (texto && texto.trim()) {
-      const p = normalizarPreco(texto);
-      if (p !== null) return p;
+  const filtroExclusaoSecundariosAmazon =
+    '#sp_detail *, #sims-fbt *, [id^="CardInstance"] *, #aod-ingress-link *, .a-carousel-card *, #comparison_table *, del *, s *, .a-text-price *';
+
+  // 1A. Amazon: Containers principais da Buybox em ordem estrita de prioridade
+  const seletoresBuyboxAmazon = [
+    '#corePriceDisplay_desktop_feature_div .priceToPay',
+    '#corePriceDisplay_desktop_feature_div .a-price:not(.a-text-price)',
+    '#corePrice_feature_div .priceToPay',
+    '#corePrice_feature_div .a-price:not(.a-text-price)',
+    '#corePrice_desktop .a-price:not(.a-text-price)',
+    '#apex_desktop .priceToPay',
+    '#apex_desktop .a-price:not(.a-text-price)',
+    '#tp_price_block_total_price_ww .a-price:not(.a-text-price)',
+    '#tp_price_block_total_price_ww',
+    '.reinventPricePriceToPayMargin.priceToPay',
+    '.priceToPay',
+  ];
+
+  for (const seletor of seletoresBuyboxAmazon) {
+    const elementos = $(seletor).not(filtroExclusaoSecundariosAmazon).toArray();
+    for (const el of elementos) {
+      const precoBuybox = extrairPrecoDeNoAmazon($, el);
+      if (precoBuybox !== null) return precoBuybox;
     }
   }
 
-  // 1B. Amazon: Combinação de .a-price-whole + .a-price-fraction quando .a-offscreen vem vazio no SSR
-  const amazonContainers = $(
-    '#corePriceDisplay_desktop_feature_div .a-price:not(.a-text-price), .priceToPay, #corePrice_feature_div .a-price:not(.a-text-price), #corePrice_desktop .a-price:not(.a-text-price), .a-price:not(.a-text-price)'
-  ).toArray();
-  for (const el of amazonContainers) {
-    const inteiro = $(el)
-      .find('.a-price-whole')
-      .first()
-      .text()
-      .replace(/[.,\s]+$/, '')
-      .trim();
-    if (inteiro) {
-      const centavos = $(el).find('.a-price-fraction').first().text().trim() || '00';
-      const p = normalizarPreco(`${inteiro},${centavos}`);
-      if (p !== null) return p;
-    }
-  }
-
-  // 1C. Amazon: Inputs ocultos de estado de preço (#twister-plus-price-data-price, #attach-base-product-price, #priceValue)
+  // 1B. Amazon: Inputs ocultos de estado de preço do produto principal
   const amazonInputs = $(
     '#twister-plus-price-data-price, #attach-base-product-price, #priceValue'
   ).toArray();
@@ -767,7 +886,7 @@ function extrairPrecoHtml($) {
     }
   }
 
-  // 1D. Amazon: Blocos clássicos de preço (#priceblock_ourprice, #priceblock_dealprice, #price)
+  // 1C. Amazon: Blocos clássicos de preço (#priceblock_ourprice, #priceblock_dealprice, #price)
   const amazonBlocos = $(
     '#priceblock_ourprice, #priceblock_dealprice, #priceblock_saleprice, #corePrice_feature_div .a-color-price, #price'
   ).toArray();
@@ -779,44 +898,63 @@ function extrairPrecoHtml($) {
     }
   }
 
-  // 2A. Mercado Livre: suporte a aria-label no andes-money-amount (ex.: "189 reais com 90 centavos")
-  const andesComAria = $(
-    '.ui-pdp-price .andes-money-amount[aria-label]:not(.andes-money-amount--previous), .poly-price__current .andes-money-amount[aria-label], .andes-money-amount[aria-label]:not(.andes-money-amount--previous)'
-  ).toArray();
-  for (const el of andesComAria) {
-    const label = $(el).attr('aria-label');
-    if (label && /reais/i.test(label)) {
-      const matchReais = label.match(/(\d+)\s*reais(?:\s*com\s*(\d+)\s*centavos)?/i);
-      if (matchReais) {
-        const inteiros = matchReais[1];
-        const centavos = matchReais[2] || '00';
-        const p = normalizarPreco(`${inteiros},${centavos}`);
-        if (p !== null) return p;
-      }
-    }
+  // 1D. Amazon: Fallback genérico .a-price:not(.a-text-price) excluindo carrosséis patrocinados e usados
+  const amazonGenericos = $('.a-price:not(.a-text-price)')
+    .not(filtroExclusaoSecundariosAmazon)
+    .toArray();
+  for (const el of amazonGenericos) {
+    const p = extrairPrecoDeNoAmazon($, el);
+    if (p !== null) return p;
   }
 
-  // 2B. Mercado Livre: linha principal de preço à vista por frações (.ui-pdp-price__second-line, .poly-price__current)
+  // 2. Mercado Livre: Containers principais em ordem estrita de prioridade,
+  //    excluindo subtítulos de parcelamento (.ui-pdp-price__subtitles) e carrosséis
+  const filtroExclusaoMl =
+    '.andes-money-amount--previous, .andes-money-amount--previous *, .ui-pdp-price__subtitles *, .ui-recommendations-carousel *, .ui-search-item__group *, del *, s *';
+
   const seletoresContainerMl = [
     '.ui-pdp-price__second-line',
     '.poly-price__current',
     '.ui-pdp-price__main-container',
+    '.ui-pdp-price',
     'body',
   ];
+
   for (const seletorContainer of seletoresContainerMl) {
     const container = $(seletorContainer).first();
     if (!container.length) continue;
-    const mlFracao = container
+
+    // 2A. Verifica aria-label dentro do container prioritário
+    const nosAria = container
+      .find('.andes-money-amount[aria-label]')
+      .not(filtroExclusaoMl)
+      .toArray();
+    for (const el of nosAria) {
+      const label = $(el).attr('aria-label');
+      if (label && /reais/i.test(label) && !/parcela|vezes|\bx\b/i.test(label)) {
+        const matchReais = label.match(/(\d+(?:\.\d{3})*)\s*reais(?:\s*com\s*(\d+)\s*centavos)?/i);
+        if (matchReais) {
+          const inteiros = matchReais[1].replace(/\./g, '');
+          const centavos = matchReais[2] || '00';
+          const p = normalizarPreco(`${inteiros},${centavos}`);
+          if (p !== null) return p;
+        }
+      }
+    }
+
+    // 2B. Verifica fração + centavos dentro do container prioritário
+    const noFracao = container
       .find('.andes-money-amount__fraction')
-      .not('.andes-money-amount--previous *')
-      .first()
-      .text()
-      .trim();
+      .not(filtroExclusaoMl)
+      .first();
+    const mlFracao = noFracao.text().trim();
     if (mlFracao) {
-      const mlCentavos = container
-        .find('.andes-money-amount__cents')
-        .not('.andes-money-amount--previous *')
-        .first()
+      const containerMoedaPai = noFracao.closest('.andes-money-amount');
+      const mlCentavos = (
+        containerMoedaPai.length
+          ? containerMoedaPai.find('.andes-money-amount__cents').first()
+          : container.find('.andes-money-amount__cents').not(filtroExclusaoMl).first()
+      )
         .text()
         .trim();
       const textoCompleto = mlCentavos ? `${mlFracao},${mlCentavos}` : mlFracao;
@@ -837,7 +975,7 @@ function extrairPrecoHtml($) {
 
   // 4. Seletores gerais de preço ativo descartando riscados
   const seletoresGerais = $(
-    '.a-price:not(.a-text-price) .a-offscreen, .special-price, .sales-price, .product-price, [data-testid*="price"], [class*="preco-por"], [class*="price-sales"]'
+    '.special-price, .sales-price, .product-price, [data-testid*="price"], [class*="preco-por"], [class*="price-sales"]'
   )
     .not('del *, s *, .a-text-price *')
     .toArray();
@@ -863,7 +1001,6 @@ function extrairPrecoHtml($) {
 function analisarHtml(html, urlOrigem) {
   const $ = cheerio.load(html);
 
-  // Precedência de títulos: og:title > twitter:title > <title> > #productTitle (Amazon) > .ui-pdp-title (ML)
   const ogTitle = $('meta[property="og:title"]').attr('content');
   const twitterTitle = $('meta[name="twitter:title"]').attr('content');
   const tagTitle = $('title').first().text();
@@ -879,7 +1016,6 @@ function analisarHtml(html, urlOrigem) {
     }
   }
 
-  // Precedência de imagens: metas OG/Twitter > JSON-LD Product > itemprop/image_src/#landingImage
   const imagemBruta =
     primeiroValor($, SELETORES_IMAGEM_META) ||
     extrairImagemJsonLd($) ||
@@ -888,12 +1024,6 @@ function analisarHtml(html, urlOrigem) {
   const imagemResolvida = resolverUrlAbsoluta(imagemBruta, urlOrigem);
   const imagem_url = ehImagemGenericaBloqueio(imagemResolvida) ? null : imagemResolvida;
 
-  // Precedência de preços:
-  // 1. Meta tags explícitas de produto (product:price:amount, og:price:amount)
-  // 2. JSON-LD schema.org/Product (offers.price, offers.lowPrice)
-  // 3. Twitter Card validado (apenas se for preço real, descartando avaliações/estrelas)
-  // 4. Seletores HTML de preço a pagar e scripts JSON de estado (descartando preços riscados)
-  // 5. Texto livre com símbolo explícito de moeda (R$ ou $) sem ruídos de frete/cupom
   const precoMeta = normalizarPreco(primeiroValor($, SELETORES_PRECO_META));
   const precoJsonLd = extrairPrecoJsonLd($);
   const precoTwitter = extrairPrecoTwitterCard($);
@@ -948,6 +1078,70 @@ const MAPA_ACENTOS_BUSCA = {
   escritorio: 'escritório',
 };
 
+const STOP_WORDS_PT = new Set([
+  'de',
+  'da',
+  'do',
+  'das',
+  'dos',
+  'com',
+  'sem',
+  'para',
+  'por',
+  'em',
+  'no',
+  'na',
+  'nos',
+  'nas',
+  'e',
+  'ou',
+  'c',
+  'o',
+  'a',
+  'os',
+  'as',
+  'um',
+  'uma',
+]);
+
+// Palavras que caracterizam peças/acessorios quando aparecem no início do título de um card
+const PALAVRAS_ACESSORIO_INICIO = new Set([
+  'bateria',
+  'carregador',
+  'fonte',
+  'cabo',
+  'capa',
+  'capinha',
+  'pelicula',
+  'suporte',
+  'maleta',
+  'bolsa',
+  'estojo',
+  'refil',
+  'peca',
+  'adaptador',
+  'filtro',
+  'escova',
+  'pulseira',
+  'alca',
+  'tampa',
+  'adesivo',
+]);
+
+/**
+ * Normaliza texto removendo acentos, pontuação e caixa alta para comparação determinística.
+ */
+function normalizarTextoComparacao(texto) {
+  if (!texto || typeof texto !== 'string') return '';
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /**
  * Limpa o título do produto removendo sufixos institucionais da loja, preposições
  * e termos de ligação para construir uma consulta de busca web enxuta e precisa.
@@ -970,65 +1164,207 @@ function limparTituloParaPesquisa(titulo, maxPalavras = 6) {
     return '';
   }
 
-  // Remove conectivos e preposições comuns que prejudicam o match exato nos motores de busca
-  const stopWords = new Set([
-    'de',
-    'da',
-    'do',
-    'das',
-    'dos',
-    'com',
-    'sem',
-    'para',
-    'por',
-    'em',
-    'no',
-    'na',
-    'nos',
-    'nas',
-    'e',
-    'ou',
-    'c',
-    'o',
-    'a',
-    'os',
-    'as',
-    'um',
-    'uma',
+  // Termos de enchimento comuns em títulos de marketplace que atrapalham a busca exata do modelo
+  const ruidosMarketplace = new Set([
+    'fio',
+    'bateria',
+    'carregador',
+    'acessorios',
+    'acessorio',
+    'impacto',
+    'eletrica',
+    'eletrico',
+    'sobe',
+    'ladeira',
+    'forte',
+    'original',
+    'profissional',
+    'promocao',
+    'oferta',
+    'lancamento',
+    'envio',
+    'imediato',
+    'garantia',
+    'botoes',
   ]);
 
-  const palavrasSubstantivas = semSufixoLoja
+  const todasPalavras = semSufixoLoja
     .replace(/[\/|+()[\],.;:!?"']/g, ' ')
     .split(/\s+/)
     .map((p) => p.trim())
-    .filter((p) => p.length > 1 && !stopWords.has(p.toLowerCase()))
+    .filter((p) => p.length > 1 && !STOP_WORDS_PT.has(p.toLowerCase()));
+
+  // Mantém sempre as 2 primeiras palavras (categoria) e filtra ruídos nas demais
+  const palavrasSubstantivas = todasPalavras
+    .filter((p, idx) => idx < 2 || !ruidosMarketplace.has(normalizarTextoComparacao(p)))
     .map((p) => MAPA_ACENTOS_BUSCA[p.toLowerCase()] || p);
 
   return palavrasSubstantivas.slice(0, maxPalavras).join(' ');
 }
 
+// Palavras descritoras genéricas que não identificam marca/modelo exclusivo
+const PALAVRAS_DESCRITORAS_COMUNS = new Set([
+  'eletrica',
+  'eletrico',
+  'fio',
+  'impacto',
+  'bateria',
+  'carregador',
+  'acessorios',
+  'kit',
+  'bivolt',
+  'recarregavel',
+  'profissional',
+  'original',
+  'forte',
+  'completo',
+  'portatil',
+  'preto',
+  'preta',
+  'branco',
+  'branca',
+  'azul',
+  'vermelho',
+  'amarelo',
+  'cinza',
+  'rosa',
+  'verde',
+  'inox',
+  'led',
+  'usb',
+  'gamer',
+  'botoes',
+  'dpi',
+  'alta',
+  'potencia',
+  'ergonomica',
+  'ergonomico',
+  'presidente',
+  'escritorio',
+  'tela',
+  'mesh',
+]);
+
 /**
- * Analisa o HTML de resultados do motor de busca (Yahoo Search BR) para extrair
- * o preço real do produto em Reais (R$), ignorando valores de parcelas, cupons e frete grátis.
+ * Seleciona de forma 100% determinística o melhor preço entre cartões de produto
+ * ([data-testid="product-card"]), descartando acessórios (ex.: baterias avulsas, maletas)
+ * e diferenciando marca/modelo exclusivo de descritores genéricos.
  *
- * @param {string} htmlBusca
+ * @param {Array<{nome: string, preco: number}>} cartoes
+ * @param {string} tituloOriginal
  * @returns {number|null}
  */
-function extrairPrecoDeHtmlBuscaWeb(htmlBusca) {
-  if (!htmlBusca || typeof htmlBusca !== 'string') return null;
-  const $ = cheerio.load(htmlBusca);
+function selecionarMelhorPrecoDeCards(cartoes, tituloOriginal) {
+  if (!Array.isArray(cartoes) || cartoes.length === 0) return null;
 
-  // Prioridade 1: Cards de Shopping explícitos (.current-price, .s-price)
-  const seletoresShopping = $('.current-price, .s-price').toArray();
-  for (const el of seletoresShopping) {
-    const precoCard = normalizarPreco($(el).text());
-    if (precoCard !== null && precoCard >= 5) {
-      return precoCard;
+  const palavrasAlvo = normalizarTextoComparacao(tituloOriginal)
+    .split(' ')
+    .filter((p) => p.length > 1 && !STOP_WORDS_PT.has(p));
+
+  const primeiraPalavraAlvo = palavrasAlvo[0] || '';
+  const alvoEhAcessorio = PALAVRAS_ACESSORIO_INICIO.has(primeiraPalavraAlvo);
+
+  const avaliados = [];
+
+  for (const card of cartoes) {
+    if (!card || typeof card.preco !== 'number' || card.preco < 5) continue;
+    const palavrasCard = normalizarTextoComparacao(card.nome)
+      .split(' ')
+      .filter((p) => p.length > 1 && !STOP_WORDS_PT.has(p));
+
+    if (palavrasCard.length === 0) continue;
+
+    // Descarta acessórios (ex: "Bateria recarregavel...", "Maleta para...") quando o produto principal não é acessório
+    if (!alvoEhAcessorio && PALAVRAS_ACESSORIO_INICIO.has(palavrasCard[0])) {
+      continue;
+    }
+
+    const setCard = new Set(palavrasCard);
+    let pontos = 0;
+
+    for (let i = 0; i < palavrasAlvo.length; i++) {
+      const termo = palavrasAlvo[i];
+      if (setCard.has(termo)) {
+        if (i < 2) {
+          // Categoria principal do produto (ex.: furadeira, parafusadeira, mouse, cadeira)
+          pontos += 3;
+        } else if (/\d/.test(termo)) {
+          // Especificação técnica ou modelo alfanumérico (ex.: 12v, g203, vc10, 1000w)
+          pontos += 4;
+        } else if (PALAVRAS_DESCRITORAS_COMUNS.has(termo)) {
+          // Descritor genérico (ex.: eletrica, bateria, carregador, preto)
+          pontos += 0.5;
+        } else if (termo.length >= 4) {
+          // Marca ou linha específica (ex.: lorben, logitech, lightsync, principia)
+          pontos += 5;
+        } else {
+          pontos += 1.5;
+        }
+      }
+    }
+
+    // Penaliza cartões que não contêm nem a 1ª nem a 2ª palavra substantiva do produto
+    if (
+      palavrasAlvo.length >= 2 &&
+      !setCard.has(palavrasAlvo[0]) &&
+      !setCard.has(palavrasAlvo[1])
+    ) {
+      pontos -= 5;
+    }
+
+    if (pontos > 0) {
+      avaliados.push({ preco: card.preco, pontos });
     }
   }
 
-  // Prioridade 2: Snippets e títulos de resultados orgânicos (.algo, .compText, li, p)
-  const blocosOrganicos = $('.algo, .compText, .sr, p, li, span[aria-label]').toArray();
+  if (avaliados.length === 0) return null;
+
+  // Ordenação estritamente determinística (independe da ordem em que vieram no HTML)
+  avaliados.sort((a, b) => b.pontos - a.pontos || a.preco - b.preco);
+
+  const maiorPontuacao = avaliados[0].pontos;
+  // Agrupa os cartões que empataram no mesmo patamar de marca/modelo (diferença <= 2 pontos de descritores)
+  const clusterTopo = avaliados
+    .filter((item) => item.pontos >= maiorPontuacao - 2)
+    .map((item) => item.preco)
+    .sort((a, b) => a - b);
+
+  // Seleciona o percentil central-inferior (35%) do cluster para evitar outliers de kits industriais caros
+  const indiceEscolhido = Math.floor((clusterTopo.length - 1) * 0.35);
+  return clusterTopo[indiceEscolhido];
+}
+
+/**
+ * Analisa o HTML de resultados de busca (Buscapé ou Yahoo Search BR) para extrair
+ * o preço real do produto em Reais (R$) de maneira 100% determinística e invariante à ordem de anúncios.
+ *
+ * @param {string} htmlBusca
+ * @param {string} [tituloOriginal='']
+ * @returns {number|null}
+ */
+function extrairPrecoDeHtmlBuscaWeb(htmlBusca, tituloOriginal = '') {
+  if (!htmlBusca || typeof htmlBusca !== 'string') return null;
+  const $ = cheerio.load(htmlBusca);
+
+  // Prioridade 1: Cartões estruturados de comparador de preços ([data-testid="product-card"] do Buscapé/Zoom)
+  const elementosCards = $('[data-testid="product-card"]').toArray();
+  if (elementosCards.length > 0) {
+    const cartoes = [];
+    for (const el of elementosCards) {
+      const nome = $(el).find('[data-testid="product-card::name"], h2, h3').first().text().trim();
+      const textoPreco = $(el).find('[data-testid="product-card::price"]').first().text().trim();
+      const preco = normalizarPreco(textoPreco);
+      if (nome && preco !== null && preco >= 5) {
+        cartoes.push({ nome, preco });
+      }
+    }
+    const melhorPrecoCard = selecionarMelhorPrecoDeCards(cartoes, tituloOriginal);
+    if (melhorPrecoCard !== null) return melhorPrecoCard;
+  }
+
+  // Prioridade 2: Snippets de resultados orgânicos (.algo, .compText, .sr)
+  const precosOrganicos = [];
+  const blocosOrganicos = $('.algo, .compText, .sr').toArray();
   for (const el of blocosOrganicos) {
     const textoBruto = `${$(el).attr('aria-label') || ''} ${$(el).text() || ''}`;
     if (!textoBruto.includes('R$')) continue;
@@ -1040,22 +1376,45 @@ function extrairPrecoDeHtmlBuscaWeb(htmlBusca) {
     );
 
     const matches = [
-      ...textoFiltrado.matchAll(/R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2}|\d{1,3}(?:\.\d{3})+)/gi),
+      ...textoFiltrado.matchAll(
+        /R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2}|\d{1,3}(?:\.\d{3})+)(?!\d)/gi
+      ),
     ];
     for (const m of matches) {
       const preco = normalizarPreco(`R$ ${m[1]}`);
       if (preco !== null && preco >= 5) {
-        return preco;
+        precosOrganicos.push(preco);
       }
     }
+  }
+
+  if (precosOrganicos.length > 0) {
+    precosOrganicos.sort((a, b) => a - b);
+    return precosOrganicos[Math.floor((precosOrganicos.length - 1) / 2)];
+  }
+
+  // Prioridade 3: Cards de Shopping (.current-price, .s-price) estabilizados por mediana ordenada
+  const precosShopping = [];
+  const seletoresShopping = $('.current-price, .s-price').toArray();
+  for (const el of seletoresShopping) {
+    const precoCard = normalizarPreco($(el).text());
+    if (precoCard !== null && precoCard >= 5) {
+      precosShopping.push(precoCard);
+    }
+  }
+
+  if (precosShopping.length > 0) {
+    precosShopping.sort((a, b) => a - b);
+    return precosShopping[Math.floor((precosShopping.length - 1) / 2)];
   }
 
   return null;
 }
 
 /**
- * Busca dinamicamente o preço de mercado de um produto via pesquisa web (Yahoo Search BR)
+ * Busca dinamicamente o preço de mercado de um produto de forma determinística
  * quando a página original da loja (Shopee, Mercado Livre, Amazon) omite ou bloqueia o preço.
+ * Consulta primeiramente o catálogo estruturado do Buscapé e, como fallback, o Yahoo Search BR.
  *
  * @param {string} titulo - Título do produto (extraído do HTML ou do slug da URL)
  * @param {string} url - URL original do produto
@@ -1067,20 +1426,30 @@ export async function buscarPrecoPorPesquisaWeb(titulo, url, fetchFn = fetch) {
   const consultaPrincipal = limparTituloParaPesquisa(baseTitulo, 6);
   if (!consultaPrincipal || consultaPrincipal.length < 4) return null;
 
-  const consultas = [`${consultaPrincipal} preço`];
   const palavras = consultaPrincipal.split(/\s+/);
-
-  // Se o título for longo, prepara uma versão concisa com os 2 primeiros termos + especificação numérica (ex: 12v, 1000w) ou 3º termo
+  let consultaConcisa = null;
   if (palavras.length > 3) {
     const termoNumerico = palavras.slice(2).find((p) => /\d/.test(p)) || palavras[2];
-    const consultaConcisa = `${palavras[0]} ${palavras[1]} ${termoNumerico}`.trim();
-    if (consultaConcisa !== consultaPrincipal) {
-      consultas.push(`${consultaConcisa} preço`);
+    const candidato = `${palavras[0]} ${palavras[1]} ${termoNumerico}`.trim();
+    if (candidato !== consultaPrincipal) {
+      consultaConcisa = candidato;
     }
   }
 
-  for (const termoConsulta of consultas) {
-    const urlPesquisa = `https://br.search.yahoo.com/search?p=${encodeURIComponent(termoConsulta)}`;
+  // Lista determinística de endpoints de pesquisa (Buscapé estruturado -> Yahoo Search BR)
+  const urlsPesquisa = [
+    `https://www.buscape.com.br/search?q=${encodeURIComponent(consultaPrincipal)}`,
+    `https://br.search.yahoo.com/search?p=${encodeURIComponent(`${consultaPrincipal} preço`)}`,
+  ];
+
+  if (consultaConcisa) {
+    urlsPesquisa.push(
+      `https://www.buscape.com.br/search?q=${encodeURIComponent(consultaConcisa)}`,
+      `https://br.search.yahoo.com/search?p=${encodeURIComponent(`${consultaConcisa} preço`)}`
+    );
+  }
+
+  for (const urlPesquisa of urlsPesquisa) {
     try {
       const resposta = await fetchFn(urlPesquisa, {
         headers: PERFIL_NAVEGADOR,
@@ -1090,12 +1459,12 @@ export async function buscarPrecoPorPesquisaWeb(titulo, url, fetchFn = fetch) {
 
       if (!resposta || !resposta.ok) continue;
       const htmlBusca = await resposta.text();
-      const precoEncontrado = extrairPrecoDeHtmlBuscaWeb(htmlBusca);
+      const precoEncontrado = extrairPrecoDeHtmlBuscaWeb(htmlBusca, baseTitulo);
       if (precoEncontrado !== null) {
         return precoEncontrado;
       }
     } catch {
-      // Segue para a tentativa mais curta caso a primeira falhe
+      // Segue para a próxima URL de busca caso ocorra timeout/erro
     }
   }
 
@@ -1148,8 +1517,7 @@ async function obterImagemAmazonPorAsin(asin, fetchFn) {
 /**
  * Realiza a requisição HTTP assíncrona para a URL fornecida e executa o scraping.
  * Tenta sucessivamente os perfis de requisição até encontrar imagem e preço do produto.
- * Inclui fallbacks de título via slug da URL e fallbacks de preço a partir de query params,
- * textos de compartilhamento, catálogo de referência e pesquisa web dinâmica.
+ * Utiliza cache canônico por produto para garantir determinismo absoluto em múltiplas extrações.
  *
  * @param {string} url - URL do produto informada pelo usuário (ou texto compartilhado)
  * @param {object} [opcoes]
@@ -1185,9 +1553,19 @@ export async function extrairMetadadosUrl(
   // Preço sugerido já validado
   const precoSugeridoValido = normalizarPreco(precoSugerido);
 
+  // Chave canônica para estabilização entre múltiplas extrações do mesmo produto
+  const chaveCanonicaInicial = obterChaveCanonicaUrl(urlNormalizada);
+  const cacheExistente = CACHE_METADADOS_PRODUTO.get(chaveCanonicaInicial);
+
   // Variáveis para acumular o melhor resultado entre as tentativas de perfis
   let primeiroTitulo = null;
-  let primeiroPreco = precoDaQuery ?? precoSugeridoValido ?? precoDoTexto ?? null;
+  let primeiroPreco =
+    precoDaQuery ??
+    precoSugeridoValido ??
+    precoDoTexto ??
+    (cacheExistente?.price !== null && cacheExistente?.price !== undefined
+      ? cacheExistente.price
+      : null);
   let ultimaUrlFinal = urlNormalizada;
 
   // Obtém a ordem otimizada de perfis de acordo com o marketplace ou loja da URL
@@ -1218,23 +1596,25 @@ export async function extrairMetadadosUrl(
 
       // Sucesso na imagem do produto (já filtrada contra logos genéricas de bloqueio)
       if (metadados.imagem_url) {
+        const chaveFinal = obterChaveCanonicaUrl(urlFinal);
+        const cacheFinal = CACHE_METADADOS_PRODUTO.get(chaveFinal) || cacheExistente;
+
         const tituloFinal =
           metadados.titulo ||
           primeiroTitulo ||
+          cacheFinal?.titulo ||
           extrairTituloDeSlugUrl(urlFinal) ||
           extrairTituloDeSlugUrl(urlNormalizada) ||
           obterTituloFallback(urlNormalizada);
 
-        const precoHtml = metadados.price || primeiroPreco;
+        const precoExplicito = precoDaQuery ?? precoSugeridoValido ?? precoDoTexto;
         let precoFinal =
-          precoHtml ??
-          precoDaQuery ??
-          precoSugeridoValido ??
-          precoDoTexto ??
+          precoExplicito ??
+          cacheFinal?.price ??
+          metadados.price ??
+          primeiroPreco ??
           obterPrecoCatalogoReferencia(urlFinal, tituloFinal);
 
-        // Se ainda não encontrou preço e é um marketplace conhecido (ex.: Shopee/ML/Amazon),
-        // realiza busca dinâmica de preço na web usando o título do produto
         if (
           precoFinal === null &&
           (ehUrlMarketplaceConhecido(urlFinal) || ehUrlMarketplaceConhecido(urlNormalizada))
@@ -1242,15 +1622,21 @@ export async function extrairMetadadosUrl(
           precoFinal = await buscarPrecoPorPesquisaWeb(tituloFinal, urlFinal, fetchFn);
         }
 
-        return {
+        const resultado = {
           url: urlFinal,
           titulo: tituloFinal,
           imagem_url: metadados.imagem_url,
           price: precoFinal,
         };
+
+        if (precoFinal !== null) {
+          CACHE_METADADOS_PRODUTO.set(chaveCanonicaInicial, resultado);
+          CACHE_METADADOS_PRODUTO.set(chaveFinal, resultado);
+        }
+
+        return resultado;
       }
     } catch (erro) {
-      // Timeout, erro de DNS ou conexão recusada: registra e segue para o próximo perfil
       console.warn(
         `[Aviso] Tentativa de extração falhou para ${urlNormalizada} (${cabecalhos['User-Agent'].slice(0, 20)}...):`,
         erro.message
@@ -1258,24 +1644,28 @@ export async function extrairMetadadosUrl(
     }
   }
 
+  const chaveFinal = obterChaveCanonicaUrl(ultimaUrlFinal);
+  const cacheFinal = CACHE_METADADOS_PRODUTO.get(chaveFinal) || cacheExistente;
+
   // Fallback específico da Amazon: se não encontrou imagem no HTML, tenta direto da CDN pelo ASIN
   const asin = extrairAsinAmazon(urlNormalizada) || extrairAsinAmazon(ultimaUrlFinal);
   const imagemAmazon = asin ? await obterImagemAmazonPorAsin(asin, fetchFn) : null;
+  const imagemFinal = imagemAmazon || cacheFinal?.imagem_url || null;
 
   const tituloFinal =
     primeiroTitulo ||
+    cacheFinal?.titulo ||
     extrairTituloDeSlugUrl(ultimaUrlFinal) ||
     extrairTituloDeSlugUrl(urlNormalizada) ||
     obterTituloFallback(urlNormalizada);
 
+  const precoExplicito = precoDaQuery ?? precoSugeridoValido ?? precoDoTexto;
   let precoFinal =
+    precoExplicito ??
+    cacheFinal?.price ??
     primeiroPreco ??
-    precoDaQuery ??
-    precoSugeridoValido ??
-    precoDoTexto ??
     obterPrecoCatalogoReferencia(ultimaUrlFinal, tituloFinal);
 
-  // Fallback dinâmico via pesquisa web para marketplaces bloqueados (ex.: Mercado Livre bot-interceptor)
   if (
     precoFinal === null &&
     (ehUrlMarketplaceConhecido(ultimaUrlFinal) || ehUrlMarketplaceConhecido(urlNormalizada))
@@ -1283,12 +1673,19 @@ export async function extrairMetadadosUrl(
     precoFinal = await buscarPrecoPorPesquisaWeb(tituloFinal, ultimaUrlFinal, fetchFn);
   }
 
-  return {
+  const resultado = {
     url: ultimaUrlFinal,
     titulo: tituloFinal,
-    imagem_url: imagemAmazon,
+    imagem_url: imagemFinal,
     price: precoFinal,
   };
+
+  if (precoFinal !== null) {
+    CACHE_METADADOS_PRODUTO.set(chaveCanonicaInicial, resultado);
+    CACHE_METADADOS_PRODUTO.set(chaveFinal, resultado);
+  }
+
+  return resultado;
 }
 
 /**

@@ -6,7 +6,7 @@
  * tags seletoras em formato pílula ("Baixa", "Média" e "Alta").
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   View,
@@ -108,6 +108,11 @@ export default function AdicionarDesejoModal({
   const [precoDetectado, setPrecoDetectado] = useState(false);
   const [mensagemErro, setMensagemErro] = useState<string | null>(null);
 
+  // Controla a requisição ativa de extração para evitar condição de corrida (race condition)
+  // caso o evento onBlur do campo e o clique no botão "Extrair" disparem próximos
+  const requisicaoExtracaoRef = useRef(0);
+  const urlEmExtracaoRef = useRef<string | null>(null);
+
   // Inicializa o formulário ao abrir o Bottom Sheet (ou dispara extração para links compartilhados)
   useEffect(() => {
     if (visivel) {
@@ -121,6 +126,8 @@ export default function AdicionarDesejoModal({
   }, [visivel, urlInicial]);
 
   const limparFormulario = () => {
+    requisicaoExtracaoRef.current += 1;
+    urlEmExtracaoRef.current = null;
     setUrl('');
     setTitulo('');
     setImagemUrl(null);
@@ -141,6 +148,13 @@ export default function AdicionarDesejoModal({
       return;
     }
 
+    // Evita requisição duplicada concorrente para o mesmo link (ex.: onBlur seguido de onPress)
+    if (carregandoMetadados && urlEmExtracaoRef.current === alvoUrl) {
+      return;
+    }
+
+    const idRequisicaoAtual = ++requisicaoExtracaoRef.current;
+    urlEmExtracaoRef.current = alvoUrl;
     setCarregandoMetadados(true);
     setMensagemErro(null);
 
@@ -150,6 +164,12 @@ export default function AdicionarDesejoModal({
         url: alvoUrl,
         texto: alvoUrl,
       });
+
+      // Ignora resposta obsoleta caso uma nova extração tenha sido iniciada
+      if (idRequisicaoAtual !== requisicaoExtracaoRef.current) {
+        return;
+      }
+
       const dados = resposta.data || {};
       const tituloExtraido = dados.titulo || dados.title;
       const imagemExtraida = dados.imagem_url || dados.image_url;
@@ -173,6 +193,9 @@ export default function AdicionarDesejoModal({
       }
       setMetadadosJaBuscados(true);
     } catch (erro: any) {
+      if (idRequisicaoAtual !== requisicaoExtracaoRef.current) {
+        return;
+      }
       setMetadadosJaBuscados(true);
       if (erro?.response?.status === 401) {
         setMensagemErro('Sua sessão expirou. Por favor, faça login novamente para consultar produtos.');
@@ -190,7 +213,10 @@ export default function AdicionarDesejoModal({
         }
       }
     } finally {
-      setCarregandoMetadados(false);
+      if (idRequisicaoAtual === requisicaoExtracaoRef.current) {
+        urlEmExtracaoRef.current = null;
+        setCarregandoMetadados(false);
+      }
     }
   };
 

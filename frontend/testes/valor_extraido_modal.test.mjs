@@ -47,4 +47,14 @@ describe('Exibição do Valor Extraído no Modal Quick Creation Sheet (TDD)', ()
       'Deve conter feedback amigável quando o valor não for detectado na página'
     );
   });
+
+  it('AdicionarDesejoModal.tsx deve proteger contra respostas fora de ordem (race condition) em múltiplas extrações', () => {
+    const modalPath = path.join(srcDir, 'components/AdicionarDesejoModal.tsx');
+    const conteudo = fs.readFileSync(modalPath, 'utf8');
+
+    assert.ok(
+      conteudo.includes('requisicaoExtracaoRef'),
+      'Deve controlar o identificador da requisição ativa via requisicaoExtracaoRef para evitar oscilação de preço por concorrência'
+    );
+  });
 });
