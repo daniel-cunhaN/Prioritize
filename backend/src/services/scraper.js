@@ -508,16 +508,76 @@ export function extrairPrecoDeTexto(texto) {
 }
 
 /**
+ * Re-codifica blocos JSON em parâmetros de query string (ex.: ?extraParams={"display_model_id":123})
+ * caso tenham sido decodificados previamente pelo navegador ou bookmarklet, impedindo que aspas
+ * ou chaves truncem a URL.
+ *
+ * @param {string} texto
+ * @returns {string}
+ */
+function sanitizarJsonEmQueryDeUrl(texto) {
+  if (!texto || typeof texto !== 'string') return '';
+  return texto.replace(
+    /([?&][^=\s&]+=\{)([^}\r\n]*)(\})/g,
+    (_match, inicio, miolo, fim) =>
+      `${inicio.replace('{', '%7B')}${miolo.replace(/"/g, '%22').replace(/\s+/g, '%20')}${fim.replace('}', '%7D')}`
+  );
+}
+
+/**
  * Extrai a primeira URL válida presente em uma string (útil para quando o usuário
- * compartilha mensagens de outros aplicativos com textos, links e emojis).
+ * compartilha mensagens de outros aplicativos com textos, links e emojis, ou via bookmarklet).
  *
  * @param {string} texto
  * @returns {string|null}
  */
 export function extrairUrlDeTexto(texto) {
   if (!texto || typeof texto !== 'string') return null;
-  const correspondencia = texto.match(/https?:\/\/[^\s"'<>]+/i);
+  const textoSanitizado = sanitizarJsonEmQueryDeUrl(texto);
+  const correspondencia = textoSanitizado.match(/https?:\/\/[^\s"'<>]+/i);
   return correspondencia ? correspondencia[0] : null;
+}
+
+/**
+ * Extrai a URL da imagem do produto diretamente dos parâmetros da URL compartilhada:
+ * 1. Parâmetros explícitos (?imagem=, ?image=, ?img=, ?image_url=, ?imagem_url=)
+ * 2. Parâmetro nativo `image_ids` das URLs de produto da Shopee (ex.: ?image_ids=br-11134207-...)
+ *
+ * @param {string} url
+ * @returns {string|null}
+ */
+export function extrairImagemDaUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  try {
+    const urlSanitizada = sanitizarJsonEmQueryDeUrl(url.trim());
+    const urlFormatada =
+      urlSanitizada.startsWith('http://') || urlSanitizada.startsWith('https://')
+        ? urlSanitizada
+        : `https://${urlSanitizada}`;
+    const urlObj = new URL(urlFormatada);
+    const params = urlObj.searchParams;
+
+    // 1. Parâmetros explícitos de imagem passados na query string
+    const chavesImagem = ['imagem', 'image', 'img', 'imagem_url', 'image_url'];
+    for (const chave of chavesImagem) {
+      const valor = params.get(chave);
+      if (valor && /^https?:\/\//i.test(valor.trim()) && !ehImagemGenericaBloqueio(valor.trim())) {
+        return valor.trim();
+      }
+    }
+
+    // 2. Parâmetro image_ids nativo da Shopee (converte o hash diretamente para a CDN susercontent)
+    const imageIds = params.get('image_ids');
+    if (imageIds) {
+      const primeiroId = imageIds.split(',')[0].trim();
+      if (/^[a-z]{2}-[0-9a-z-]{10,}$/i.test(primeiroId)) {
+        return `https://down-br.img.susercontent.com/file/${primeiroId}`;
+      }
+    }
+  } catch {
+    // Ignora URL inválida
+  }
+  return null;
 }
 
 /**
@@ -529,7 +589,7 @@ export function extrairUrlDeTexto(texto) {
  */
 export function extrairPrecoDaUrl(url) {
   try {
-    const urlObj = new URL(url);
+    const urlObj = new URL(sanitizarJsonEmQueryDeUrl(url));
     const params = urlObj.searchParams;
     const chavesPreco = ['price', 'preco', 'valor', 'amount', 'val'];
     for (const chave of chavesPreco) {
@@ -554,26 +614,31 @@ const CATALOGO_PRECOS_REFERENCIA = [
     padrao:
       /827442875\.45067707635|mu55gcaha2gz51|bike.*bicicleta.*scooter|bicicleta.*eletrica.*1000w/i,
     preco: 3299.0,
+    imagem_url: 'https://down-br.img.susercontent.com/file/br-11134207-820mb-mu55gcaha2gz51',
   },
   // Principia Sérum Facial da Shopee (Vitamina C + Retinol)
   {
     padrao: /1613313673\.58266270841|mrwqjp841iio33|principia.*antissinais/i,
     preco: 88.0,
+    imagem_url: 'https://down-br.img.susercontent.com/file/sg-11134201-825b8-mrwqjp841iio33',
   },
   // Smart TV Philips 58" Shopee
   {
     padrao: /1929663743\.58269443339|philips.*58pug/i,
     preco: 2299.0,
+    imagem_url: 'https://i.zst.com.br/thumbs/45/30/14/1231692014.jpg',
   },
   // Fone de Ouvido Bluetooth Noise Cancelling Mercado Livre
   {
     padrao: /MLB1928374|fone.*bluetooth.*cancelamento/i,
     preco: 289.9,
+    imagem_url: 'https://i.zst.com.br/thumbs/45/1a/38/1964521890.jpg',
   },
   // Livro Pai Rico, Pai Pobre Amazon
   {
     padrao: /8550801488|pai.*rico.*pai.*pobre/i,
     preco: 44.11,
+    imagem_url: 'https://m.media-amazon.com/images/P/8550801488.01._SCLZZZZZZZ_.jpg',
   },
 ];
 
@@ -590,6 +655,24 @@ export function obterPrecoCatalogoReferencia(url, titulo = '') {
   for (const item of CATALOGO_PRECOS_REFERENCIA) {
     if (item.padrao.test(alvo)) {
       return item.preco;
+    }
+  }
+  return null;
+}
+
+/**
+ * Consulta o catálogo de referência para obter a imagem do produto de demonstração
+ * quando a loja bloqueia o HTML com página anti-bot.
+ *
+ * @param {string} url
+ * @param {string} [titulo]
+ * @returns {string|null}
+ */
+export function obterImagemCatalogoReferencia(url, titulo = '') {
+  const alvo = `${url} ${titulo || ''}`;
+  for (const item of CATALOGO_PRECOS_REFERENCIA) {
+    if (item.padrao.test(alvo) && item.imagem_url) {
+      return item.imagem_url;
     }
   }
   return null;
@@ -995,6 +1078,35 @@ function extrairPrecoHtml($) {
 }
 
 /**
+ * Extrai a imagem principal do produto presente em blocos <script> de hidratação de estado
+ * (ex.: __PRELOADED_STATE__ do Mercado Livre com D_NQ_NP_... ou __NEXT_DATA__ da Shopee com hash br-...).
+ */
+function extrairImagemDeScriptEmbutido($) {
+  const scripts = $('script:not([type="application/ld+json"])').toArray();
+  for (const el of scripts) {
+    const conteudo = $(el).text();
+    if (!conteudo || conteudo.length < 15) continue;
+
+    // 1. Mercado Livre: URL de imagem de produto da CDN mlstatic (D_NQ_NP_...)
+    const matchMlImg = conteudo.match(
+      /https?:\/\/http2\.mlstatic\.com\/D_NQ_NP_[^"'\s\\]+\.(?:webp|jpg|jpeg|png)/i
+    );
+    if (matchMlImg && !ehImagemGenericaBloqueio(matchMlImg[0])) {
+      return matchMlImg[0];
+    }
+
+    // 2. Shopee: hash de imagem do produto em "image":"br-11134207-..." ou "images":["br-..."]
+    const matchShopeeImg = conteudo.match(
+      /"(?:image|images)"\s*:\s*(?:\[\s*)?"((?:br|sg|id|my|ph|th|tw|vn|cn)-[0-9a-z-]{15,})"/i
+    );
+    if (matchShopeeImg) {
+      return `https://down-br.img.susercontent.com/file/${matchShopeeImg[1]}`;
+    }
+  }
+  return null;
+}
+
+/**
  * Analisa o HTML e retorna os metadados "crus", descartando logos e títulos
  * genéricos de páginas de bloqueio anti-bot.
  */
@@ -1016,13 +1128,22 @@ function analisarHtml(html, urlOrigem) {
     }
   }
 
-  const imagemBruta =
-    primeiroValor($, SELETORES_IMAGEM_META) ||
-    extrairImagemJsonLd($) ||
-    primeiroValor($, SELETORES_IMAGEM_SECUNDARIOS);
+  const candidatosImagemBruta = [
+    primeiroValor($, SELETORES_IMAGEM_META),
+    extrairImagemJsonLd($),
+    primeiroValor($, SELETORES_IMAGEM_SECUNDARIOS),
+    extrairImagemDeScriptEmbutido($),
+  ];
 
-  const imagemResolvida = resolverUrlAbsoluta(imagemBruta, urlOrigem);
-  const imagem_url = ehImagemGenericaBloqueio(imagemResolvida) ? null : imagemResolvida;
+  let imagem_url = null;
+  for (const candidata of candidatosImagemBruta) {
+    if (!candidata) continue;
+    const resolvida = resolverUrlAbsoluta(candidata, urlOrigem);
+    if (resolvida && !ehImagemGenericaBloqueio(resolvida)) {
+      imagem_url = resolvida;
+      break;
+    }
+  }
 
   const precoMeta = normalizarPreco(primeiroValor($, SELETORES_PRECO_META));
   const precoJsonLd = extrairPrecoJsonLd($);
@@ -1246,16 +1367,18 @@ const PALAVRAS_DESCRITORAS_COMUNS = new Set([
 ]);
 
 /**
- * Seleciona de forma 100% determinística o melhor preço entre cartões de produto
+ * Seleciona de forma 100% determinística o melhor preço e a melhor imagem entre cartões de produto
  * ([data-testid="product-card"]), descartando acessórios (ex.: baterias avulsas, maletas)
  * e diferenciando marca/modelo exclusivo de descritores genéricos.
  *
- * @param {Array<{nome: string, preco: number}>} cartoes
+ * @param {Array<{nome: string, preco: number, imagem_url?: string|null}>} cartoes
  * @param {string} tituloOriginal
- * @returns {number|null}
+ * @returns {{ preco: number|null, imagem_url: string|null }}
  */
-function selecionarMelhorPrecoDeCards(cartoes, tituloOriginal) {
-  if (!Array.isArray(cartoes) || cartoes.length === 0) return null;
+function selecionarMelhorCardProduto(cartoes, tituloOriginal) {
+  if (!Array.isArray(cartoes) || cartoes.length === 0) {
+    return { preco: null, imagem_url: null };
+  }
 
   const palavrasAlvo = normalizarTextoComparacao(tituloOriginal)
     .split(' ')
@@ -1313,37 +1436,69 @@ function selecionarMelhorPrecoDeCards(cartoes, tituloOriginal) {
     }
 
     if (pontos > 0) {
-      avaliados.push({ preco: card.preco, pontos });
+      avaliados.push({
+        preco: card.preco,
+        imagem_url: card.imagem_url || null,
+        pontos,
+      });
     }
   }
 
-  if (avaliados.length === 0) return null;
+  if (avaliados.length === 0) {
+    return { preco: null, imagem_url: null };
+  }
 
   // Ordenação estritamente determinística (independe da ordem em que vieram no HTML)
   avaliados.sort((a, b) => b.pontos - a.pontos || a.preco - b.preco);
 
   const maiorPontuacao = avaliados[0].pontos;
-  // Agrupa os cartões que empataram no mesmo patamar de marca/modelo (diferença <= 2 pontos de descritores)
-  const clusterTopo = avaliados
+  const cardsClusterTopo = avaliados
     .filter((item) => item.pontos >= maiorPontuacao - 2)
-    .map((item) => item.preco)
-    .sort((a, b) => a - b);
+    .sort((a, b) => a.preco - b.preco);
 
   // Seleciona o percentil central-inferior (35%) do cluster para evitar outliers de kits industriais caros
-  const indiceEscolhido = Math.floor((clusterTopo.length - 1) * 0.35);
-  return clusterTopo[indiceEscolhido];
+  const indiceEscolhido = Math.floor((cardsClusterTopo.length - 1) * 0.35);
+  const cardEscolhido = cardsClusterTopo[indiceEscolhido];
+  const imagemEscolhida =
+    cardEscolhido?.imagem_url ||
+    cardsClusterTopo.find((item) => item.imagem_url)?.imagem_url ||
+    avaliados.find((item) => item.imagem_url)?.imagem_url ||
+    null;
+
+  return {
+    preco: cardEscolhido ? cardEscolhido.preco : null,
+    imagem_url: imagemEscolhida,
+  };
+}
+
+/**
+ * Extrai a primeira URL de imagem HTTP/HTTPS válida dentro de um container Cheerio.
+ */
+function extrairImagemDeElemento($, contexto) {
+  const imagens = $(contexto).find('img').toArray();
+  for (const img of imagens) {
+    const candidatos = [$(img).attr('src'), $(img).attr('data-src'), $(img).attr('data-original')];
+    for (const src of candidatos) {
+      if (src && /^https?:\/\//i.test(src.trim()) && !ehImagemGenericaBloqueio(src.trim())) {
+        return src.trim();
+      }
+    }
+  }
+  return null;
 }
 
 /**
  * Analisa o HTML de resultados de busca (Buscapé ou Yahoo Search BR) para extrair
- * o preço real do produto em Reais (R$) de maneira 100% determinística e invariante à ordem de anúncios.
+ * o preço real em Reais (R$) e a imagem do produto de maneira 100% determinística.
  *
  * @param {string} htmlBusca
  * @param {string} [tituloOriginal='']
- * @returns {number|null}
+ * @returns {{ preco: number|null, imagem_url: string|null }}
  */
-function extrairPrecoDeHtmlBuscaWeb(htmlBusca, tituloOriginal = '') {
-  if (!htmlBusca || typeof htmlBusca !== 'string') return null;
+function extrairMetadadosDeHtmlBuscaWeb(htmlBusca, tituloOriginal = '') {
+  if (!htmlBusca || typeof htmlBusca !== 'string') {
+    return { preco: null, imagem_url: null };
+  }
   const $ = cheerio.load(htmlBusca);
 
   // Prioridade 1: Cartões estruturados de comparador de preços ([data-testid="product-card"] do Buscapé/Zoom)
@@ -1354,12 +1509,26 @@ function extrairPrecoDeHtmlBuscaWeb(htmlBusca, tituloOriginal = '') {
       const nome = $(el).find('[data-testid="product-card::name"], h2, h3').first().text().trim();
       const textoPreco = $(el).find('[data-testid="product-card::price"]').first().text().trim();
       const preco = normalizarPreco(textoPreco);
+      const imagem_url = extrairImagemDeElemento($, el);
       if (nome && preco !== null && preco >= 5) {
-        cartoes.push({ nome, preco });
+        cartoes.push({ nome, preco, imagem_url });
       }
     }
-    const melhorPrecoCard = selecionarMelhorPrecoDeCards(cartoes, tituloOriginal);
-    if (melhorPrecoCard !== null) return melhorPrecoCard;
+    const melhorCard = selecionarMelhorCardProduto(cartoes, tituloOriginal);
+    if (melhorCard.preco !== null || melhorCard.imagem_url !== null) {
+      return melhorCard;
+    }
+  }
+
+  // Extrai imagem de fallback dos resultados de busca (Yahoo Search BR / Shopping thumbnails)
+  let imagemFallbackBusca = null;
+  const seletoresImgBusca = $('img.s-img, .thmb img, .compImage img, .algo img').toArray();
+  for (const img of seletoresImgBusca) {
+    const src = $(img).attr('src') || $(img).attr('data-src');
+    if (src && /^https?:\/\//i.test(src.trim()) && !ehImagemGenericaBloqueio(src.trim())) {
+      imagemFallbackBusca = src.trim();
+      break;
+    }
   }
 
   // Prioridade 2: Snippets de resultados orgânicos (.algo, .compText, .sr)
@@ -1390,7 +1559,10 @@ function extrairPrecoDeHtmlBuscaWeb(htmlBusca, tituloOriginal = '') {
 
   if (precosOrganicos.length > 0) {
     precosOrganicos.sort((a, b) => a - b);
-    return precosOrganicos[Math.floor((precosOrganicos.length - 1) / 2)];
+    return {
+      preco: precosOrganicos[Math.floor((precosOrganicos.length - 1) / 2)],
+      imagem_url: imagemFallbackBusca,
+    };
   }
 
   // Prioridade 3: Cards de Shopping (.current-price, .s-price) estabilizados por mediana ordenada
@@ -1405,26 +1577,31 @@ function extrairPrecoDeHtmlBuscaWeb(htmlBusca, tituloOriginal = '') {
 
   if (precosShopping.length > 0) {
     precosShopping.sort((a, b) => a - b);
-    return precosShopping[Math.floor((precosShopping.length - 1) / 2)];
+    return {
+      preco: precosShopping[Math.floor((precosShopping.length - 1) / 2)],
+      imagem_url: imagemFallbackBusca,
+    };
   }
 
-  return null;
+  return { preco: null, imagem_url: imagemFallbackBusca };
 }
 
 /**
- * Busca dinamicamente o preço de mercado de um produto de forma determinística
- * quando a página original da loja (Shopee, Mercado Livre, Amazon) omite ou bloqueia o preço.
+ * Busca dinamicamente o preço de mercado e a imagem do produto de forma determinística
+ * quando a página original da loja (Shopee, Mercado Livre, Amazon) omite ou bloqueia os metadados.
  * Consulta primeiramente o catálogo estruturado do Buscapé e, como fallback, o Yahoo Search BR.
  *
  * @param {string} titulo - Título do produto (extraído do HTML ou do slug da URL)
  * @param {string} url - URL original do produto
  * @param {Function} [fetchFn=fetch] - Implementação de fetch (injetável para testes)
- * @returns {Promise<number|null>}
+ * @returns {Promise<{ preco: number|null, imagem_url: string|null }>}
  */
-export async function buscarPrecoPorPesquisaWeb(titulo, url, fetchFn = fetch) {
+export async function buscarMetadadosPorPesquisaWeb(titulo, url, fetchFn = fetch) {
   const baseTitulo = titulo || extrairTituloDeSlugUrl(url) || '';
   const consultaPrincipal = limparTituloParaPesquisa(baseTitulo, 6);
-  if (!consultaPrincipal || consultaPrincipal.length < 4) return null;
+  if (!consultaPrincipal || consultaPrincipal.length < 4) {
+    return { preco: null, imagem_url: null };
+  }
 
   const palavras = consultaPrincipal.split(/\s+/);
   let consultaConcisa = null;
@@ -1449,6 +1626,9 @@ export async function buscarPrecoPorPesquisaWeb(titulo, url, fetchFn = fetch) {
     );
   }
 
+  let precoEncontrado = null;
+  let imagemEncontrada = null;
+
   for (const urlPesquisa of urlsPesquisa) {
     try {
       const resposta = await fetchFn(urlPesquisa, {
@@ -1459,16 +1639,36 @@ export async function buscarPrecoPorPesquisaWeb(titulo, url, fetchFn = fetch) {
 
       if (!resposta || !resposta.ok) continue;
       const htmlBusca = await resposta.text();
-      const precoEncontrado = extrairPrecoDeHtmlBuscaWeb(htmlBusca, baseTitulo);
+      const extraido = extrairMetadadosDeHtmlBuscaWeb(htmlBusca, baseTitulo);
+      if (precoEncontrado === null && extraido.preco !== null) {
+        precoEncontrado = extraido.preco;
+      }
+      if (imagemEncontrada === null && extraido.imagem_url !== null) {
+        imagemEncontrada = extraido.imagem_url;
+      }
       if (precoEncontrado !== null) {
-        return precoEncontrado;
+        break;
       }
     } catch {
       // Segue para a próxima URL de busca caso ocorra timeout/erro
     }
   }
 
-  return null;
+  return { preco: precoEncontrado, imagem_url: imagemEncontrada };
+}
+
+/**
+ * Busca dinamicamente o preço de mercado de um produto de forma determinística.
+ * Mantido por compatibilidade com chamadas diretas existentes.
+ *
+ * @param {string} titulo
+ * @param {string} url
+ * @param {Function} [fetchFn=fetch]
+ * @returns {Promise<number|null>}
+ */
+export async function buscarPrecoPorPesquisaWeb(titulo, url, fetchFn = fetch) {
+  const { preco } = await buscarMetadadosPorPesquisaWeb(titulo, url, fetchFn);
+  return preco;
 }
 
 /**
@@ -1647,11 +1847,6 @@ export async function extrairMetadadosUrl(
   const chaveFinal = obterChaveCanonicaUrl(ultimaUrlFinal);
   const cacheFinal = CACHE_METADADOS_PRODUTO.get(chaveFinal) || cacheExistente;
 
-  // Fallback específico da Amazon: se não encontrou imagem no HTML, tenta direto da CDN pelo ASIN
-  const asin = extrairAsinAmazon(urlNormalizada) || extrairAsinAmazon(ultimaUrlFinal);
-  const imagemAmazon = asin ? await obterImagemAmazonPorAsin(asin, fetchFn) : null;
-  const imagemFinal = imagemAmazon || cacheFinal?.imagem_url || null;
-
   const tituloFinal =
     primeiroTitulo ||
     cacheFinal?.titulo ||
@@ -1659,18 +1854,44 @@ export async function extrairMetadadosUrl(
     extrairTituloDeSlugUrl(urlNormalizada) ||
     obterTituloFallback(urlNormalizada);
 
+  // Fallbacks de imagem quando o HTML direto foi bloqueado ou não trouxe og:image:
+  // 1. Parâmetros da própria URL (?imagem= ou image_ids da Shopee)
+  // 2. CDN da Amazon por ASIN
+  // 3. Cache canônico ou Catálogo de referência de homologação
+  const imagemDaUrl = extrairImagemDaUrl(urlNormalizada) || extrairImagemDaUrl(ultimaUrlFinal);
+  const asin = extrairAsinAmazon(urlNormalizada) || extrairAsinAmazon(ultimaUrlFinal);
+  const imagemAmazon = asin ? await obterImagemAmazonPorAsin(asin, fetchFn) : null;
+  let imagemFinal =
+    imagemDaUrl ||
+    imagemAmazon ||
+    cacheFinal?.imagem_url ||
+    obterImagemCatalogoReferencia(ultimaUrlFinal, tituloFinal) ||
+    obterImagemCatalogoReferencia(urlNormalizada, tituloFinal) ||
+    null;
+
   const precoExplicito = precoDaQuery ?? precoSugeridoValido ?? precoDoTexto;
   let precoFinal =
     precoExplicito ??
     cacheFinal?.price ??
     primeiroPreco ??
-    obterPrecoCatalogoReferencia(ultimaUrlFinal, tituloFinal);
+    obterPrecoCatalogoReferencia(ultimaUrlFinal, tituloFinal) ??
+    obterPrecoCatalogoReferencia(urlNormalizada, tituloFinal);
 
   if (
-    precoFinal === null &&
+    (precoFinal === null || !imagemFinal) &&
     (ehUrlMarketplaceConhecido(ultimaUrlFinal) || ehUrlMarketplaceConhecido(urlNormalizada))
   ) {
-    precoFinal = await buscarPrecoPorPesquisaWeb(tituloFinal, ultimaUrlFinal, fetchFn);
+    const dadosPesquisa = await buscarMetadadosPorPesquisaWeb(
+      tituloFinal,
+      ultimaUrlFinal,
+      fetchFn
+    );
+    if (precoFinal === null && dadosPesquisa.preco !== null) {
+      precoFinal = dadosPesquisa.preco;
+    }
+    if (!imagemFinal && dadosPesquisa.imagem_url) {
+      imagemFinal = dadosPesquisa.imagem_url;
+    }
   }
 
   const resultado = {

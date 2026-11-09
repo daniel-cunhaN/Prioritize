@@ -20,6 +20,37 @@ const REGEX_URL_HTTP = /(https?:\/\/[^\s"'<>\`]+)/i;
 const CARACTERES_PONTUACAO_FINAL = /[.,;:!?)\]}>"']+$/;
 
 /**
+ * Decodifica uma URL apenas quando o próprio protocolo (http:// ou https://) ainda estiver
+ * codificado com % (ex.: "https%3A%2F%2F..."). Evita decodificar uma segunda vez parâmetros
+ * internos da URL (como extraParams=%7B%22...%22%7D da Shopee), o que introduziria aspas
+ * literais e quebraria a query string.
+ */
+export function decodificarUrlSeNecessario(valor: string): string {
+  if (!valor || typeof valor !== 'string') return '';
+  const limpo = valor.trim();
+  if (!/^https?:\/\//i.test(limpo) && /https?%3A%2F%2F/i.test(limpo)) {
+    try {
+      return decodeURIComponent(limpo);
+    } catch {
+      return limpo;
+    }
+  }
+  return limpo;
+}
+
+/**
+ * Re-codifica blocos JSON em parâmetros de query string (ex.: ?extraParams={"display_model_id":123})
+ * caso tenham sido decodificados previamente, impedindo que aspas ou chaves truncem a URL.
+ */
+function sanitizarJsonEmQueryDeUrl(texto: string): string {
+  return texto.replace(
+    /([?&][^=\s&]+=\{)([^}\r\n]*)(\})/g,
+    (_match, inicio, miolo, fim) =>
+      `${inicio.replace('{', '%7B')}${miolo.replace(/"/g, '%22').replace(/\s+/g, '%20')}${fim.replace('}', '%7D')}`
+  );
+}
+
+/**
  * Extrai a primeira URL HTTP/HTTPS válida presente em uma string.
  *
  * Exemplos tratados com sucesso:
@@ -35,7 +66,7 @@ export function extrairUrlValida(conteudo?: string | null): string | null {
     return null;
   }
 
-  const texto = conteudo.trim();
+  const texto = sanitizarJsonEmQueryDeUrl(conteudo.trim());
   if (!texto) {
     return null;
   }
@@ -49,7 +80,7 @@ export function extrairUrlValida(conteudo?: string | null): string | null {
       const parametroUrl = objetoUrl.searchParams.get('url') || objetoUrl.searchParams.get('text');
 
       if (parametroUrl) {
-        return extrairUrlValida(decodeURIComponent(parametroUrl));
+        return extrairUrlValida(decodificarUrlSeNecessario(parametroUrl));
       }
     } catch (erro) {
       console.warn('Falha ao processar deep link prioritize://:', erro);
@@ -87,11 +118,7 @@ export function extrairUrlValida(conteudo?: string | null): string | null {
       const parametroEmbutido =
         urlValidada.searchParams.get('url') || urlValidada.searchParams.get('text');
       if (parametroEmbutido) {
-        try {
-          return extrairUrlValida(decodeURIComponent(parametroEmbutido));
-        } catch {
-          return extrairUrlValida(parametroEmbutido);
-        }
+        return extrairUrlValida(decodificarUrlSeNecessario(parametroEmbutido));
       }
       // Se for a URL da raiz local sem parâmetro, descarta para evitar loop
       return null;

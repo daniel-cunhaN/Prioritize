@@ -274,7 +274,7 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
 
 ## 7. Como Executar os Testes
 
-O projeto conta com uma suíte completa de **127 testes automatizados** (63 no backend e 64 no frontend) desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
+O projeto conta com uma suíte completa de **146 testes automatizados** (78 no backend e 68 no frontend) desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
 
 ### Execução Unificada (Backend + Frontend)
 Na raiz do projeto:
@@ -282,15 +282,15 @@ Na raiz do projeto:
 npm test
 ```
 
-### Testes do Backend (73 testes)
-Testes unitários e de integração de autenticação (rejeição de credenciais inválidas e tokens de usuários inexistentes), banco de dados, rotas de wishlist (filtros, busca, ordenação, preço, preview com texto de app e exclusão em lote via `DELETE /api/v1/wishlist`), extração de metadados resiliente a lojas anti-bot e Shopee/Amazon (SSR via crawler WhatsApp), filtragem de páginas institucionais de bloqueio (`bot-interceptor-muralla`), extração de títulos via slug de URL, leitura de scripts JSON de hidratação (`__NEXT_DATA__`, `__PRELOADED_STATE__`), normalização exata de milhares sem centavos (`R$ 3.299` -> `3299`), prioridade estrita de buybox, busca comparativa determinística com filtragem de acessórios, cache canônico anti-oscilação e segurança:
+### Testes do Backend (78 testes)
+Testes unitários e de integração de autenticação (rejeição de credenciais inválidas e tokens de usuários inexistentes), banco de dados, rotas de wishlist (filtros, busca, ordenação, preço, preview com texto de app e exclusão em lote via `DELETE /api/v1/wishlist`), extração de metadados resiliente a lojas anti-bot e Shopee/Amazon (SSR via crawler WhatsApp), filtragem de páginas institucionais de bloqueio (`bot-interceptor-muralla`), extração de títulos via slug de URL, leitura de scripts JSON de hidratação (`__NEXT_DATA__`, `__PRELOADED_STATE__`), extração de imagem de produto via parâmetros (`image_ids` da Shopee e `?imagem=`), sanitização de JSON em query strings do bookmarklet (`extraParams`), recuperação de imagem e preço em cartões estruturados de comparadores, normalização exata de milhares sem centavos (`R$ 3.299` -> `3299`), prioridade estrita de buybox, cache canônico anti-oscilação e segurança:
 ```bash
 cd backend
 npm test
 ```
 
-### Testes do Frontend (65 testes unitários)
-Valida extração de links compartilhados, tratamento robusto de URLs com query parameters em `compartilhamento.ts`, compatibilidade com React Native Web (eliminação de `<button>` aninhados, suporte a `boxShadow`, `useNativeDriver` seguro, `pointerEvents` e ausência de ícones inválidos da família Feather), modal estilizado de confirmação de exclusão individual e em lote (`ConfirmarExclusaoModal.tsx`), modo de seleção múltipla com barra de ações flutuante (`BarraAcoesLote.tsx`), modal estilizado de confirmação de logout (`ConfirmarLogoutModal.tsx`), remoção completa do Google do aplicativo, simulador de compartilhamento externo (`simulador-compartilhamento.html`), botão "Novo Desejo" com Design Spell e proporções 44px (`BotaoNovoDesejo.tsx`), exibição do valor extraído e proteção contra condições de corrida (`requisicaoExtracaoRef`) no Quick Creation Sheet (`AdicionarDesejoModal.tsx`), filtros e ordenação, agrupamento Kanban, formatação monetária e os fluxos de produtividade:
+### Testes do Frontend (68 testes unitários)
+Valida extração de links compartilhados, preservação integral de URLs complexas enviadas pelo bookmarklet `"Compartilhar com Prioritize"` (`?url=encodeURIComponent(window.location.href)`) sem truncamento em parâmetros JSON (`compartilhamento.ts` e `useCompartilhamento.ts`), compatibilidade com React Native Web (eliminação de `<button>` aninhados, suporte a `boxShadow`, `useNativeDriver` seguro, `pointerEvents` e ausência de ícones inválidos da família Feather), modal estilizado de confirmação de exclusão individual e em lote (`ConfirmarExclusaoModal.tsx`), modo de seleção múltipla com barra de ações flutuante (`BarraAcoesLote.tsx`), modal estilizado de confirmação de logout (`ConfirmarLogoutModal.tsx`), remoção completa do Google do aplicativo, simulador de compartilhamento externo (`simulador-compartilhamento.html`), botão "Novo Desejo" com Design Spell e proporções 44px (`BotaoNovoDesejo.tsx`), exibição do valor extraído e proteção contra condições de corrida (`requisicaoExtracaoRef`) no Quick Creation Sheet (`AdicionarDesejoModal.tsx`), filtros e ordenação, agrupamento Kanban, formatação monetária e os fluxos de produtividade:
 ```bash
 cd frontend
 npm test
@@ -340,3 +340,8 @@ O módulo de scraping foi aprimorado via TDD (`backend/testes/extracao_preco_uni
    - Prioridade estrita de containers de Buybox na Amazon e no Mercado Livre em `extrairPrecoHtml`, evitando capturar `.a-offscreen` de carrosséis patrocinados rotativos, ofertas de itens usados (`#aod-ingress-link`) ou subtítulos de parcelamento (`.ui-pdp-price__subtitles`).
    - Cache canônico em memória (`CACHE_METADADOS_PRODUTO`) indexado por `obterChaveCanonicaUrl` (`amazon:ASIN`, `shopee:shopId.itemId`, `ml:MLB...`) aliado ao controle de concorrência (`requisicaoExtracaoRef`) em `AdicionarDesejoModal.tsx`, garantindo que clicar em **"Extrair"** repetidas vezes para um mesmo link retorne sempre exatamente o mesmo valor.
 
+6. **Preservação de URL no Bookmarklet e Extração Multi-Camada de Imagem (`compartilhamento.ts`, `useCompartilhamento.ts` e `scraper.js`)**:
+   - **Prevenção de Dupla Decodificação e Truncamento (`decodificarUrlSeNecessario` e `sanitizarJsonEmQueryDeUrl`)**: Ao acionar o bookmarklet `javascript:(function(){window.open('http://localhost:8081/?url='+encodeURIComponent(window.location.href),'_blank');})();` em páginas da Shopee contendo parâmetros JSON (`?extraParams=%7B%22display_model_id%22...&image_ids=br-...`), o `URLSearchParams.get('url')` já decodifica a primeira camada. O utilitário agora evita aplicar `decodeURIComponent` uma segunda vez sobre URLs cujo protocolo (`https://`) já está decodificado e re-codifica chaves/aspas JSON em query strings (`{`, `}`, `"`), impedindo que a expressão regular truncasse a URL antes de `&image_ids=...` ou causasse erro HTTP 400 na Shopee.
+   - **Extração Direta de Imagem da URL (`extrairImagemDaUrl`)**: Reconstrói instantaneamente a URL da CDN da Shopee (`https://down-br.img.susercontent.com/file/{id}`) a partir do parâmetro `image_ids` presente na URL compartilhada ou lê parâmetros explícitos (`?imagem=`, `?image=`).
+   - **Extração de Imagem em Scripts de Hidratação (`extrairImagemDeScriptEmbutido`)**: Recupera imagens de produtos do estado JSON `__PRELOADED_STATE__` do Mercado Livre (`https://http2.mlstatic.com/D_NQ_NP_...`) e `__NEXT_DATA__` da Shopee quando a tag `og:image` é omitida.
+   - **Fallback de Imagem por Pesquisa Estruturada e Catálogo (`buscarMetadadosPorPesquisaWeb`, `selecionarMelhorCardProduto` e `obterImagemCatalogoReferencia`)**: Quando lojas como Mercado Livre (`bot-interceptor-muralla`) ou Shopee bloqueiam completamente o HTML direto, o serviço extrai tanto o preço quanto a imagem correspondente do cartão de produto mais aderente no Buscapé (`[data-testid="product-card"] img`) ou Yahoo Search BR, além de fornecer imagens de referência para itens da vitrine de homologação.

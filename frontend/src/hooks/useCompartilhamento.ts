@@ -15,6 +15,7 @@ import * as Linking from 'expo-linking';
 import { useShareIntent } from 'expo-share-intent';
 import {
   extrairUrlValida,
+  decodificarUrlSeNecessario,
   definirUrlCompartilhadaPendente,
   obterUrlCompartilhadaPendente,
   consumirUrlCompartilhadaPendente,
@@ -82,28 +83,28 @@ export function useCompartilhamento() {
     };
   }, [processarTextoCompartilhado]);
 
-  // 3. Captura parâmetros na Web (?url=... ou ?text=... e opcionalmente &preco=...)
+  // 3. Captura parâmetros na Web (?url=... ou ?text=... e opcionalmente &preco=... e &imagem=...)
   useEffect(() => {
     if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.search) {
       const params = new URLSearchParams(window.location.search);
       const urlWebBruta = params.get('url') || params.get('text');
       const precoWebBruto = params.get('preco') || params.get('price');
+      const imagemWebBruta = params.get('imagem') || params.get('image') || params.get('img');
       if (urlWebBruta) {
-        let urlDecodificada = urlWebBruta;
-        try {
-          // urlWebBruta do URLSearchParams já remove uma camada de codificação.
-          // Decodifica apenas se ainda restarem caracteres codificados com %
-          if (urlDecodificada.includes('%')) {
-            urlDecodificada = decodeURIComponent(urlDecodificada);
-          }
-        } catch {
-          urlDecodificada = urlWebBruta;
-        }
+        // URLSearchParams já decodifica a camada do encodeURIComponent;
+        // só decodifica novamente caso o próprio protocolo http/https ainda esteja codificado
+        let urlDecodificada = decodificarUrlSeNecessario(urlWebBruta);
 
         // Se houver preço informado na query string da vitrine/simulador e a URL não o tiver
         if (precoWebBruto && !urlDecodificada.includes('preco=') && !urlDecodificada.includes('price=')) {
           const separador = urlDecodificada.includes('?') ? '&' : '?';
           urlDecodificada = `${urlDecodificada}${separador}preco=${encodeURIComponent(precoWebBruto)}`;
+        }
+
+        // Se houver imagem informada na query string e a URL não a tiver
+        if (imagemWebBruta && !urlDecodificada.includes('imagem=') && !urlDecodificada.includes('image=')) {
+          const separador = urlDecodificada.includes('?') ? '&' : '?';
+          urlDecodificada = `${urlDecodificada}${separador}imagem=${encodeURIComponent(imagemWebBruta)}`;
         }
 
         processarTextoCompartilhado(urlDecodificada);
