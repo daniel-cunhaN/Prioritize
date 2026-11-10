@@ -346,9 +346,6 @@ O módulo de scraping foi aprimorado via TDD (`backend/testes/extracao_preco_uni
    - **Extração de Imagem em Scripts de Hidratação (`extrairImagemDeScriptEmbutido`)**: Recupera imagens de produtos do estado JSON `__PRELOADED_STATE__` do Mercado Livre (`https://http2.mlstatic.com/D_NQ_NP_...`) e `__NEXT_DATA__` da Shopee quando a tag `og:image` é omitida.
    - **Fallback de Imagem por Pesquisa Estruturada e Catálogo (`buscarMetadadosPorPesquisaWeb`, `selecionarMelhorCardProduto` e `obterImagemCatalogoReferencia`)**: Quando lojas como Mercado Livre (`bot-interceptor-muralla`) ou Shopee bloqueiam completamente o HTML direto, o serviço extrai tanto o preço quanto a imagem correspondente do cartão de produto mais aderente no Buscapé (`[data-testid="product-card"] img`) ou Yahoo Search BR, além de fornecer imagens de referência para itens da vitrine de homologação.
 
-
----
-
 ## 11. Inicialização Unificada e Abertura Automática no Mozilla Firefox (`start.js` e `start.bat`)
 
 Os inicializadores da raiz do projeto (`start.js` e `start.bat`) foram aprimorados para prover uma experiência completa de inicialização:
@@ -385,3 +382,20 @@ Implementado o fluxo completo de recuperação e redefinição de senha via TDD 
    - Acionado ao clicar em **"Esqueceu?"** na tela de Login (`LoginScreen.tsx`).
    - **Etapa 1 (`solicitar`)**: Coleta e valida o e-mail da conta e solicita o token de 6 dígitos.
    - **Etapa 2 (`redefinir`)**: Exibe o card monocromático do token gerado no modo híbrido (com preenchimento automático), campo para o código de 6 dígitos, campo de **Nova Senha** com indicador monocromático de força (`● Senha forte`, `◐ Senha média`, `○ Senha fraca`) e confirmação de senha.
+
+---
+
+## 13. Roteiro de Consultas SQL em Tempo Real para Apresentação (`docs/roteiro-consultas-sql.md`)
+
+Para apresentações e demonstrações práticas, o projeto conta com um roteiro estruturado em [docs/roteiro-consultas-sql.md](file:///c:/Users/Suporte/Documents/projetos/Prioritize/docs/roteiro-consultas-sql.md) mapeando cada ação do usuário na interface diretamente a comandos SQL executáveis no terminal:
+- **Terminal com Formatação Elegante**: Instruções para visualização tabular formatada no projetor via `sqlite3 -box -header backend/wishlist.db`.
+- **Ações Mapeadas**:
+  1. Cadastro e autenticação de usuário (exibição de hash criptográfico seguro `bcrypt` e UUID).
+  2. Adição de produto por scraping (extração de título, preço numérico `REAL`, URL da imagem e classificação de importância).
+  3. Relacionamento 1:N com `INNER JOIN` entre as tabelas `users` e `wishlist_items`.
+  4. Agrupamento por raias do Kanban com `GROUP BY priority`, contagem de itens e soma financeira acumulada.
+  5. Edição em tempo real e auditoria do timestamp `updated_at`.
+  6. Pesquisa textual e filtros sanitizados contra SQL Injection via prepared statements.
+  7. Exclusão em lote com verificação atômica de contagem antes e depois.
+  8. Checagem de integridade referencial com `PRAGMA foreign_key_check` e regra `ON DELETE CASCADE`.
+  9. Recuperação de senha com auditoria de tokens criptografados (`password_reset_tokens`) com flag `used` e `expires_at`.
