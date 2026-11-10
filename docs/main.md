@@ -345,3 +345,14 @@ O módulo de scraping foi aprimorado via TDD (`backend/testes/extracao_preco_uni
    - **Extração Direta de Imagem da URL (`extrairImagemDaUrl`)**: Reconstrói instantaneamente a URL da CDN da Shopee (`https://down-br.img.susercontent.com/file/{id}`) a partir do parâmetro `image_ids` presente na URL compartilhada ou lê parâmetros explícitos (`?imagem=`, `?image=`).
    - **Extração de Imagem em Scripts de Hidratação (`extrairImagemDeScriptEmbutido`)**: Recupera imagens de produtos do estado JSON `__PRELOADED_STATE__` do Mercado Livre (`https://http2.mlstatic.com/D_NQ_NP_...`) e `__NEXT_DATA__` da Shopee quando a tag `og:image` é omitida.
    - **Fallback de Imagem por Pesquisa Estruturada e Catálogo (`buscarMetadadosPorPesquisaWeb`, `selecionarMelhorCardProduto` e `obterImagemCatalogoReferencia`)**: Quando lojas como Mercado Livre (`bot-interceptor-muralla`) ou Shopee bloqueiam completamente o HTML direto, o serviço extrai tanto o preço quanto a imagem correspondente do cartão de produto mais aderente no Buscapé (`[data-testid="product-card"] img`) ou Yahoo Search BR, além de fornecer imagens de referência para itens da vitrine de homologação.
+
+
+---
+
+## 11. Inicialização Unificada e Abertura Automática no Mozilla Firefox (`start.js` e `start.bat`)
+
+Os inicializadores da raiz do projeto (`start.js` e `start.bat`) foram aprimorados para prover uma experiência completa de inicialização:
+- **Verificação e Instalação Automática de Dependências (`instalarDependenciasSeNecessario`)**: Verifica a existência de `backend/node_modules` e `frontend/node_modules` antes da execução, disparando `npm install` automaticamente caso algum diretório de pacotes esteja ausente.
+- **Execução Web Direta**: Inicia concorrentemente o **Backend Express** na porta `8000` (`http://127.0.0.1:8000`) e o **Frontend Expo Web** na porta `8081` (`http://localhost:8081`) com a variável `BROWSER=none` para evitar abertura duplicada no navegador padrão do sistema.
+- **Detecção de Disponibilidade e Abertura no Firefox (`aguardarServidorEAbrirFirefox` e `abrirNoFirefox`)**: Realiza polling HTTP sobre `http://localhost:8081` até que o Metro Bundler responda e aciona diretamente o executável do **Mozilla Firefox** (`C:\Program Files\Mozilla Firefox\firefox.exe` no Windows ou `firefox` em sistemas Unix/macOS).
+- **Padronização ES Modules (`package.json`)**: Adicionado `"type": "module"` e o script `"install:all"` no `package.json` raiz, eliminando avisos de `MODULE_TYPELESS_PACKAGE_JSON` no Node.js.

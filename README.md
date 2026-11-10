@@ -21,21 +21,16 @@ Aplicação fullstack multiplataforma com backend em **Node.js (Express + SQLite
 
 ### 1. Instalar as Dependências
 
-```bash
-# Setup do Backend (Node.js)
-cd backend
-npm install
-cd ..
+Os inicializadores (`node start.js` e `start.bat`) verificam e instalam automaticamente as dependências ausentes de `backend` e `frontend`. Para instalar manualmente:
 
-# Setup do Frontend (Expo)
-cd frontend
-npm install
-cd ..
+```bash
+# Instalação unificada (Backend + Frontend)
+npm run install:all
 ```
 
 ---
 
-### 2. Iniciar a Aplicação
+### 2. Iniciar a Aplicação (Abertura Automática no Firefox)
 
 #### Opção A: Via inicializador unificado (Windows)
 ```cmd
@@ -48,6 +43,8 @@ node start.js
 # ou
 npm run dev
 ```
+
+Ao executar qualquer uma das opções acima, o inicializador verifica as dependências, sobe o **Backend Express** na porta `8000`, inicia o **Frontend Expo Web** na porta `8081` e abre automaticamente a aplicação no **Mozilla Firefox**.
 
 - **Aplicação Web (Expo)**: http://localhost:8081
 - **API Backend**: http://127.0.0.1:8000
