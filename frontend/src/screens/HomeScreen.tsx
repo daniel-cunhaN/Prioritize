@@ -225,6 +225,7 @@ export default function HomeScreen({ navigation }: any) {
         }
 
         registrarEvento({
+          itemId: item.id,
           simbolo: jaConcluido ? '↺' : '✓',
           destaque: !jaConcluido,
           titulo: jaConcluido
@@ -276,9 +277,10 @@ export default function HomeScreen({ navigation }: any) {
     setDesejos((prev) => [novoDesejo, ...prev]);
     const conf = PRIORITY_CONFIG[Number(novoDesejo.priority) || 2];
     registrarEvento({
+      itemId: novoDesejo.id,
       simbolo: '+',
       destaque: Number(novoDesejo.priority) === 3,
-      titulo: `Criou "${novoDesejo.title || 'Novo desejo'}"`,
+      titulo: `Adicionou "${novoDesejo.title || 'Novo desejo'}"`,
       detalhe: `Classificado como ${conf?.label || 'Média'} Prioridade`,
     });
   };
@@ -300,6 +302,7 @@ export default function HomeScreen({ navigation }: any) {
     );
     const conf = PRIORITY_CONFIG[Number(itemAtualizado.priority) || 2];
     registrarEvento({
+      itemId: itemAtualizado.id,
       simbolo: '✎',
       destaque: false,
       titulo: `Atualizou "${itemAtualizado.title || 'Desejo'}"`,
@@ -320,6 +323,7 @@ export default function HomeScreen({ navigation }: any) {
       await client.delete(`/wishlist/${id}`);
       setDesejos((prev) => prev.filter((item) => item.id !== id));
       registrarEvento({
+        itemId: id,
         simbolo: '✕',
         destaque: false,
         titulo: `Removeu "${titulo || 'Item'}"`,

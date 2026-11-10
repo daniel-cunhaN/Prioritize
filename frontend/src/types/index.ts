@@ -59,6 +59,7 @@ export interface FiltrosDesejo {
 /** Evento cronológico exibido no Registro de Atividades (Activity Log) */
 export interface EventoAtividade {
   id: string;
+  itemId?: string;
   simbolo: '✓' | '+' | '✎' | '↺' | '✕';
   destaque: boolean;
   titulo: string;

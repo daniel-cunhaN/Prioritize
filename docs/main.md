@@ -274,7 +274,7 @@ O serviço assíncrono de extração de metadados utiliza o cliente `fetch` nati
 
 ## 7. Como Executar os Testes
 
-O projeto conta com uma suíte completa de **146 testes automatizados** (78 no backend e 68 no frontend) desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
+O projeto conta com uma suíte completa de **157 testes automatizados** (82 no backend e 75 no frontend) desenvolvida com a metodologia **TDD (Test-Driven Development)** e o runner nativo `node:test`:
 
 ### Execução Unificada (Backend + Frontend)
 Na raiz do projeto:
@@ -282,15 +282,15 @@ Na raiz do projeto:
 npm test
 ```
 
-### Testes do Backend (78 testes)
-Testes unitários e de integração de autenticação (rejeição de credenciais inválidas e tokens de usuários inexistentes), banco de dados, rotas de wishlist (filtros, busca, ordenação, preço, preview com texto de app e exclusão em lote via `DELETE /api/v1/wishlist`), extração de metadados resiliente a lojas anti-bot e Shopee/Amazon (SSR via crawler WhatsApp), filtragem de páginas institucionais de bloqueio (`bot-interceptor-muralla`), extração de títulos via slug de URL, leitura de scripts JSON de hidratação (`__NEXT_DATA__`, `__PRELOADED_STATE__`), extração de imagem de produto via parâmetros (`image_ids` da Shopee e `?imagem=`), sanitização de JSON em query strings do bookmarklet (`extraParams`), recuperação de imagem e preço em cartões estruturados de comparadores, normalização exata de milhares sem centavos (`R$ 3.299` -> `3299`), prioridade estrita de buybox, cache canônico anti-oscilação e segurança:
+### Testes do Backend (82 testes)
+Testes unitários e de integração de autenticação (rejeição de credenciais inválidas e tokens de usuários inexistentes), banco de dados, rotas de wishlist (filtros, busca, ordenação, preço, preview com texto de app e exclusão em lote via `DELETE /api/v1/wishlist`), extração de metadados resiliente a lojas anti-bot e Shopee/Amazon (SSR via crawler WhatsApp), filtragem de páginas institucionais de bloqueio (`bot-interceptor-muralla`), extração de títulos via slug de URL, leitura de scripts JSON de hidratação (`__NEXT_DATA__`, `__PRELOADED_STATE__`), extração de imagem de produto via parâmetros (`image_ids` da Shopee e `?imagem=`), sanitização de JSON em query strings do bookmarklet (`extraParams`), recuperação de imagem e preço em cartões estruturados de comparadores, normalização exata de milhares sem centavos (`R$ 3.299` -> `3299`), prioridade estrita de buybox, cache canônico anti-oscilação, fluxo de recuperação de senha com token de 6 dígitos em 2 etapas e segurança:
 ```bash
 cd backend
 npm test
 ```
 
-### Testes do Frontend (68 testes unitários)
-Valida extração de links compartilhados, preservação integral de URLs complexas enviadas pelo bookmarklet `"Compartilhar com Prioritize"` (`?url=encodeURIComponent(window.location.href)`) sem truncamento em parâmetros JSON (`compartilhamento.ts` e `useCompartilhamento.ts`), compatibilidade com React Native Web (eliminação de `<button>` aninhados, suporte a `boxShadow`, `useNativeDriver` seguro, `pointerEvents` e ausência de ícones inválidos da família Feather), modal estilizado de confirmação de exclusão individual e em lote (`ConfirmarExclusaoModal.tsx`), modo de seleção múltipla com barra de ações flutuante (`BarraAcoesLote.tsx`), modal estilizado de confirmação de logout (`ConfirmarLogoutModal.tsx`), remoção completa do Google do aplicativo, simulador de compartilhamento externo (`simulador-compartilhamento.html`), botão "Novo Desejo" com Design Spell e proporções 44px (`BotaoNovoDesejo.tsx`), exibição do valor extraído e proteção contra condições de corrida (`requisicaoExtracaoRef`) no Quick Creation Sheet (`AdicionarDesejoModal.tsx`), filtros e ordenação, agrupamento Kanban, formatação monetária e os fluxos de produtividade:
+### Testes do Frontend (75 testes unitários)
+Valida extração de links compartilhados, preservação integral de URLs complexas enviadas pelo bookmarklet `"Compartilhar com Prioritize"` (`?url=encodeURIComponent(window.location.href)`) sem truncamento em parâmetros JSON (`compartilhamento.ts` e `useCompartilhamento.ts`), compatibilidade com React Native Web (eliminação de `<button>` aninhados, suporte a `boxShadow`, `useNativeDriver` seguro, `pointerEvents` e ausência de ícones inválidos da família Feather), modal estilizado de confirmação de exclusão individual e em lote (`ConfirmarExclusaoModal.tsx`), modo de seleção múltipla com barra de ações flutuante (`BarraAcoesLote.tsx`), modal estilizado de confirmação de logout (`ConfirmarLogoutModal.tsx`), modal de recuperação de senha em duas etapas (`RecuperarSenhaModal.tsx`), unificação e desduplicação da linha do tempo do Registro de Atividades (`atividades.ts` e `RegistroAtividades.tsx`), remoção completa do Google do aplicativo, simulador de compartilhamento externo (`simulador-compartilhamento.html`), botão "Novo Desejo" com Design Spell e proporções 44px (`BotaoNovoDesejo.tsx`), exibição do valor extraído e proteção contra condições de corrida (`requisicaoExtracaoRef`) no Quick Creation Sheet (`AdicionarDesejoModal.tsx`), filtros e ordenação, agrupamento Kanban, formatação monetária e os fluxos de produtividade:
 ```bash
 cd frontend
 npm test
@@ -399,3 +399,25 @@ Para apresentações e demonstrações práticas, o projeto conta com um roteiro
   7. Exclusão em lote com verificação atômica de contagem antes e depois.
   8. Checagem de integridade referencial com `PRAGMA foreign_key_check` e regra `ON DELETE CASCADE`.
   9. Recuperação de senha com auditoria de tokens criptografados (`password_reset_tokens`) com flag `used` e `expires_at`.
+
+---
+
+## 14. Unificação e Desduplicação do Registro de Atividades (`atividades.ts` e `RegistroAtividades.tsx`)
+
+Na interface de histórico e auditoria do usuário (**Registro de Atividades**), foi identificado um comportamento em que a criação de um novo desejo gerava duas entradas simultâneas na linha do tempo: uma com o verbo `"Criou"` (gerada pela memória de sessão do `HomeScreen.tsx`) e outra com o verbo `"Adicionou"` (reconstruída a partir dos itens salvos no banco de dados).
+
+A solução foi implementada e validada seguindo **TDD**:
+1. **Unificação Semântica**:
+   - Padronização de todas as ações de inserção para o verbo unificado: `Adicionou "[Título do Produto]"`.
+2. **Propriedade de Rastreabilidade (`itemId`)**:
+   - O tipo `EventoAtividade` em `frontend/src/types/index.ts` recebeu o atributo opcional `itemId?: string;`.
+   - A `HomeScreen.tsx` foi atualizada para propagar o `itemId` em todas as ações de ciclo de vida (`handleDesejoCriado`, `handleDesejoAtualizado`, `handleConfirmarExclusao` e `handleAlternarChecklist`).
+3. **Módulo de Lógica Pura (`frontend/src/utils/atividades.ts`)**:
+   - Criada a função pura `mesclarEventosLinhaDoTempo(eventosSessao, itens)`.
+   - Implementa filtragem e desduplicação através de conjuntos indexados por `itemId` e chaves compostas de título sanitizado. Se um item recém-adicionado já possui seu evento correspondente na sessão ativa, a réplica histórica é suprimida, mantendo o timestamp original e a fidelidade cronológica.
+   - Preserva integralmente ações subsequentes (como atualizações `✎`, exclusões `✕` e checklist `✓`).
+4. **Integração no Componente (`RegistroAtividades.tsx`)**:
+   - O componente consome diretamente `mesclarEventosLinhaDoTempo` dentro do `useMemo`, eliminando concatenação ingênua e garantindo renderização limpa e consistente.
+5. **Cobertura de Testes Automatizados**:
+   - Suíte dedicada em `frontend/testes/unificacao_log_atividades.test.mjs` cobrindo contrato de dados, unificação de termos, desduplicação de adições e coexistência de mutações posteriores.
+

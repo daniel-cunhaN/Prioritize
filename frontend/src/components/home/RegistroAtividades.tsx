@@ -9,7 +9,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme, typography, radius } from '../../theme';
 import { EventoAtividade, WishlistItem } from '../../types';
-import { PRIORITY_CONFIG } from './ProductCard';
+import { mesclarEventosLinhaDoTempo } from '../../utils/atividades';
 
 interface Props {
   eventosSessao: EventoAtividade[];
@@ -37,23 +37,9 @@ function formatarHorarioRelativo(dataIso: string): string {
 export default function RegistroAtividades({ eventosSessao, itens }: Props) {
   const theme = useTheme();
 
-  // Mescla os eventos em tempo real da sessão com o histórico de criação dos itens salvos
+  // Mescla os eventos em tempo real da sessão com o histórico, desduplicando ações de criação
   const linhaDoTempo = useMemo(() => {
-    const eventosHistoricos: EventoAtividade[] = itens.map((item) => {
-      const conf = PRIORITY_CONFIG[item.priority] || PRIORITY_CONFIG[2];
-      return {
-        id: `hist-${item.id}`,
-        simbolo: '+',
-        destaque: Number(item.priority) === 3,
-        titulo: `Adicionou "${item.title || 'Item sem título'}"`,
-        detalhe: `Classificado como ${conf.label} Prioridade`,
-        dataIso: item.created_at,
-      };
-    });
-
-    return [...eventosSessao, ...eventosHistoricos].sort(
-      (a, b) => new Date(b.dataIso).getTime() - new Date(a.dataIso).getTime()
-    );
+    return mesclarEventosLinhaDoTempo(eventosSessao, itens);
   }, [eventosSessao, itens]);
 
   return (
