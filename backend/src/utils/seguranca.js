@@ -4,6 +4,7 @@
  */
 
 import bcrypt from 'bcryptjs';
+import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/configuracao.js';
 
@@ -40,4 +41,24 @@ export function criarTokenAcesso(dados) {
  */
 export function verificarTokenAcesso(token) {
   return jwt.verify(token, config.jwtSecret);
+}
+
+/**
+ * Gera um token numérico criptograficamente seguro de 6 dígitos para recuperação de senha.
+ * @returns {string} Código numérico de 6 dígitos (ex: "482915").
+ */
+export function gerarTokenRecuperacao() {
+  return crypto.randomInt(100000, 1000000).toString();
+}
+
+/**
+ * Gera o hash SHA-256 determinístico de um token de recuperação para armazenamento seguro no banco.
+ * @param {string} token Código de recuperação em texto puro.
+ * @returns {string} Hash hexadecimal SHA-256.
+ */
+export function gerarHashTokenRecuperacao(token) {
+  return crypto
+    .createHash('sha256')
+    .update(String(token).trim())
+    .digest('hex');
 }

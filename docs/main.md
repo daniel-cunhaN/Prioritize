@@ -356,3 +356,32 @@ Os inicializadores da raiz do projeto (`start.js` e `start.bat`) foram aprimorad
 - **Execução Web Direta**: Inicia concorrentemente o **Backend Express** na porta `8000` (`http://127.0.0.1:8000`) e o **Frontend Expo Web** na porta `8081` (`http://localhost:8081`) com a variável `BROWSER=none` para evitar abertura duplicada no navegador padrão do sistema.
 - **Detecção de Disponibilidade e Abertura no Firefox (`aguardarServidorEAbrirFirefox` e `abrirNoFirefox`)**: Realiza polling HTTP sobre `http://localhost:8081` até que o Metro Bundler responda e aciona diretamente o executável do **Mozilla Firefox** (`C:\Program Files\Mozilla Firefox\firefox.exe` no Windows ou `firefox` em sistemas Unix/macOS).
 - **Padronização ES Modules (`package.json`)**: Adicionado `"type": "module"` e o script `"install:all"` no `package.json` raiz, eliminando avisos de `MODULE_TYPELESS_PACKAGE_JSON` no Node.js.
+
+
+---
+
+## 12. Recuperação de Senha ("Esqueci Minha Senha") em 2 Etapas com Entrega Híbrida
+
+Implementado o fluxo completo de recuperação e redefinição de senha via TDD (`backend/testes/recuperacao_senha.test.js` e `frontend/testes/recuperacao_senha_ui.test.mjs`):
+
+1. **Modelo de Dados (`password_reset_tokens` em `backend/src/db/schema.js`)**:
+   - `id` (`TEXT PRIMARY KEY`): Identificador UUID v4 do token.
+   - `user_id` (`TEXT NOT NULL`): Chave estrangeira vinculada a `users(id)` (`ON DELETE CASCADE`).
+   - `token_hash` (`TEXT NOT NULL`): Hash criptográfico SHA-256 do código de 6 dígitos (`gerarHashTokenRecuperacao` em `seguranca.js`), garantindo que nenhum token seja salvo em texto puro no SQLite.
+   - `expires_at` (`TEXT NOT NULL`): Data/hora de expiração em ISO 8601 (validade de 15 minutos).
+   - `used` (`INTEGER NOT NULL DEFAULT 0`): Flag de uso único para impedir reutilização.
+   - `created_at` (`TEXT NOT NULL`): Data/hora de emissão.
+
+2. **Serviço Híbrido de Entrega (`backend/src/services/emailRecuperacao.js`)**:
+   - Registra o código de 6 dígitos no terminal do servidor Node.js.
+   - Realiza disparo via protocolo SMTP caso variáveis `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER` e `SMTP_PASS` estejam configuradas no ambiente.
+   - Opera nativamente em **Modo Híbrido / Simulador** para desenvolvimento local e apresentações acadêmicas, retornando `reset_token_preview` na resposta da API para exibição e preenchimento imediato na interface.
+
+3. **Endpoints de Recuperação (`backend/src/api/routes/auth.js`)**:
+   - `POST /api/v1/auth/forgot-password`: Recebe `{ email }`, invalida tokens anteriores ativos do usuário, gera um novo código numérico de 6 dígitos (`gerarTokenRecuperacao`), persiste o `token_hash` com expiração de 15 minutos e aciona `enviarEmailRecuperacao`.
+   - `POST /api/v1/auth/reset-password`: Recebe `{ email, token, new_password }`, valida a correspondência do hash SHA-256, verifica se o token não foi utilizado (`used = 0`) e não expirou, atualiza `hashed_password` com `bcryptjs` e invalida o token consumido.
+
+4. **Modal Interativo em 2 Etapas no Frontend (`frontend/src/components/RecuperarSenhaModal.tsx` e `LoginScreen.tsx`)**:
+   - Acionado ao clicar em **"Esqueceu?"** na tela de Login (`LoginScreen.tsx`).
+   - **Etapa 1 (`solicitar`)**: Coleta e valida o e-mail da conta e solicita o token de 6 dígitos.
+   - **Etapa 2 (`redefinir`)**: Exibe o card monocromático do token gerado no modo híbrido (com preenchimento automático), campo para o código de 6 dígitos, campo de **Nova Senha** com indicador monocromático de força (`● Senha forte`, `◐ Senha média`, `○ Senha fraca`) e confirmação de senha.

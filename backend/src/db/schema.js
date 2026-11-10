@@ -32,3 +32,18 @@ export const TABELA_DESEJOS = `
   );
   CREATE INDEX IF NOT EXISTS idx_wishlist_user ON wishlist_items(user_id);
 `;
+
+// Criação da tabela de tokens de recuperação de senha com expiração e controle de uso único
+export const TABELA_TOKENS_RECUPERACAO = `
+  CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    token_hash TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_reset_tokens_user ON password_reset_tokens(user_id);
+  CREATE INDEX IF NOT EXISTS idx_reset_tokens_hash ON password_reset_tokens(token_hash);
+`;

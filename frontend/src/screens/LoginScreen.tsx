@@ -27,6 +27,7 @@ import client from '../api/client';
 import * as SecureStore from 'expo-secure-store';
 import { useTheme, spacing, radius, shadows, typography } from '../theme';
 import AlertBox, { TipoAlerta } from '../components/AlertBox';
+import RecuperarSenhaModal from '../components/RecuperarSenhaModal';
 import {
   validarEmail,
   sanitizarInput,
@@ -45,6 +46,7 @@ export default function LoginScreen({ navigation }: any) {
   const [senha, setSenha] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [senhaVisivel, setSenhaVisivel] = useState(false);
+  const [modalRecuperarVisivel, setModalRecuperarVisivel] = useState(false);
 
   /* ── Feedback de Alerta (AlertBox) ── */
   const [alerta, setAlerta] = useState<{ tipo: TipoAlerta; mensagem: string } | null>(null);
@@ -361,13 +363,10 @@ export default function LoginScreen({ navigation }: any) {
                   Senha
                 </Text>
                 <TouchableOpacity
-                  onPress={() =>
-                    setAlerta({
-                      tipo: 'info',
-                      mensagem: 'A recuperação de senha estará disponível em breve.',
-                    })
-                  }
+                  onPress={() => setModalRecuperarVisivel(true)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Recuperar senha esquecida"
                 >
                   <Text style={[estilos.linkEsqueciSenha, estilosDinamicos.destaqueLink]}>
                     Esqueceu?
@@ -467,6 +466,22 @@ export default function LoginScreen({ navigation }: any) {
           </View>
         </View>
       </ScrollView>
+
+      {/* ── Modal Interativo em 2 Etapas para Recuperação de Senha ── */}
+      <RecuperarSenhaModal
+        visivel={modalRecuperarVisivel}
+        emailInicial={email}
+        aoFechar={() => setModalRecuperarVisivel(false)}
+        aoSucessoRedefinicao={(emailRecuperado) => {
+          setModalRecuperarVisivel(false);
+          setEmail(emailRecuperado);
+          setSenha('');
+          setAlerta({
+            tipo: 'sucesso',
+            mensagem: 'Senha redefinida com sucesso! Entre com sua nova senha.',
+          });
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }

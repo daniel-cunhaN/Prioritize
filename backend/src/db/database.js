@@ -6,7 +6,7 @@
 
 import { DatabaseSync } from 'node:sqlite';
 import { config } from '../config/configuracao.js';
-import { TABELA_USUARIOS, TABELA_DESEJOS } from './schema.js';
+import { TABELA_USUARIOS, TABELA_DESEJOS, TABELA_TOKENS_RECUPERACAO } from './schema.js';
 
 let dbInstancia = null;
 
@@ -25,6 +25,7 @@ export function obterBanco(caminhoPersonalizado = null) {
     // Inicializa as tabelas se ainda não existirem
     dbInstancia.exec(TABELA_USUARIOS);
     dbInstancia.exec(TABELA_DESEJOS);
+    dbInstancia.exec(TABELA_TOKENS_RECUPERACAO);
 
     // Migração segura para adicionar a coluna 'price' caso a base já exista
     try {
